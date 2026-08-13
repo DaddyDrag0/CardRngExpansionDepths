@@ -91,6 +91,7 @@ export interface BattleBoosts {
   synthHuman?: number
   endTimes?: number
   vampireMatron?: number
+  fossils?: number
 }
 
 export interface BattleState {

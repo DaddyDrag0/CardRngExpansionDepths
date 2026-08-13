@@ -1,0 +1,82 @@
+name: Fix Stat Aura Display
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/fix-stat-aura-display.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message == 'Queue Stat Aura display fix'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Fix hidden Stat Aura values and expand boosted scope
+        shell: python
+        run: |
+          from pathlib import Path
+
+          # Remove the old CSS rule that hid every bold value in the aura summary.
+          p = Path('src/styles.css')
+          s = p.read_text()
+          old = "/* Aura display cleanup: hide the raw STAT% placeholder copy and the separate value label. */\n.aura-desc{display:none!important}.aura-exact b{display:none!important}.aura-exact{margin-top:9px;padding-top:8px}.aura-exact br:first-of-type{display:none}"
+          new = "/* Keep the obsolete raw aura description hidden, but allow the resolved values to render. */\n.aura-desc{display:none!important}.aura-exact{margin-top:9px;padding-top:8px}.aura-exact br:first-of-type{display:none}"
+          if old not in s:
+              raise SystemExit('stale aura CSS rule not found')
+          p.write_text(s.replace(old, new, 1))
+
+          # Weather-based Stat Auras should show the actual card names in that weather.
+          p = Path('index.html')
+          s = p.read_text()
+          old = """  const boost=Number(aura.boostMult)||0,pack=AURA_PACK[aura.name],weather=AURA_WEATHER[aura.name],listed=(aura.boostedCards||[]).filter(Boolean),scopes=[];
+  if(pack)scopes.push(`${pack} Pack cards`);
+  if(weather)scopes.push(`${weather} cards`);
+  for(const name of listed)if(!scopes.includes(name))scopes.push(name);
+"""
+          new = """  const boost=Number(aura.boostMult)||0,pack=AURA_PACK[aura.name],weather=AURA_WEATHER[aura.name],listed=(aura.boostedCards||[]).filter(Boolean),scopes=[];
+  if(pack)scopes.push(`${pack} Pack`);
+  if(weather){
+    const weatherCards=state.cards.filter(card=>!card.unobtainable&&card.weather===weather).map(card=>card.name).sort((a,b)=>a.localeCompare(b));
+    if(weatherCards.length)scopes.push(...weatherCards);
+    else scopes.push(`${weather} cards`);
+  }
+  for(const name of listed)if(!scopes.includes(name))scopes.push(name);
+"""
+          if old not in s:
+              raise SystemExit('aura scope block not found')
+          p.write_text(s.replace(old, new, 1))
+
+      - run: npm install
+      - run: npm run build
+      - run: npm run test:engine
+      - run: npm run test:depths
+      - run: npm run test:player
+      - name: Validate live page JavaScript
+        run: |
+          node <<'NODE'
+          const fs = require('fs')
+          const html = fs.readFileSync('index.html', 'utf8')
+          const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((match) => match[1])
+          for (const script of scripts) new Function(script)
+          if (fs.readFileSync('src/styles.css','utf8').includes('.aura-exact b{display:none!important}')) throw new Error('Resolved aura values are still hidden')
+          if (!html.includes('weatherCards=state.cards.filter')) throw new Error('Weather aura card-name scope is missing')
+          console.log('Stat Aura display checks passed.')
+          NODE
+      - name: Commit fix
+        run: |
+          rm .github/workflows/fix-stat-aura-display.yml
+          git config user.name "Drago"
+          git config user.email "dragoidc3@gmail.com"
+          git add src/styles.css index.html .github/workflows/fix-stat-aura-display.yml
+          git commit -m "Fix Stat Aura percentages and boosted card list"
+          git push

@@ -25,4 +25,5 @@ function boostedCards(auraName: string) {
 }
 
 export const DRAGON_CARDS = boostedCards('Dragon King')
+export const AVIAN_CARDS = boostedCards('Avian King')
 export const IMP_BOOSTED_CARDS = boostedCards('Imp')

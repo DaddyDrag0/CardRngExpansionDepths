@@ -24,15 +24,6 @@ interface SingleRunRequest {
 
 type SimulationRequest = BatchRequest | SingleRunRequest
 
-type ProgressMessage = {
-  kind: 'progress'
-  id: number
-  runIndex: number
-  floor: number
-  completedRuns?: number
-  totalRuns?: number
-}
-
 const STALL_WATCHDOG_MS = 20_000
 
 function runSeed(batchSeed: number, runIndex: number): number {
@@ -74,32 +65,6 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
   const runs = Math.max(1, Math.floor(request.runs))
   const hardware = Math.max(1, Number(self.navigator.hardwareConcurrency) || 4)
   const workerCount = Math.min(runs, Math.max(1, Math.min(8, hardware - 1 || 1)))
-
-  if (workerCount <= 1 || runs === 1) {
-    const results: DepthsRunResult[] = []
-    for (let runIndex = 0; runIndex < runs; runIndex++) {
-      const result = simulateOne({
-        kind: 'single-run',
-        id: request.id,
-        loadout: request.loadout,
-        floorCap: request.floorCap,
-        batchSeed: request.seed,
-        runIndex,
-      }, (floor) => {
-        self.postMessage({
-          kind: 'progress',
-          id: request.id,
-          runIndex,
-          floor,
-          completedRuns: results.length,
-          totalRuns: runs,
-        } satisfies ProgressMessage)
-      })
-      results.push(result)
-    }
-    return results
-  }
-
   const results = new Array<DepthsRunResult>(runs)
   const workers: Worker[] = []
   let nextRun = 0
@@ -146,14 +111,6 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
         if (message?.kind === 'progress') {
           lastFloor = Number(message.floor) || lastFloor
           armWatchdog()
-          self.postMessage({
-            kind: 'progress',
-            id: request.id,
-            runIndex,
-            floor: lastFloor,
-            completedRuns: completed,
-            totalRuns: runs,
-          } satisfies ProgressMessage)
           return
         }
 
@@ -164,14 +121,6 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
         }
         results[runIndex] = message.result
         completed += 1
-        self.postMessage({
-          kind: 'progress',
-          id: request.id,
-          runIndex,
-          floor: message.result?.deathFloor || lastFloor,
-          completedRuns: completed,
-          totalRuns: runs,
-        } satisfies ProgressMessage)
         dispatch(worker)
         finishIfDone()
       }
@@ -212,7 +161,7 @@ self.onmessage = async (event: MessageEvent<SimulationRequest>) => {
           id: request.id,
           runIndex: request.runIndex,
           floor,
-        } satisfies ProgressMessage)
+        })
       })
       self.postMessage({ id: request.id, ok: true, elapsedMs: performance.now() - started, result })
       return

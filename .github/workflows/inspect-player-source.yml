@@ -1,0 +1,70 @@
+name: Inspect Remaining Player Ability Source
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/inspect-player-source.yml
+
+permissions:
+  contents: write
+
+jobs:
+  inspect:
+    if: github.event.head_commit.message == 'Inspect remaining player ability source'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install Mega downloader
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y megatools
+      - name: Download original place
+        run: |
+          mkdir -p /tmp/cardrng
+          megadl --path=/tmp/cardrng 'https://mega.nz/file/9ZgVmApB#q8wH37s5lzYuHpPhiJ1PgZS7kO8DOhNiIhyzL7yjp1A'
+      - name: Search remaining mechanics
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import html
+          import re
+
+          path = next(Path('/tmp/cardrng').glob('*.rbxlx'))
+          text = html.unescape(path.read_text(errors='ignore'))
+          terms = [
+            'Gehenna','Mirror Image','Long Reach','Beyond Comprehension','Whooping',
+            'Imminent Doom','Shapeshifter','Heroes','God of Trickery','Draconian',
+            'Safeguarding','Mother of Dragons','Dance of Discord','Reveal','Snowscape',
+            'Plague','Jealousy','Spook','Perish','Blood Bath','Nightmare Melody','Undying','Sap',
+            'Jurassic World','Eras Behind','Magical Elf','Christmas Magic'
+          ]
+
+          for term in terms:
+            print('\n\n===== ' + term + ' =====')
+            positions=[]
+            start=0
+            while len(positions)<4:
+              pos=text.find(term,start)
+              if pos < 0: break
+              positions.append(pos)
+              start=pos+len(term)
+            if not positions:
+              print('NO MATCH')
+              continue
+            for i,pos in enumerate(positions,1):
+              ctx=text[max(0,pos-3000):min(len(text),pos+len(term)+7000)]
+              ctx=re.sub(r'\r','',ctx)
+              print(f'--- CONTEXT {i} ---')
+              print(ctx)
+          PY
+      - name: Remove one-time workflow
+        run: |
+          rm .github/workflows/inspect-player-source.yml
+          git config user.name "Drago"
+          git config user.email "dragoidc3@gmail.com"
+          git add .github/workflows/inspect-player-source.yml
+          git commit -m "Remove player source inspection workflow"
+          git push

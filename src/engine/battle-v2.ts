@@ -62,10 +62,17 @@ const FULLY_SUPPORTED = new Set([
   'Shiny Steal', 'Water Shield of Xuanwu', 'Constellar', "Pandora's Box",
   'ConstellarVirgo', 'ConstellarScorpio', 'ConstellarSagittarius',
   'ConstellarAquarius', 'ConstellarGemini', 'ConstellarTaurus', 'ConstellarCancer',
+  'Perseverance', 'Oppressed', 'Dagger Storm', 'Desire', 'Starvation', 'Meow',
+  'Playing God', 'Eternal Voyage', 'Haunt', "Witch's Curse", 'Blessing',
+  'Happy Family', 'Lazy', "Housewife's Blessing", 'Flames of Rebirth', 'Paradox',
+  'Hatred', 'Naughty or Nice?', 'Naughty List', 'Sacred Judgment', 'Toil',
+  'Never Forgotten', 'Steal Christmas', 'Better Days', 'Pop-Up Impression',
+  'Gobble', 'We Want YOU', 'Bloodlust', 'Flesh Eater', 'Forbidden Banquet',
+  'Cosmic Maw', 'Hex', 'Order of the Cosmos', 'Honor',
 ])
 
 const BENCH_AFFECTING_UNSUPPORTED = new Set([
-  'Nightmare Melody', 'Draconian', 'Mirror Image', 'Better Days', 'Playing God',
+  'Nightmare Melody', 'Draconian', 'Mirror Image',
 ])
 
 const CONSTELLAR_ABILITIES = [
@@ -158,6 +165,18 @@ function boostStats(card: CombatCard, mult: number) {
   card.damage *= mult
   card.maxHp *= mult
   card.hp *= mult
+}
+
+function stealStats(from: CombatCard, to: CombatCard, fraction: number) {
+  const stolenDamage = Math.max(0, from.damage * fraction)
+  const stolenMaxHp = Math.max(0, from.maxHp * fraction)
+  const stolenHp = Math.max(0, from.hp * fraction)
+  from.damage = Math.max(0, from.damage - stolenDamage)
+  from.maxHp = Math.max(1, from.maxHp - stolenMaxHp)
+  from.hp = Math.max(0, Math.min(from.maxHp, from.hp - stolenHp))
+  to.damage += stolenDamage
+  to.maxHp += stolenMaxHp
+  to.hp += stolenHp
 }
 
 function statusProtected(runtime: Runtime, team: BattleTeam): boolean {
@@ -276,7 +295,11 @@ function noteUnsupported(state: BattleState, card: CombatCard | undefined) {
 }
 
 function hasAbility(runtime: Runtime, card: CombatCard | undefined, name: string): boolean {
-  if (!card || card.dead || card.flags.sealed || !abilityNames(card).includes(name)) return false
+  if (!card || card.dead || card.flags.sealed || (card.counters.cosmosSeal || 0) > 0 || !abilityNames(card).includes(name)) return false
+  const honorActive = [active(runtime, 'Allies'), active(runtime, 'Enemies')].some((activeCard) =>
+    activeCard && !activeCard.dead && !activeCard.flags.sealed && abilityNames(activeCard).includes('Honor')
+  )
+  if (honorActive && name !== 'Honor') return false
   const enemy = runtime.state.boosts[OTHER_TEAM[card.team]]
   if (enemy.endTimes && runtime.rng.next() < enemy.endTimes / 100) return false
   return true
@@ -380,6 +403,9 @@ function onEntry(runtime: Runtime, card: CombatCard) {
   const enemy = active(runtime, enemyTeam)
   if (!enemy) return
 
+  if (enemy !== card && hasAbility(runtime, enemy, 'Desire')) stealStats(card, enemy, 0.1)
+  if (enemy !== card && hasAbility(runtime, enemy, 'Cosmic Maw')) stealStats(card, enemy, 0.2)
+
   let name = ability(card)
   if (!name) return
 
@@ -429,6 +455,13 @@ function onEntry(runtime: Runtime, card: CombatCard) {
   }
 
   switch (name) {
+    case 'Perseverance':
+      if (!card.flags.perseveranceBoosted) {
+        card.flags.perseveranceBoosted = true
+        card.maxHp *= 100
+        card.hp *= 100
+      }
+      break
     case 'ConstellarVirgo':
       card.counters.hpShield = (card.counters.hpShield || 0) + card.maxHp * 2
       break
@@ -468,6 +501,26 @@ function onEntry(runtime: Runtime, card: CombatCard) {
       if (fallenDamage > 0) card.damage += fallenDamage
       break
     }
+    case 'Desire':
+      // Desire itself triggers when the opposing card enters; no extra self-entry effect.
+      break
+    case 'Cosmic Maw':
+      stealStats(enemy, card, 0.2)
+      break
+    case 'Haunt': {
+      const damageLoss = card.damage * 0.35
+      const hpLoss = card.maxHp * 0.35
+      enemy.damage = Math.max(0, enemy.damage - damageLoss)
+      enemy.maxHp = Math.max(1, enemy.maxHp - hpLoss)
+      enemy.hp = Math.max(0, Math.min(enemy.maxHp, enemy.hp - hpLoss))
+      break
+    }
+    case 'Hex':
+      enemy.flags.noRng = true
+      break
+    case 'Order of the Cosmos':
+      for (const target of runtime.state.teams[enemyTeam]) target.counters.cosmosSeal = Math.max(target.counters.cosmosSeal || 0, 3)
+      break
     case 'Mind Rift':
       if (card.damage > enemy.damage / 4) enemy.status.confused = 3
       break
@@ -582,6 +635,35 @@ function onEntry(runtime: Runtime, card: CombatCard) {
     case 'Turtle Shell':
       card.maxHp = 30_000
       card.hp = 30_000
+      break
+    case 'Happy Family': {
+      const dads = runtime.state.teams[card.team].filter((ally) => ally !== card && ally.definition.name === 'Dad' && alive(ally))
+      for (const dad of dads) {
+        dad.damage += card.damage
+        dad.maxHp += card.maxHp
+        dad.hp += Math.max(0, card.hp)
+      }
+      card.hp = 0
+      resolveDeaths(runtime)
+      break
+    }
+    case 'Pop-Up Impression':
+      if (!statusProtected(runtime, enemy.team)) enemy.status.confused = Math.max(enemy.status.confused, 2)
+      break
+    case 'Naughty List':
+      for (const ally of runtime.state.teams[card.team]) {
+        if (!alive(ally)) continue
+        boostStats(ally, 1.5)
+        ally.flags.naughtyListDrain = true
+      }
+      break
+    case 'Toil':
+      boostStats(card, 2)
+      break
+    case 'Bloodlust':
+      card.counters.bloodlustBase = card.damage
+      card.damage += card.damage
+      card.flags.bloodlustFirstTurn = true
       break
     case 'Fluffy Aggression':
       card.damage *= 2
@@ -703,6 +785,15 @@ function onEntry(runtime: Runtime, card: CombatCard) {
       performEntryAttack(runtime, card, 1)
       if (name === 'Heart Hunter' && active(runtime, enemyTeam)) active(runtime, enemyTeam)!.counters.bleed = 100
       break
+    case 'Sacred Judgment': {
+      const targets = [...runtime.state.teams[enemyTeam]]
+      for (const target of targets) {
+        if (!alive(card) || !alive(target)) continue
+        dealDamage(runtime, card, target)
+        resolveDeaths(runtime)
+      }
+      break
+    }
     case 'Stardust Driver':
       performEntryAttack(runtime, card, 2.5)
       break
@@ -1080,6 +1171,9 @@ function targetRetro(runtime: Runtime, attacker: CombatCard, target: CombatCard,
         for (const ally of runtime.state.teams[target.team]) boostStats(ally, 1.2)
       }
       break
+    case 'Steal Christmas':
+      if (damage > 0 && attacker !== target) stealStats(attacker, target, 0.2)
+      break
     case 'Poke the Beast':
       if (damage > 0 && !statusProtected(runtime, attacker.team)) attacker.status.burn = Math.max(attacker.status.burn, 2)
       break
@@ -1113,6 +1207,62 @@ function attackerRetro(runtime: Runtime, attacker: CombatCard, target: CombatCar
   switch (name) {
     case 'ConstellarScorpio':
       if (damage > 0 && !statusProtected(runtime, target.team)) target.counters.poisonFlat = Math.max(target.counters.poisonFlat || 0, attacker.damage)
+      break
+    case "Witch's Curse":
+      if (damage > 0 && !attacker.flags.witchCurseStolen) {
+        const stolen = ability(target)
+        if (stolen && stolen !== "Witch's Curse") {
+          attacker.flags.witchCurseStolen = true
+          attacker.abilityOverride = stolen
+        }
+      }
+      break
+    case 'Flesh Eater':
+      if (damage > 0) {
+        const gain = damage * 0.25
+        attacker.hp = Math.min(attacker.maxHp, attacker.hp + gain)
+        attacker.damage += gain
+      }
+      break
+    case 'Gobble':
+      if (target.hp <= 0 && target !== attacker) {
+        attacker.damage += target.damage * 0.5
+        attacker.maxHp += target.maxHp * 0.5
+        attacker.hp = Math.min(attacker.maxHp, attacker.hp + target.maxHp * 0.5 + attacker.maxHp * 0.3)
+      }
+      break
+    case 'Playing God':
+      if (target.hp <= 0 && target !== attacker) {
+        const frankenstein = definition('Frankenstein')
+        if (frankenstein) {
+          const created: CombatCard = {
+            ...attacker,
+            id: `${attacker.team}:frankenstein:${runtime.state.turn}:${runtime.state.teams[attacker.team].length}`,
+            definition: frankenstein,
+            index: runtime.state.teams[attacker.team].length + 1,
+            hp: attacker.maxHp,
+            maxHp: attacker.maxHp,
+            damage: attacker.damage,
+            entered: false,
+            dead: false,
+            abilityOverride: undefined,
+            bonusAbilities: undefined,
+            status: { stunned: 0, confused: 0, burn: 0, weakness: false, blind: false, shield: 0 },
+            flags: {},
+            counters: { normalDamage: attacker.damage, normalMaxHp: attacker.maxHp },
+          }
+          runtime.state.teams[attacker.team].push(created)
+        }
+      }
+      break
+    case 'Forbidden Banquet':
+      if (target.hp <= 0 && !attacker.flags.banquetStolen) {
+        const stolen = ability(target)
+        if (stolen && stolen !== 'Forbidden Banquet') {
+          attacker.flags.banquetStolen = true
+          attacker.abilityOverride = stolen
+        }
+      }
       break
     case 'Regenerate': attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.2); didRegen = true; break
     case 'Plunder':
@@ -1325,6 +1475,26 @@ function applyOnDeath(runtime: Runtime, dead: CombatCard, opponent: CombatCard |
 
   if (!next || !name) return
   if (name === 'Blessing') { next.damage += dead.damage / 2; next.maxHp += dead.maxHp / 2; next.hp += dead.maxHp / 2 }
+  if (name === 'Meow') next.damage += (dead.counters.damageTaken || 0) * 1.5
+  if (name === 'Never Forgotten') {
+    const gain = (dead.counters.damageTaken || 0) * 1.25
+    for (const ally of runtime.state.teams[team]) if (alive(ally)) ally.damage += gain
+  }
+  if (name === 'We Want YOU') {
+    next.damage *= 5
+    next.flags.diesAfterAttack = true
+  }
+  if (name === 'Better Days') {
+    const revive = runtime.state.fallen[team].filter((fallen) => fallen !== dead)
+    for (const ally of revive) {
+      const index = runtime.state.fallen[team].indexOf(ally)
+      if (index >= 0) runtime.state.fallen[team].splice(index, 1)
+      ally.dead = false
+      ally.hp = ally.maxHp
+      ally.entered = false
+      runtime.state.teams[team].push(ally)
+    }
+  }
   if (name === 'Heart Legacy') { next.maxHp += dead.maxHp; next.hp += dead.maxHp }
   if (name === 'Tonic') boostStats(next, 1.2)
   if (name === 'Fusion... HA!' && rand(runtime, team) > 0.5) {
@@ -1458,9 +1628,16 @@ function statusEnd(runtime: Runtime, attacker: CombatCard) {
     attacker.counters.weaknessTurns -= 1
     if (attacker.counters.weaknessTurns <= 0) attacker.status.weakness = false
   }
+  if ((attacker.counters.cosmosSeal || 0) > 0) attacker.counters.cosmosSeal -= 1
 }
 
 function prepareTurn(runtime: Runtime, attacker: CombatCard) {
+  if (attacker.flags.naughtyListDrain) boostStats(attacker, 0.9)
+  if (hasAbility(runtime, attacker, 'Toil')) boostStats(attacker, 0.85)
+  if (hasAbility(runtime, attacker, 'Bloodlust')) {
+    if (attacker.flags.bloodlustFirstTurn) attacker.flags.bloodlustFirstTurn = false
+    else attacker.damage += attacker.counters.bloodlustBase || 0
+  }
   if (hasAbility(runtime, attacker, 'ConstellarAquarius')) {
     if (attacker.hp < attacker.maxHp / 2) attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.3)
     else attacker.maxHp *= 1.25
@@ -1521,6 +1698,11 @@ function prepareTurn(runtime: Runtime, attacker: CombatCard) {
 
 function beforeAttack(runtime: Runtime, attacker: CombatCard) {
   const target = active(runtime, OTHER_TEAM[attacker.team])
+  if (hasAbility(runtime, attacker, 'Lazy')) {
+    attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.damage * 2)
+    attacker.damage *= 0.9
+  }
+  if (target && hasAbility(runtime, attacker, 'Forbidden Banquet')) stealStats(target, attacker, 0.15)
   if (hasAbility(runtime, attacker, 'Rejuvenate')) attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.35)
   if (hasAbility(runtime, attacker, 'First Progenitor')) attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.1)
   if (hasAbility(runtime, attacker, 'Twilight Sparkle') && rand(runtime, attacker.team) > 0.6) attacker.hp = attacker.maxHp
@@ -1543,7 +1725,8 @@ function attackCount(runtime: Runtime, attacker: CombatCard): { count: number; m
 }
 
 function canNormalAttack(runtime: Runtime, attacker: CombatCard): boolean {
-  if (hasAbility(runtime, attacker, 'Meow') || hasAbility(runtime, attacker, 'Never Forgotten')
+  if (hasAbility(runtime, attacker, 'Dagger Storm') || hasAbility(runtime, attacker, 'Naughty or Nice?')
+    || hasAbility(runtime, attacker, 'Meow') || hasAbility(runtime, attacker, 'Never Forgotten')
     || hasAbility(runtime, attacker, 'Origin') || hasAbility(runtime, attacker, 'Laser Gun')
     || hasAbility(runtime, attacker, 'Lotus Sutra')) return false
   if (hasAbility(runtime, attacker, 'Sky Drop')) return Boolean(attacker.counters.drop && attacker.counters.drop % 2 === 0)
@@ -1645,6 +1828,27 @@ function processTeamTurnAbilities(runtime: Runtime, movedTeam: BattleTeam, moved
   }
 }
 
+function doDaggerStorm(runtime: Runtime, attacker: CombatCard) {
+  const enemyTeam = OTHER_TEAM[attacker.team]
+  for (const mult of [0.5, 1, 2]) {
+    const target = active(runtime, enemyTeam)
+    if (!target || !alive(attacker)) break
+    dealDamage(runtime, attacker, target, mult)
+    resolveDeaths(runtime)
+  }
+}
+
+function doNaughtyOrNice(runtime: Runtime, attacker: CombatCard) {
+  const target = active(runtime, OTHER_TEAM[attacker.team])
+  if (!target || !alive(attacker)) return
+  if (rand(runtime, attacker.team) < 0.8) {
+    dealDamage(runtime, attacker, target, 4)
+    resolveDeaths(runtime)
+  } else {
+    target.hp = Math.min(target.maxHp, target.hp + target.maxHp * 0.5)
+  }
+}
+
 function doTurn(runtime: Runtime, attacker: CombatCard) {
   const enemyTeam = OTHER_TEAM[attacker.team]
   let target = active(runtime, enemyTeam)
@@ -1666,6 +1870,8 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
   if (hasAbility(runtime, attacker, 'Lotus Sutra')) doLotusSutra(runtime, attacker)
   else if (hasAbility(runtime, attacker, 'Origin')) doOrigin(runtime, attacker)
   else if (hasAbility(runtime, attacker, 'Laser Gun')) doLaserGun(runtime, attacker)
+  else if (hasAbility(runtime, attacker, 'Dagger Storm')) doDaggerStorm(runtime, attacker)
+  else if (hasAbility(runtime, attacker, 'Naughty or Nice?')) doNaughtyOrNice(runtime, attacker)
 
   if (hasAbility(runtime, attacker, 'Chaos Destruction') && rand(runtime, attacker.team) > 0.5) {
     const deck = runtime.state.teams[enemyTeam]
@@ -1724,6 +1930,18 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
   }
 
   if (hasAbility(runtime, attacker, 'Martial Will') && alive(attacker)) attacker.damage *= 1.3
+
+  if (hasAbility(runtime, attacker, 'Eternal Voyage') && alive(attacker)) {
+    const deck = runtime.state.teams[attacker.team]
+    const selfIndex = deck.indexOf(attacker)
+    const choices = deck.map((_, index) => index).filter((index) => index !== selfIndex)
+    if (selfIndex >= 0 && choices.length) {
+      const swapIndex = choices[Math.floor(runtime.rng.next() * choices.length)]
+      ;[deck[selfIndex], deck[swapIndex]] = [deck[swapIndex], deck[selfIndex]]
+    }
+  }
+
+  if (attacker.flags.diesAfterAttack && alive(attacker)) attacker.hp = 0
 
   statusEnd(runtime, attacker)
   processTeamTurnAbilities(runtime, attacker.team, attacker)

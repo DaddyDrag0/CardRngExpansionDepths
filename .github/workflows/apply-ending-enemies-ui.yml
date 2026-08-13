@@ -1,0 +1,61 @@
+name: Apply Ending Enemies Results UI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/apply-ending-enemies-ui.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message == 'Queue ending enemies results UI'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Add ending-enemy summary to result cards
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text()
+          old_css = ".floor-strip span{border:1px solid #243141;border-radius:7px;padding:4px 6px;color:#9eabba;font-size:8px}.result-warning"
+          new_css = ".floor-strip span{border:1px solid #243141;border-radius:7px;padding:4px 6px;color:#9eabba;font-size:8px}.ending-enemies{margin-top:11px;border-top:1px solid #1d2734;padding-top:9px}.ending-enemies>span{display:block;color:#687789;font-size:8px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}.enemy-chips{display:flex;gap:5px;flex-wrap:wrap}.enemy-chips i{font-style:normal;border:1px solid #2a3544;background:#0d141d;border-radius:7px;padding:5px 7px;color:#a7b3c1;font-size:8px}.enemy-chips b{color:#d5dce5;margin-left:3px}.result-warning"
+          if old_css not in s:
+              raise SystemExit('CSS anchor not found')
+          s = s.replace(old_css, new_css, 1)
+
+          start = s.index('  function resultCard(team,index){')
+          end = s.index('\n  function persist(){', start)
+          replacement = '''  function resultCard(team,index){
+            const r=team.result;
+            if(!r)return team.lastError?`<section class="result-card"><div class="result-head"><div><span class="kicker">TEAM ${index+1}</span><h4>Simulation failed</h4></div></div><div class="team-error">${esc(team.lastError)}</div></section>`:'';
+            const avgTurns=r.runs.length?r.runs.reduce((s,x)=>s+x.totalTurns,0)/r.runs.length:0;
+            const enemyCounts={};
+            for(const run of r.runs)for(const name of (run.endingEnemies||[]))enemyCounts[name]=(enemyCounts[name]||0)+1;
+            const commonEnemies=Object.entries(enemyCounts).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,6);
+            const endingHtml=commonEnemies.length?`<div class="ending-enemies"><span>Most common losing-floor enemies</span><div class="enemy-chips">${commonEnemies.map(([name,count])=>`<i>${esc(name)} <b>×${count}</b></i>`).join('')}</div></div>`:'';
+            return `<section class="result-card ${index===state.activeTeam?'active-result':''}"><div class="result-head"><div><span class="kicker">TEAM ${index+1}</span><h4>${r.trusted?'Verified simulation':'Simulation warning'}</h4></div><span class="trust ${r.trusted?'ok':'warn'}">${r.trusted?'TRUSTED':'CHECK'}</span></div><div class="result-metrics"><div><span>Average</span><b>${one(r.averageFloor)}</b></div><div><span>Median</span><b>${one(r.medianFloor)}</b></div><div><span>Peak</span><b>${full(r.maxFloor)}</b></div><div><span>Low</span><b>${full(r.minFloor)}</b></div></div><div class="result-meta"><span>${r.runs.length} runs</span><span>${one(avgTurns)} avg turns</span><span>${team.elapsedMs<1000?`${Math.round(team.elapsedMs)} ms`:`${(team.elapsedMs/1000).toFixed(2)} s`} compute</span></div><div class="floor-strip">${r.runs.map((run,i)=>`<span title="Run ${i+1}${run.endingEnemies?.length?' · '+run.endingEnemies.join(' / '):''}">${full(run.deathFloor)}</span>`).join('')}</div>${endingHtml}${r.unsupportedAbilities?.length?`<div class="result-warning">Unsupported: ${esc(r.unsupportedAbilities.join(', '))}</div>`:''}</section>`
+          }'''
+          s = s[:start] + replacement + s[end:]
+          p.write_text(s)
+      - name: Validate live page JavaScript
+        run: |
+          node <<'NODE'
+          const fs = require('fs')
+          const html = fs.readFileSync('index.html', 'utf8')
+          for (const match of html.matchAll(/<script>([\s\S]*?)<\/script>/g)) new Function(match[1])
+          if (!html.includes('Most common losing-floor enemies')) throw new Error('Ending enemies UI not found')
+          NODE
+      - name: Commit result UI
+        run: |
+          rm .github/workflows/apply-ending-enemies-ui.yml
+          git config user.name "Drago"
+          git config user.email "dragoidc3@gmail.com"
+          git add -A
+          git commit -m "Show ending enemies in simulation results"
+          git push

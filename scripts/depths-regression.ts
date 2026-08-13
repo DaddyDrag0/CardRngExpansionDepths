@@ -77,8 +77,6 @@ function namedDummy(name: string, health: number, attack: number, ability: strin
   }
 }
 
-// Execute one representative of every ability that can naturally appear in Depths.
-// This catches runtime exceptions that a coverage-set check cannot catch.
 const representatives = new Map<string, (typeof cards)[number]>()
 for (const card of cards) {
   if (!isDepthsSourceEligible(card) || !card.ability || representatives.has(card.ability)) continue
@@ -96,7 +94,6 @@ for (const [ability, card] of representatives) {
   executed += 1
 }
 
-// Pandora must really hold two distinct simultaneously active bonuses, and seeded runs must agree.
 const pandora = cards.find((card) => card.ability === "Pandora's Box")
 assert(pandora, "Pandora's Box card missing")
 const pandoraLoadout: TeamLoadout = { cards: [{ cardName: pandora.name, borders: [] }] }
@@ -107,12 +104,8 @@ const pandoraCardB = findBattleCard(pandoraB, pandora.name)
 assert(pandoraCardA && pandoraCardB, 'Pandora disappeared from battle state')
 assert(pandoraCardA.bonusAbilities?.length === 2, `Pandora rolled ${pandoraCardA.bonusAbilities?.length ?? 0} bonuses instead of 2`)
 assert(new Set(pandoraCardA.bonusAbilities).size === 2, 'Pandora rolled duplicate bonuses')
-assert(
-  JSON.stringify(pandoraCardA.bonusAbilities) === JSON.stringify(pandoraCardB.bonusAbilities),
-  'Pandora is not deterministic for the same seed',
-)
+assert(JSON.stringify(pandoraCardA.bonusAbilities) === JSON.stringify(pandoraCardB.bonusAbilities), 'Pandora is not deterministic for the same seed')
 
-// Astraeus art is absent from the flattened card dataset, so the simulator resolves a seeded Constellar art.
 const astraeus = cards.find((card) => card.ability === 'Constellar')
 assert(astraeus, 'Astraeus / Constellar card missing')
 const astraeusLoadout: TeamLoadout = { cards: [{ cardName: astraeus.name, borders: [] }] }
@@ -124,8 +117,6 @@ assert(astraeusCardA && astraeusCardB, 'Astraeus disappeared from battle state')
 assert(astraeusCardA.abilityOverride?.startsWith('Constellar'), 'Astraeus did not resolve a Constellar art ability')
 assert(astraeusCardA.abilityOverride === astraeusCardB.abilityOverride, 'Constellar art is not deterministic for the same seed')
 
-// Final selectable-player mechanics recovered from the original server Battles source.
-// Whooping doubles damage when its original card age is older than the target age (default 1).
 {
   const whooping = cardByAbility('Whooping')
   assert(cardAge(whooping.name) > 1, `${whooping.name}: expected age > 1 for the Whooping regression`)
@@ -138,7 +129,6 @@ assert(astraeusCardA.abilityOverride === astraeusCardB.abilityOverride, 'Constel
   assert(Math.abs((enemyHealth - target.hp) - Math.ceil(damage * 2)) < 1e-6, 'Whooping did not double damage against a younger target')
 }
 
-// Reveal heals once below 65% HP, then cannot trigger again.
 {
   const reveal = cardByAbility('Reveal')
   const damage = getAttack(reveal, [])
@@ -151,7 +141,6 @@ assert(astraeusCardA.abilityOverride === astraeusCardB.abilityOverride, 'Constel
   assert(holder.hp > holder.maxHp * 0.5, 'Reveal holder ended below the expected post-second-hit range')
 }
 
-// Sap has a guaranteed proc when self Damage >= opposing Damage and steals half the opposing Damage.
 {
   const sap = cardByAbility('Sap')
   const damage = getAttack(sap, [])
@@ -166,7 +155,6 @@ assert(astraeusCardA.abilityOverride === astraeusCardB.abilityOverride, 'Constel
   assert(Math.abs(fallenEnemy.damage - enemyAttack * 0.5) <= Math.max(1e-6, enemyAttack * 1e-12), 'Sap did not halve the opposing Damage')
 }
 
-// Long Reach leaves active HP untouched and applies the completed hit directly to slot 2.
 {
   const longReach = cardByAbility('Long Reach')
   const damage = getAttack(longReach, [])
@@ -183,7 +171,6 @@ assert(astraeusCardA.abilityOverride === astraeusCardB.abilityOverride, 'Constel
   assert(activeTarget.hp === activeHealth, 'Long Reach damaged the active target HP')
 }
 
-// Draconian fixes Longmu's ability from the original slot and grants the documented shields.
 {
   const longmu = cardByName('Longmu')
   const dragon = cards.find((card) => card.name !== 'Longmu' && DRAGON_CARDS.has(card.name))
@@ -196,7 +183,6 @@ assert(astraeusCardA.abilityOverride === astraeusCardB.abilityOverride, 'Constel
   assert(mother.teams.Allies[0]?.status.shield === 2, 'Mother of Dragons did not grant two Dragon shields')
 }
 
-// Heroes copies the original abilities of the first two fallen allies simultaneously.
 {
   const heroes = cardByAbility('Heroes')
   const first = cardByAbility('Armor')
@@ -207,11 +193,9 @@ assert(astraeusCardA.abilityOverride === astraeusCardB.abilityOverride, 'Constel
   assert(JSON.stringify(holder.bonusAbilities) === JSON.stringify(['Armor', 'Regenerate']), 'Heroes did not retain both first-two-fallen abilities')
 }
 
-// Mirror Image can return from Fallen at full HP when a different ally dies.
 {
   const mirror = cardByAbility('Mirror Image')
-  const filler = cards.find((card) => !card.unobtainable && !card.ability && card.name !== mirror.name)
-  assert(filler, 'No ability-less filler card available for Mirror Image regression')
+  const filler = cardByAbility('Armor')
   const mirrorDamage = getAttack(mirror, [])
   const fillerDamage = getAttack(filler, [])
   const mirrorHp = getHealth(mirror, [])
@@ -230,7 +214,6 @@ assert(astraeusCardA.abilityOverride === astraeusCardB.abilityOverride, 'Constel
   assert(revived, 'No deterministic seed procured Mirror Image in 100 attempts')
 }
 
-// Nightmare Melody starts at 10% confusion chance, ramps by 10%, and caps at 40%.
 {
   const composer = cardByAbility('Nightmare Melody')
   const damage = getAttack(composer, [])
@@ -242,12 +225,10 @@ assert(astraeusCardA.abilityOverride === astraeusCardB.abilityOverride, 'Constel
   assert(Math.abs((result.state.boosts.Allies.composerThreshold ?? 0) - 0.6) < 1e-12, 'Nightmare Melody threshold did not cap at 0.6')
 }
 
-// God of Trickery and Shapeshifter use seeded random card identities.
 {
   const trickster = cardByAbility('God of Trickery')
   const shapeshifter = cardByAbility('Shapeshifter')
-  const filler = cards.find((card) => !card.unobtainable && !card.ability && card.name !== trickster.name && card.name !== shapeshifter.name)
-  assert(filler, 'No ability-less real card available for identity regressions')
+  const filler = cardByAbility('Armor')
 
   const identityTarget = (attacker: CardDefinition): DepthsEnemy => ({
     card: filler,
@@ -279,7 +260,6 @@ assert(astraeusCardA.abilityOverride === astraeusCardB.abilityOverride, 'Constel
   assert(shapeCardA.identityOverride === shapeCardB?.identityOverride, 'Shapeshifter identity was not seed-repeatable')
 }
 
-// Jealousy copies the opponent ability while suppressing that same opponent ability.
 {
   const jealousy = cardByAbility('Jealousy')
   const damage = getAttack(jealousy, [])
@@ -297,7 +277,6 @@ assert(astraeusCardA.abilityOverride === astraeusCardB.abilityOverride, 'Constel
   assert(lostFraction >= 0.09 && lostFraction <= 0.11, `Jealousy copied Armor incorrectly; lost ${(lostFraction * 100).toFixed(2)}% HP`)
 }
 
-// Use four strong eligible cards for run-level deterministic and high-floor checks.
 const strongest = cards
   .filter(isDepthsSourceEligible)
   .map((card) => ({ card, power: getPower(card, []) }))

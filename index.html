@@ -45,8 +45,12 @@
   if(aura.type==='Skill')return resolveStatText(aura.description,value);
   if(aura.name==='General Sun Tzu')return `<div class="aura-stat-grid"><div class="aura-stat"><span>All allied cards</span><b>+${pct(value)}%</b><small>HP</small></div></div>`;
   const boost=Number(aura.boostMult)||0,pack=AURA_PACK[aura.name],weather=AURA_WEATHER[aura.name],listed=(aura.boostedCards||[]).filter(Boolean),scopes=[];
-  if(pack)scopes.push(`${pack} Pack cards`);
-  if(weather)scopes.push(`${weather} cards`);
+  if(pack)scopes.push(`${pack} Pack`);
+  if(weather){
+    const weatherCards=state.cards.filter(card=>!card.unobtainable&&card.weather===weather).map(card=>card.name).sort((a,b)=>a.localeCompare(b));
+    if(weatherCards.length)scopes.push(...weatherCards);
+    else scopes.push(`${weather} cards`);
+  }
   for(const name of listed)if(!scopes.includes(name))scopes.push(name);
   let out=`<div class="aura-stat-grid"><div class="aura-stat"><span>All allied cards</span><b>+${pct(value)}%</b><small>HP & ATK</small></div>`;
   if(boost&&scopes.length)out+=`<div class="aura-stat boosted"><span>Extra boost group</span><b>+${pct(value*boost)}%</b><small>HP & ATK</small></div>`;

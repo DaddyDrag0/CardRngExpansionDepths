@@ -19,9 +19,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Apply source-aligned timeout correction
-        if: github.event_name == 'push' && github.event.head_commit.message == 'Run source-aligned timeout correction'
-        run: node scripts/fix-active-pair.mjs
       - run: npm install
       - run: npm run build
       - run: npm run test:engine
@@ -53,16 +50,8 @@ jobs:
       - name: Bundle browser simulation worker
         if: github.event_name == 'push'
         run: npx esbuild src/browser-worker.ts --bundle --platform=browser --format=iife --target=es2020 --minify --outfile=browser/depths-worker.js
-      - name: Commit validated source-aligned timeout correction
-        if: github.event_name == 'push' && github.event.head_commit.message == 'Run source-aligned timeout correction'
-        run: |
-          git config user.name "Drago"
-          git config user.email "dragoidc3@gmail.com"
-          git add src/engine/battle-v2.ts scripts/engine-smoke.ts browser/depths-worker.js
-          git commit -m "Align 150-turn timeout with original battle loop"
-          git push
       - name: Commit browser simulation bundle
-        if: github.event_name == 'push' && github.event.head_commit.message != 'Run source-aligned timeout correction'
+        if: github.event_name == 'push'
         run: |
           git config user.name "Drago"
           git config user.email "dragoidc3@gmail.com"

@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   patch:
-    if: github.event.head_commit.message == 'Queue battle cutoff correction'
+    if: github.event.head_commit.message == 'Fix battle cutoff workflow'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,67 +20,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Correct battle cutoff and Fate reporting
-        shell: python
-        run: |
-          from pathlib import Path
-
-          p = Path('src/engine/auras.ts')
-          s = p.read_text()
-          anchor = "  if (aura.name === 'Jurassic World') {"
-          insert = "  if (DIRECT_SKILL_BOOST_KEYS[aura.name]) {\n    return { aura, value, implemented: true }\n  }\n\n  if (aura.name === 'Jurassic World') {"
-          if anchor not in s:
-              raise SystemExit('Aura support anchor missing')
-          s = s.replace(anchor, insert, 1)
-          p.write_text(s)
-
-          p = Path('src/engine/battle-v2.ts')
-          s = p.read_text()
-          anchor = "const OTHER_TEAM: Record<BattleTeam, BattleTeam> = { Allies: 'Enemies', Enemies: 'Allies' }"
-          replacement = anchor + "\nconst MAX_BATTLE_TURNS = 100_000"
-          if anchor not in s:
-              raise SystemExit('Battle constant anchor missing')
-          s = s.replace(anchor, replacement, 1)
-
-          s = s.replace("  let lastPair = ''\n  let samePairTurns = 0\n\n", "", 1)
-          s = s.replace("state.turn < 2_000", "state.turn < MAX_BATTLE_TURNS", 1)
-
-          cutoff = """    const pair = `${attacker.id}|${defender.id}`
-    if (pair === lastPair) samePairTurns += 1
-    else { lastPair = pair; samePairTurns = 0 }
-    if (samePairTurns >= 150) {
-      attacker.hp = 0
-      defender.hp = 0
-      resolveDeaths(runtime)
-      continue
-    }
-
-"""
-          if cutoff not in s:
-              raise SystemExit('Artificial same-pair cutoff block missing')
-          s = s.replace(cutoff, '', 1)
-
-          anchor = """  const winner: BattleResult['winner'] = state.teams.Allies.length
-"""
-          replacement = """  if (state.turn >= MAX_BATTLE_TURNS && state.teams.Allies.length && state.teams.Enemies.length) {
-    state.unsupportedAbilities.add('Battle turn cap reached')
-  }
-
-  const winner: BattleResult['winner'] = state.teams.Allies.length
-"""
-          if anchor not in s:
-              raise SystemExit('Battle result anchor missing')
-          s = s.replace(anchor, replacement, 1)
-          p.write_text(s)
-
-          p = Path('scripts/engine-smoke.ts')
-          s = p.read_text()
-          anchor = "assert(battle.turns > 0, 'Controlled battle did not advance turns')"
-          replacement = anchor + "\n\nconst fateBattle = simulateBattleV2({ cards: [{ cardName: 'Mastermind', borders: ['Galaxy'] }], abilityAura: { auraName: 'Fate' } }, enemies, 8)\nassert(!fateBattle.unsupportedAbilities.includes('Aura: Fate'), 'Fate was incorrectly marked unsupported')"
-          if anchor not in s:
-              raise SystemExit('Engine smoke Fate anchor missing')
-          s = s.replace(anchor, replacement, 1)
-          p.write_text(s)
+      - run: node scripts/fix-battle-cutoff.mjs
       - run: npm install
       - run: npm run build
       - run: npm run test:engine
@@ -92,13 +32,12 @@ jobs:
             echo 'Artificial same-pair cutoff still exists.'
             exit 1
           fi
-      - name: Bundle browser worker
-        run: npx esbuild src/browser-worker.ts --bundle --platform=browser --format=iife --target=es2020 --minify --outfile=browser/depths-worker.js
+      - run: npx esbuild src/browser-worker.ts --bundle --platform=browser --format=iife --target=es2020 --minify --outfile=browser/depths-worker.js
       - name: Commit correction
         run: |
-          rm .github/workflows/fix-battle-cutoff.yml
+          rm .github/workflows/fix-battle-cutoff.yml scripts/fix-battle-cutoff.mjs
           git config user.name "Drago"
           git config user.email "dragoidc3@gmail.com"
-          git add src/engine/auras.ts src/engine/battle-v2.ts scripts/engine-smoke.ts browser/depths-worker.js .github/workflows/fix-battle-cutoff.yml
+          git add src/engine/auras.ts src/engine/battle-v2.ts scripts/engine-smoke.ts browser/depths-worker.js .github/workflows/fix-battle-cutoff.yml scripts/fix-battle-cutoff.mjs
           git commit -m "Remove artificial battle cutoff and fix Fate support"
           git push

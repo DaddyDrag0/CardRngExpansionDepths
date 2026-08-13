@@ -22,7 +22,7 @@ function replaceOnce(text, oldText, newText, label) {
   let text = fs.readFileSync(path, 'utf8')
   const anchor = "console.log(`Engine smoke tests passed: ${cards.length} cards, ${auras.length} auras.`)"
   if (!text.includes('Stable active-pair timeout regression passed')) {
-    const test = `\nconst timeoutEnemies = [{\n  definition: cards.find((card) => card.name === 'Knight')!,\n  power: 1,\n  health: 1e30,\n  weather: null,\n}]\nconst timeoutBattle = simulateBattleV2(\n  { cards: [{ cardName: 'Knight', borders: ['Galaxy'] }] },\n  timeoutEnemies,\n  12345,\n  10_000,\n  true,\n)\nassert(!timeoutBattle.unsupportedAbilities.includes('Battle turn cap reached'), 'Stable active-pair timeout failed before emergency cap')\nassert(timeoutBattle.turns < 1_000, \`Stable active-pair timeout took too long: \${timeoutBattle.turns}\`)\nconsole.log('Stable active-pair timeout regression passed:', timeoutBattle.turns, 'turns')\n\n`
+    const test = `\nconst timeoutCard = cards.find((card) => card.name === 'Knight')!\nconst timeoutEnemies = [{\n  card: timeoutCard,\n  power: 1,\n  attack: 0,\n  health: 1e30,\n}]\nconst timeoutBattle = simulateBattleV2(\n  { cards: [{ cardName: 'Knight', borders: ['Galaxy'] }] },\n  timeoutEnemies,\n  12345,\n  10_000,\n  true,\n)\nassert(!timeoutBattle.unsupportedAbilities.includes('Battle turn cap reached'), 'Stable active-pair timeout failed before emergency cap')\nassert(timeoutBattle.turns < 1_000, \`Stable active-pair timeout took too long: \${timeoutBattle.turns}\`)\nconsole.log('Stable active-pair timeout regression passed:', timeoutBattle.turns, 'turns')\n\n`
     text = replaceOnce(text, anchor, test + anchor, 'engine smoke log')
   }
   fs.writeFileSync(path, text)

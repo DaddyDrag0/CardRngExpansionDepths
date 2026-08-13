@@ -1,0 +1,108 @@
+name: Inspect Raw Original Combat Source
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/inspect-original-source-raw.yml
+
+permissions:
+  contents: write
+
+jobs:
+  inspect:
+    if: github.event.head_commit.message == 'Inspect raw original combat source'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install Mega downloader
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y megatools
+      - name: Download original place
+        run: |
+          mkdir -p /tmp/cardrng
+          megadl --path=/tmp/cardrng 'https://mega.nz/file/9ZgVmApB#q8wH37s5lzYuHpPhiJ1PgZS7kO8DOhNiIhyzL7yjp1A'
+          find /tmp/cardrng -type f -printf '%p %s bytes\n'
+      - name: Search raw place source
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import html
+          import re
+
+          path = next(Path('/tmp/cardrng').glob('*.rbxlx'))
+          text = path.read_text(errors='ignore')
+          decoded = html.unescape(text)
+
+          terms = [
+            'Beyond The Grave','Constellar','Creation and Restoration','Dispel','Healing Miracle',
+            'Laser Gun','Lotus Sutra','Origin','Outshine','Pandemic',"Pandora's Box",'Railgun',
+            'Shiny Steal','Water Shield of Xuanwu'
+          ]
+          fallbacks = {
+            'Beyond The Grave':['Beyond','Grave'],
+            'Constellar':['ConstellarVirgo','ConstellarScorpio','Astraeus'],
+            'Creation and Restoration':['Creation','Restoration'],
+            'Healing Miracle':['Healing','Miracle'],
+            'Laser Gun':['Laser','Gun'],
+            'Lotus Sutra':['Lotus','Sutra'],
+            'Pandora\'s Box':['Pandora'],
+            'Shiny Steal':['Shiny','Steal'],
+            'Water Shield of Xuanwu':['Xuanwu','Water Shield'],
+          }
+
+          def contexts(haystack, needle, limit=6, before=4000, after=9000):
+            out=[]
+            start=0
+            while len(out)<limit:
+              pos=haystack.find(needle,start)
+              if pos<0: break
+              out.append(haystack[max(0,pos-before):min(len(haystack),pos+len(needle)+after)])
+              start=pos+len(needle)
+            return out
+
+          print('RAW PLACE LENGTH:', len(text))
+          for term in terms:
+            print('\n\n############################')
+            print('ABILITY:', term)
+            print('############################')
+            hits = contexts(decoded, term)
+            used = term
+            if not hits:
+              for alt in fallbacks.get(term, []):
+                hits = contexts(decoded, alt)
+                if hits:
+                  used = alt
+                  break
+            if not hits:
+              # whitespace/punctuation-tolerant search of words in the ability name
+              words = [w for w in re.findall(r"[A-Za-z]+", term) if len(w)>3]
+              positions=[]
+              for w in words:
+                pos=decoded.find(w)
+                if pos>=0: positions.append((pos,w))
+              if positions:
+                pos,w=min(positions)
+                hits=[decoded[max(0,pos-4000):min(len(decoded),pos+13000)]]
+                used='partial:'+w
+            if not hits:
+              print('NO MATCH')
+              continue
+            print('MATCHED USING:', used, 'COUNT SHOWN:', len(hits))
+            for i,ctx in enumerate(hits,1):
+              # keep logs readable while preserving code around the hit
+              ctx = re.sub(r'\r', '', ctx)
+              print(f'--- CONTEXT {i} ---')
+              print(ctx)
+          PY
+      - name: Remove one-time workflow
+        run: |
+          rm .github/workflows/inspect-original-source-raw.yml
+          git config user.name "Drago"
+          git config user.email "dragoidc3@gmail.com"
+          git add .github/workflows/inspect-original-source-raw.yml
+          git commit -m "Remove raw source inspection workflow"
+          git push

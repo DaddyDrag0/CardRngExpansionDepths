@@ -8,6 +8,7 @@ export interface DepthsRunResult {
   floorsCleared: number
   battles: number
   totalTurns: number
+  endingEnemies: string[]
   trusted: boolean
   unsupportedAbilities: string[]
 }
@@ -57,6 +58,7 @@ export function simulateDepthsRun(
         floorsCleared: floor - startFloor,
         battles,
         totalTurns,
+        endingEnemies: enemies.map((enemy) => enemy.card.name),
         trusted: unsupported.size === 0,
         unsupportedAbilities: [...unsupported].sort(),
       }
@@ -68,6 +70,7 @@ export function simulateDepthsRun(
     floorsCleared: floorCap - startFloor + 1,
     battles,
     totalTurns,
+    endingEnemies: [],
     trusted: unsupported.size === 0,
     unsupportedAbilities: [...unsupported].sort(),
   }

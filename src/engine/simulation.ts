@@ -1,7 +1,7 @@
 import type { TeamLoadout } from '../types'
 import { generateDepthsTeam } from './depths'
 import { SeededRng } from './rng'
-import { simulateBattle } from './battle'
+import { simulateBattleV2 } from './battle-v2'
 
 export interface DepthsRunResult {
   deathFloor: number
@@ -31,10 +31,7 @@ function mixSeed(runSeed: number, floor: number): number {
   return (x ^ (x >>> 16)) >>> 0
 }
 
-/**
- * Depths does NOT carry battle HP/state from floor to floor. The server calls StartBattle again
- * with the player's party for every Depth, so every floor is a fresh battle at that floor's enemy team.
- */
+/** Every Depth floor starts a new full battle with a fresh copy of the selected team. */
 export function simulateDepthsRun(
   loadout: TeamLoadout,
   options: { startFloor?: number; floorCap?: number; seed?: number } = {},
@@ -49,7 +46,7 @@ export function simulateDepthsRun(
   for (let floor = startFloor; floor <= floorCap; floor++) {
     const floorSeed = mixSeed(runSeed, floor)
     const enemies = generateDepthsTeam(floor, floorSeed)
-    const battle = simulateBattle(loadout, enemies, floorSeed ^ 0x51ed270b)
+    const battle = simulateBattleV2(loadout, enemies, floorSeed ^ 0x51ed270b)
     battles += 1
     totalTurns += battle.turns
     for (const ability of battle.unsupportedAbilities) unsupported.add(ability)

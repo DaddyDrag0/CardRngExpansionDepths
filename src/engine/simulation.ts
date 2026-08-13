@@ -27,6 +27,7 @@ export interface DepthsSimulationOptions {
   startFloor?: number
   floorCap?: number
   seed?: number
+  /** Test/debug only. Normal Depths simulations intentionally have no global battle-turn cap. */
   battleTurnCap?: number
 }
 
@@ -58,8 +59,17 @@ export function simulateDepthsRun(
   for (let floor = startFloor; floor <= floorCap; floor++) {
     const floorSeed = mixSeed(runSeed, floor)
     const enemies = generateDepthsTeam(floor, floorSeed)
-    const battleTurnCap = Math.max(1, Math.floor(options.battleTurnCap ?? 100_000))
-    const battle = simulateBattleV2(loadout, enemies, floorSeed ^ 0x51ed270b, battleTurnCap, true)
+    const hasDebugTurnCap = Number.isFinite(options.battleTurnCap)
+    const battleTurnCap = hasDebugTurnCap
+      ? Math.max(1, Math.floor(options.battleTurnCap as number))
+      : Number.POSITIVE_INFINITY
+    const battle = simulateBattleV2(
+      loadout,
+      enemies,
+      floorSeed ^ 0x51ed270b,
+      battleTurnCap,
+      hasDebugTurnCap,
+    )
     battles += 1
     totalTurns += battle.turns
     for (const ability of battle.unsupportedAbilities) unsupported.add(ability)

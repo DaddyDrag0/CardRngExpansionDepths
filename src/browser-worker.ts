@@ -11,7 +11,6 @@ interface BatchRequest {
   runs: number
   floorCap: number
   seed: number
-  browserTurnCap?: number
 }
 
 interface SingleRunRequest {
@@ -21,7 +20,6 @@ interface SingleRunRequest {
   floorCap: number
   batchSeed: number
   runIndex: number
-  browserTurnCap: number
 }
 
 type SimulationRequest = BatchRequest | SingleRunRequest
@@ -62,13 +60,11 @@ function simulateOne(request: SingleRunRequest): DepthsRunResult {
   return simulateDepthsRun(request.loadout, {
     floorCap: request.floorCap,
     seed: runSeed(request.batchSeed, request.runIndex),
-    battleTurnCap: request.browserTurnCap,
   })
 }
 
 async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[]> {
   const runs = Math.max(1, Math.floor(request.runs))
-  const browserTurnCap = Math.max(1, Math.floor(request.browserTurnCap ?? 10_000))
   const hardware = Math.max(1, Number(self.navigator.hardwareConcurrency) || 4)
   const workerCount = Math.min(runs, Math.max(1, Math.min(8, hardware - 1 || 1)))
 
@@ -80,7 +76,6 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
       floorCap: request.floorCap,
       batchSeed: request.seed,
       runIndex,
-      browserTurnCap,
     }))
   }
 
@@ -140,7 +135,6 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
         floorCap: request.floorCap,
         batchSeed: request.seed,
         runIndex,
-        browserTurnCap,
       } satisfies SingleRunRequest)
     }
 

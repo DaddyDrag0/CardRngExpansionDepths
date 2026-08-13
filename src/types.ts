@@ -86,6 +86,7 @@ export interface BattleBoosts {
   shielder?: number
   fate?: number
   flameWizard?: number
+  phantom?: number
   berserker?: number
   synthHuman?: number
   endTimes?: number

@@ -35,25 +35,11 @@ jobs:
           const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((match) => match[1])
           if (!scripts.length) throw new Error('No inline live-page script found')
           for (const script of scripts) new Function(script)
-
-          const requiredUiHooks = [
-            "new Worker('./browser/depths-worker.js')",
-            'CRE1-',
-            'Most common losing-floor enemies',
-          ]
-          for (const hook of requiredUiHooks) {
-            if (!html.includes(hook)) throw new Error(`Missing live-page hook: ${hook}`)
-          }
-
-          for (const removedHook of ['data-library-mode="bans"', 'data-library-mode="pool"']) {
-            if (html.includes(removedHook)) throw new Error(`Removed calculator-only control returned: ${removedHook}`)
-          }
-
+          const requiredUiHooks = ["new Worker('./browser/depths-worker.js')", 'CRE1-', 'Most common losing-floor enemies']
+          for (const hook of requiredUiHooks) if (!html.includes(hook)) throw new Error(`Missing live-page hook: ${hook}`)
+          for (const removedHook of ['data-library-mode="bans"', 'data-library-mode="pool"']) if (html.includes(removedHook)) throw new Error(`Removed calculator-only control returned: ${removedHook}`)
           const workerSource = fs.readFileSync('src/browser-worker.ts', 'utf8')
-          for (const removedField of ['excludedCardNames', 'selectedCardNames']) {
-            if (workerSource.includes(removedField)) throw new Error(`Removed calculator-only field returned: ${removedField}`)
-          }
-
+          for (const removedField of ['excludedCardNames', 'selectedCardNames']) if (workerSource.includes(removedField)) throw new Error(`Removed calculator-only field returned: ${removedField}`)
           const styles = fs.readFileSync('src/styles.css', 'utf8')
           if (styles.includes('.aura-exact b{display:none!important}')) throw new Error('Resolved aura values are hidden')
           console.log(`Live page JavaScript parsed successfully (${scripts.length} inline script).`)
@@ -71,11 +57,9 @@ jobs:
       - name: Commit validated turn-limit/randomization patch
         if: github.event_name == 'push' && github.event.head_commit.message == 'Apply turn-limit randomization patch'
         run: |
-          git checkout HEAD^ -- .github/workflows/engine-check.yml
-          rm scripts/fix-turn-limit-random.mjs
           git config user.name "Drago"
           git config user.email "dragoidc3@gmail.com"
-          git add -A
+          git add src/engine/battle-v2.ts index.html browser/depths-worker.js
           git commit -m "Fix per-card turn limit and randomize tests"
           git push
       - name: Commit browser simulation bundle

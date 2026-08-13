@@ -11,7 +11,6 @@ interface BatchRequest {
   runs: number
   floorCap: number
   seed: number
-  browserTurnCap?: number
 }
 
 interface SingleRunRequest {
@@ -21,7 +20,6 @@ interface SingleRunRequest {
   floorCap: number
   batchSeed: number
   runIndex: number
-  browserTurnCap: number
 }
 
 type SimulationRequest = BatchRequest | SingleRunRequest
@@ -40,13 +38,9 @@ function summarize(results: DepthsRunResult[]) {
   for (const result of results) {
     for (const ability of result.unsupportedAbilities) unsupported.add(ability)
   }
-
   const floors = results.map((result) => result.deathFloor).sort((a, b) => a - b)
   const middle = Math.floor(floors.length / 2)
-  const medianFloor = floors.length % 2
-    ? floors[middle]
-    : (floors[middle - 1] + floors[middle]) / 2
-
+  const medianFloor = floors.length % 2 ? floors[middle] : (floors[middle - 1] + floors[middle]) / 2
   return {
     runs: results,
     averageFloor: floors.reduce((sum, floor) => sum + floor, 0) / floors.length,
@@ -62,13 +56,11 @@ function simulateOne(request: SingleRunRequest): DepthsRunResult {
   return simulateDepthsRun(request.loadout, {
     floorCap: request.floorCap,
     seed: runSeed(request.batchSeed, request.runIndex),
-    battleTurnCap: request.browserTurnCap,
   })
 }
 
 async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[]> {
   const runs = Math.max(1, Math.floor(request.runs))
-  const browserTurnCap = Math.max(1, Math.floor(request.browserTurnCap ?? 10_000))
   const hardware = Math.max(1, Number(self.navigator.hardwareConcurrency) || 4)
   const workerCount = Math.min(runs, Math.max(1, Math.min(8, hardware - 1 || 1)))
 
@@ -80,7 +72,6 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
       floorCap: request.floorCap,
       batchSeed: request.seed,
       runIndex,
-      browserTurnCap,
     }))
   }
 
@@ -94,7 +85,6 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
     const stopAll = () => {
       for (const worker of workers) worker.terminate()
     }
-
     const finishIfDone = () => {
       if (!settled && completed === runs) {
         settled = true
@@ -102,14 +92,12 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
         resolve(results)
       }
     }
-
     const dispatch = (worker: Worker) => {
       if (settled) return
       if (nextRun >= runs) {
         finishIfDone()
         return
       }
-
       const runIndex = nextRun++
       worker.onmessage = (event: MessageEvent) => {
         const message = event.data
@@ -140,7 +128,6 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
         floorCap: request.floorCap,
         batchSeed: request.seed,
         runIndex,
-        browserTurnCap,
       } satisfies SingleRunRequest)
     }
 
@@ -161,25 +148,13 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
 self.onmessage = async (event: MessageEvent<SimulationRequest>) => {
   const request = event.data
   const started = performance.now()
-
   try {
     if (request.kind === 'single-run') {
-      self.postMessage({
-        id: request.id,
-        ok: true,
-        elapsedMs: performance.now() - started,
-        result: simulateOne(request),
-      })
+      self.postMessage({ id: request.id, ok: true, elapsedMs: performance.now() - started, result: simulateOne(request) })
       return
     }
-
     const results = await simulateParallel(request)
-    self.postMessage({
-      id: request.id,
-      ok: true,
-      elapsedMs: performance.now() - started,
-      result: summarize(results),
-    })
+    self.postMessage({ id: request.id, ok: true, elapsedMs: performance.now() - started, result: summarize(results) })
   } catch (error) {
     self.postMessage({
       id: request.id,

@@ -138,6 +138,10 @@ export function applySkillAuraTeamEffects(
 
   const value = getSkillAuraValue(aura, selection?.border)
 
+  if (DIRECT_SKILL_BOOST_KEYS[aura.name]) {
+    return { aura, value, implemented: true }
+  }
+
   if (aura.name === 'Jurassic World') {
     const prehistoricCount = team.filter((card) => card.definition.pack === 'Prehistoric').length
     const multiplier = 1 + prehistoricCount * value / 100

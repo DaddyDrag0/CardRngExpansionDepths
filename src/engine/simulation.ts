@@ -27,6 +27,7 @@ export interface DepthsSimulationOptions {
   startFloor?: number
   floorCap?: number
   seed?: number
+  battleTurnCap?: number
 }
 
 export interface DepthsBatchOptions extends DepthsSimulationOptions {
@@ -57,7 +58,8 @@ export function simulateDepthsRun(
   for (let floor = startFloor; floor <= floorCap; floor++) {
     const floorSeed = mixSeed(runSeed, floor)
     const enemies = generateDepthsTeam(floor, floorSeed)
-    const battle = simulateBattleV2(loadout, enemies, floorSeed ^ 0x51ed270b)
+    const battleTurnCap = Math.max(1, Math.floor(options.battleTurnCap ?? 100_000))
+    const battle = simulateBattleV2(loadout, enemies, floorSeed ^ 0x51ed270b, battleTurnCap, true)
     battles += 1
     totalTurns += battle.turns
     for (const ability of battle.unsupportedAbilities) unsupported.add(ability)
@@ -102,6 +104,7 @@ export function simulateDepthsBatch(
       startFloor: options.startFloor,
       floorCap: options.floorCap,
       seed: runSeed,
+      battleTurnCap: options.battleTurnCap,
     })
     results.push(result)
     for (const ability of result.unsupportedAbilities) unsupported.add(ability)

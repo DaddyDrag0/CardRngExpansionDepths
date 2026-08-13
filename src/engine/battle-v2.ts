@@ -2322,14 +2322,17 @@ function scheduleExtraTurns(runtime: Runtime, attacker: CombatCard): boolean {
   return extra
 }
 
-export function simulateBattleV2(loadout: TeamLoadout, enemies: DepthsEnemy[], seed = 1): BattleResult {
+export function simulateBattleV2(
+  loadout: TeamLoadout,
+  enemies: DepthsEnemy[],
+  seed = 1,
+  maxTurns = 2_000,
+  markTurnCap = false,
+): BattleResult {
   const state = createBattleStateV2(loadout, enemies)
   const runtime: Runtime = { state, rng: new SeededRng(seed) }
   resolveConstellarArts(runtime)
-  let lastPair = ''
-  let samePairTurns = 0
-
-  while (state.teams.Allies.length && state.teams.Enemies.length && state.turn < 2_000) {
+  while (state.teams.Allies.length && state.teams.Enemies.length && state.turn < maxTurns) {
     state.turn += 1
     let attacker = active(runtime, state.moving)
     let defender = active(runtime, OTHER_TEAM[state.moving])
@@ -2342,16 +2345,6 @@ export function simulateBattleV2(loadout: TeamLoadout, enemies: DepthsEnemy[], s
     attacker = active(runtime, state.moving)
     defender = active(runtime, OTHER_TEAM[state.moving])
     if (!attacker || !defender) break
-
-    const pair = `${attacker.id}|${defender.id}`
-    if (pair === lastPair) samePairTurns += 1
-    else { lastPair = pair; samePairTurns = 0 }
-    if (samePairTurns >= 150) {
-      attacker.hp = 0
-      defender.hp = 0
-      resolveDeaths(runtime)
-      continue
-    }
 
     doTurn(runtime, attacker)
     processDivination(runtime)
@@ -2378,6 +2371,10 @@ export function simulateBattleV2(loadout: TeamLoadout, enemies: DepthsEnemy[], s
         state.moving = nextTeam
       }
     }
+  }
+
+  if (markTurnCap && state.turn >= maxTurns && state.teams.Allies.length && state.teams.Enemies.length) {
+    state.unsupportedAbilities.add('Battle turn cap reached')
   }
 
   const winner: BattleResult['winner'] = state.teams.Allies.length

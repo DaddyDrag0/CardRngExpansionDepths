@@ -56,6 +56,9 @@ const battle = simulateBattleV2(loadout, enemies, 7)
 assert(battle.winner === 'Allies', 'Controlled battle should be won by the player card')
 assert(battle.turns > 0, 'Controlled battle did not advance turns')
 
+const fateBattle = simulateBattleV2({ cards: [{ cardName: 'Mastermind', borders: ['Galaxy'] }], abilityAura: { auraName: 'Fate' } }, enemies, 8)
+assert(!fateBattle.unsupportedAbilities.includes('Aura: Fate'), 'Fate was incorrectly marked unsupported')
+
 const coverage = getDepthsAbilityCoverage()
 assert(coverage.total > 150, 'Depths ability coverage scan did not see the full pool')
 assert(coverage.unsupported === 0, `Unimplemented Depths abilities remain: ${coverage.unsupportedAbilities.join(', ')}`)

@@ -303,7 +303,7 @@ for (const name of fixedDepthsExclusions) {
 }
 const runLoadout: TeamLoadout = { cards: strongest }
 
-const batchOptions = { runs: 3, startFloor: 1, floorCap: 20, seed: 98_765 }
+const batchOptions = { runs: 3, startFloor: 1, floorCap: 20, seed: 98_765, battleTurnCap: 2_000 }
 const batchA = simulateDepthsBatch(runLoadout, batchOptions)
 const batchB = simulateDepthsBatch(runLoadout, batchOptions)
 assert(JSON.stringify(batchA) === JSON.stringify(batchB), 'Depths batch is not deterministic for identical inputs')
@@ -311,7 +311,7 @@ assert(batchA.runs.length === 3, 'Depths batch returned the wrong number of runs
 assert(batchA.runs.every((run) => run.battles >= 1 && run.battles <= 20), 'Depths batch produced an invalid battle count')
 assert(batchA.runs.every((run) => Number.isFinite(run.totalTurns)), 'Depths batch produced a non-finite turn count')
 
-const highFloor = simulateDepthsRun(runLoadout, { startFloor: 1_000, floorCap: 1_002, seed: 246_810 })
+const highFloor = simulateDepthsRun(runLoadout, { startFloor: 1_000, floorCap: 1_002, seed: 246_810, battleTurnCap: 2_000 })
 assert(highFloor.battles >= 1 && highFloor.battles <= 3, `High-floor run used ${highFloor.battles} battles`)
 assert(highFloor.totalTurns >= 1 && highFloor.totalTurns <= 6_000, `High-floor run used ${highFloor.totalTurns} turns`)
 assert(Number.isFinite(highFloor.deathFloor), 'High-floor run returned a non-finite death floor')

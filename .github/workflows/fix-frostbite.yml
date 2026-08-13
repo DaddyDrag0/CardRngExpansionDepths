@@ -1,0 +1,37 @@
+name: Fix Frostbite Status
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/fix-frostbite.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message == 'Queue Frostbite status correction'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: python -m py_compile scripts/fix-frostbite.py
+      - run: python scripts/fix-frostbite.py
+      - run: npm install
+      - run: npm run build
+      - run: npm run test:engine
+      - run: npm run test:depths
+      - run: npm run test:player
+      - name: Remove one-time patch files and commit
+        run: |
+          rm .github/workflows/fix-frostbite.yml scripts/fix-frostbite.py
+          git config user.name "Drago"
+          git config user.email "dragoidc3@gmail.com"
+          git add -A
+          git commit -m "Correct Frostbite status timing"
+          git push

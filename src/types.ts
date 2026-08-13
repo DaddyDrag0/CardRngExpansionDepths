@@ -66,6 +66,7 @@ export interface CombatCard {
   entered: boolean
   dead: boolean
   boss: boolean
+  identityOverride?: string | null
   abilityOverride?: string | null
   bonusAbilities?: string[]
   status: {
@@ -94,6 +95,8 @@ export interface BattleBoosts {
   endTimes?: number
   vampireMatron?: number
   fossils?: number
+  composerCount?: number
+  composerThreshold?: number
 }
 
 export interface BattleState {

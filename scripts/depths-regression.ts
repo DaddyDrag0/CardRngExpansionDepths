@@ -286,12 +286,21 @@ const strongest = cards
   .map((entry) => ({ cardName: entry.card.name, borders: [] as TeamLoadout['cards'][number]['borders'] }))
 
 assert(strongest.length === 4, 'Could not build a four-card regression team')
-const selectedPoolCard = strongest[0].cardName
-const selectedPoolTeam = generateDepthsTeam(50_000, 445566, { selectedCardNames: [selectedPoolCard] })
-assert(selectedPoolTeam.length === 4, 'Selected enemy pool did not generate four enemies')
-assert(selectedPoolTeam.every((enemy) => enemy.card.name === selectedPoolCard), 'Selected enemy pool generated an unselected card')
-const emptyFilteredPool = generateDepthsTeam(50_000, 445566, { selectedCardNames: [selectedPoolCard], excludedCardNames: [selectedPoolCard] })
-assert(emptyFilteredPool.length === 0, 'Excluded card remained in the selected enemy pool')
+const fixedDepthsExclusions = [
+  'Samurai',
+  'Seraphim',
+  'Vampire Lord',
+  'Loki',
+  'Fuxi',
+  'Parallax',
+  'Nán Fāng Zhū Què',
+  'Brachiosaurus',
+  'Jersey Devil',
+]
+for (const name of fixedDepthsExclusions) {
+  const card = cardByName(name)
+  assert(!isDepthsSourceEligible(card), `${name} must remain excluded from Depths enemy generation`)
+}
 const runLoadout: TeamLoadout = { cards: strongest }
 
 const batchOptions = { runs: 3, startFloor: 1, floorCap: 20, seed: 98_765 }

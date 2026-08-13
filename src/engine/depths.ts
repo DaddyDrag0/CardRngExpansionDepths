@@ -20,11 +20,6 @@ const WEATHER_WEIGHTS: Record<string, number> = {
   Virus: 0.2,
 }
 
-export interface DepthsPoolSelection {
-  excludedCardNames?: readonly string[]
-  selectedCardNames?: readonly string[]
-}
-
 export function depthBudget(floor: number): number {
   return 3000 + Math.pow(floor, 2.75) * 40
 }
@@ -48,20 +43,14 @@ export function isUnlockedAtFloor(card: CardDefinition, floor: number): boolean 
   return getAttack(card) * getHealth(card) < depthBudget(floor)
 }
 
-function isSelectedForCalculator(card: CardDefinition, selection: DepthsPoolSelection): boolean {
-  if (selection.excludedCardNames?.length && selection.excludedCardNames.includes(card.name)) return false
-  if (selection.selectedCardNames?.length && !selection.selectedCardNames.includes(card.name)) return false
-  return true
-}
-
-export function getDepthsPool(floor: number, selection: DepthsPoolSelection = {}) {
+export function getDepthsPool(floor: number) {
   return cards
-    .filter((card) => isUnlockedAtFloor(card, floor) && isSelectedForCalculator(card, selection))
+    .filter((card) => isUnlockedAtFloor(card, floor))
     .map((card) => ({ card, weight: card.weather ? (WEATHER_WEIGHTS[card.weather] ?? 1) : 1 }))
 }
 
-export function generateDepthsTeam(floor: number, seed = floor, selection: DepthsPoolSelection = {}): DepthsEnemy[] {
-  const pool = getDepthsPool(floor, selection)
+export function generateDepthsTeam(floor: number, seed = floor): DepthsEnemy[] {
+  const pool = getDepthsPool(floor)
   const totalWeight = pool.reduce((sum, item) => sum + item.weight, 0)
   const rng = new SeededRng(seed)
   const power = depthsPower(floor)

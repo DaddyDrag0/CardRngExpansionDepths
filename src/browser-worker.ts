@@ -9,8 +9,6 @@ interface SimulationRequest {
   runs: number
   floorCap: number
   seed: number
-  excludedCardNames?: string[]
-  selectedCardNames?: string[]
 }
 
 self.onmessage = (event: MessageEvent<SimulationRequest>) => {
@@ -21,8 +19,6 @@ self.onmessage = (event: MessageEvent<SimulationRequest>) => {
       runs: request.runs,
       floorCap: request.floorCap,
       seed: request.seed,
-      excludedCardNames: request.excludedCardNames,
-      selectedCardNames: request.selectedCardNames,
     })
     self.postMessage({
       id: request.id,

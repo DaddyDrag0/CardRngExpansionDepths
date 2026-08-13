@@ -1,0 +1,85 @@
+name: Apply Optional Enemy Pool Routing
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/apply-pool-routing.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message == 'Queue optional enemy pool routing'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Route optional enemy selection through run and worker
+        shell: python
+        run: |
+          from pathlib import Path
+
+          p = Path('src/engine/simulation.ts')
+          s = p.read_text()
+          def rep(old, new):
+              global s
+              if old not in s:
+                  raise SystemExit('simulation anchor missing: ' + old[:160])
+              s = s.replace(old, new, 1)
+
+          rep("import { generateDepthsTeam } from './depths'", "import { generateDepthsTeam, type DepthsPoolSelection } from './depths'")
+          rep("}\n\nfunction mixSeed", "}\n\nexport interface DepthsSimulationOptions extends DepthsPoolSelection {\n  startFloor?: number\n  floorCap?: number\n  seed?: number\n}\n\nexport interface DepthsBatchOptions extends DepthsSimulationOptions {\n  runs?: number\n}\n\nfunction mixSeed")
+          rep("options: { startFloor?: number; floorCap?: number; seed?: number } = {},", "options: DepthsSimulationOptions = {},")
+          rep("  const unsupported = new Set<string>()\n  let totalTurns", "  const unsupported = new Set<string>()\n  const poolSelection: DepthsPoolSelection = {\n    excludedCardNames: options.excludedCardNames,\n    selectedCardNames: options.selectedCardNames,\n  }\n  let totalTurns")
+          rep("const enemies = generateDepthsTeam(floor, floorSeed)", "const enemies = generateDepthsTeam(floor, floorSeed, poolSelection)")
+          rep("options: { runs?: number; startFloor?: number; floorCap?: number; seed?: number } = {},", "options: DepthsBatchOptions = {},")
+          rep("      seed: runSeed,\n    })", "      seed: runSeed,\n      excludedCardNames: options.excludedCardNames,\n      selectedCardNames: options.selectedCardNames,\n    })")
+          p.write_text(s)
+
+          p = Path('src/browser-worker.ts')
+          s = p.read_text()
+          old = "  seed: number\n}"
+          new = "  seed: number\n  excludedCardNames?: string[]\n  selectedCardNames?: string[]\n}"
+          if old not in s: raise SystemExit('worker interface anchor missing')
+          s = s.replace(old, new, 1)
+          old = "      seed: request.seed,\n    })"
+          new = "      seed: request.seed,\n      excludedCardNames: request.excludedCardNames,\n      selectedCardNames: request.selectedCardNames,\n    })"
+          if old not in s: raise SystemExit('worker call anchor missing')
+          p.write_text(s.replace(old, new, 1))
+
+          p = Path('scripts/depths-regression.ts')
+          s = p.read_text()
+          old = "import { isDepthsSourceEligible } from '../src/engine/depths'"
+          new = "import { generateDepthsTeam, isDepthsSourceEligible } from '../src/engine/depths'"
+          if old not in s: raise SystemExit('regression import anchor missing')
+          s = s.replace(old, new, 1)
+          anchor = "assert(strongest.length === 4, 'Could not build a four-card regression team')\nconst runLoadout: TeamLoadout = { cards: strongest }"
+          replacement = """assert(strongest.length === 4, 'Could not build a four-card regression team')
+const selectedPoolCard = strongest[0].cardName
+const selectedPoolTeam = generateDepthsTeam(50_000, 445566, { selectedCardNames: [selectedPoolCard] })
+assert(selectedPoolTeam.length === 4, 'Selected enemy pool did not generate four enemies')
+assert(selectedPoolTeam.every((enemy) => enemy.card.name === selectedPoolCard), 'Selected enemy pool generated an unselected card')
+const emptyFilteredPool = generateDepthsTeam(50_000, 445566, { selectedCardNames: [selectedPoolCard], excludedCardNames: [selectedPoolCard] })
+assert(emptyFilteredPool.length === 0, 'Excluded card remained in the selected enemy pool')
+const runLoadout: TeamLoadout = { cards: strongest }"""
+          if anchor not in s: raise SystemExit('regression pool anchor missing')
+          p.write_text(s.replace(anchor, replacement, 1))
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run build
+      - run: npm run test:engine
+      - run: npm run test:depths
+      - run: npm run test:player
+      - name: Commit pool routing
+        run: |
+          rm .github/workflows/apply-pool-routing.yml
+          git config user.name "Drago"
+          git config user.email "dragoidc3@gmail.com"
+          git add -A
+          git commit -m "Route optional enemy pool selection"
+          git push

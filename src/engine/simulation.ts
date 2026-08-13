@@ -43,7 +43,6 @@ function mixSeed(runSeed: number, floor: number): number {
   return (x ^ (x >>> 16)) >>> 0
 }
 
-/** Every Depth floor starts a new full battle with a fresh copy of the selected team. */
 export function simulateDepthsRun(
   loadout: TeamLoadout,
   options: DepthsSimulationOptions = {},
@@ -58,8 +57,9 @@ export function simulateDepthsRun(
   for (let floor = startFloor; floor <= floorCap; floor++) {
     const floorSeed = mixSeed(runSeed, floor)
     const enemies = generateDepthsTeam(floor, floorSeed)
-    const battleTurnCap = Math.max(1, Math.floor(options.battleTurnCap ?? 100_000))
-    const battle = simulateBattleV2(loadout, enemies, floorSeed ^ 0x51ed270b, battleTurnCap, true)
+    const hasTurnCap = Number.isFinite(options.battleTurnCap)
+    const maxTurns = hasTurnCap ? Math.max(1, Math.floor(options.battleTurnCap as number)) : Number.POSITIVE_INFINITY
+    const battle = simulateBattleV2(loadout, enemies, floorSeed ^ 0x51ed270b, maxTurns, hasTurnCap)
     battles += 1
     totalTurns += battle.turns
     for (const ability of battle.unsupportedAbilities) unsupported.add(ability)
@@ -112,9 +112,7 @@ export function simulateDepthsBatch(
 
   const floors = results.map((result) => result.deathFloor).sort((a, b) => a - b)
   const middle = Math.floor(floors.length / 2)
-  const medianFloor = floors.length % 2
-    ? floors[middle]
-    : (floors[middle - 1] + floors[middle]) / 2
+  const medianFloor = floors.length % 2 ? floors[middle] : (floors[middle - 1] + floors[middle]) / 2
 
   return {
     runs: results,

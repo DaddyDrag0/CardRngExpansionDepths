@@ -33,6 +33,9 @@ export const SOURCE_ALIGNED_ABILITIES = new Set([
   "Hell's Curse", 'Final Tail', "Reaper's Luck", 'Decay', 'Purifying Fire',
   'Sacrificial Tides', 'Rejuvenate', 'Twilight Sparkle', 'Viral Breath', 'Herbal Alchemy',
   'Revenge', 'Northern Winds', 'Azure Dragon Wrath', 'Stampede', 'Ice Age',
+  'Jaws', 'Lightning Strike', 'Danger Sense', 'Defensive Maneuver', 'First Tail',
+  'Grind', 'World Creation', 'Melancholy', 'The World', 'Accelerate', 'Black Flash',
+  'Limitless', "Monkey King's Rage",
 ])
 
 export function getDepthsAbilityCoverage() {

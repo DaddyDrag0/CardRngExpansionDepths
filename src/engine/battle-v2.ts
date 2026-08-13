@@ -48,6 +48,9 @@ const FULLY_SUPPORTED = new Set([
   "Hell's Curse", 'Final Tail', "Reaper's Luck", 'Decay', 'Purifying Fire',
   'Sacrificial Tides', 'Rejuvenate', 'Twilight Sparkle', 'Viral Breath', 'Herbal Alchemy',
   'Revenge', 'Northern Winds', 'Azure Dragon Wrath', 'Stampede', 'Ice Age',
+  'Jaws', 'Lightning Strike', 'Danger Sense', 'Defensive Maneuver', 'First Tail',
+  'Grind', 'World Creation', 'Melancholy', 'The World', 'Accelerate', 'Black Flash',
+  'Limitless', "Monkey King's Rage",
 ])
 
 const BENCH_AFFECTING_UNSUPPORTED = new Set([
@@ -439,6 +442,14 @@ function offensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
 
   switch (name) {
     case 'True Strike': if (rand(runtime, attacker.team) > 0.5) damage *= 2; break
+    case "Monkey King's Rage":
+      if (attacker.hp / attacker.maxHp <= 0.5 && !attacker.flags.transformed) {
+        attacker.flags.transformed = true
+        attacker.maxHp *= 2
+        attacker.hp *= 2
+        damage *= 2
+      }
+      break
     case "Reaper's Luck": {
       const changes = [-0.1, 0.15, 0.3]
       const roll = rand(runtime, attacker.team)
@@ -538,6 +549,18 @@ function defensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
   if (!name || !hasAbility(runtime, target, name)) return damage
 
   switch (name) {
+    case 'Danger Sense':
+      if (!target.flags.dangerSense && damage > target.hp) {
+        target.flags.dangerSense = true
+        damage = 0
+        const deck = runtime.state.teams[target.team]
+        const index = deck.indexOf(target)
+        if (index >= 0 && deck[index + 1]) {
+          deck[index] = deck[index + 1]
+          deck[index + 1] = target
+        }
+      }
+      break
     case 'Evasion': if (rand(runtime, target.team) > 0.9) damage = 0; break
     case 'Finesse': if (damage < target.maxHp * 0.3) damage = 0; break
     case 'Last Stand':
@@ -791,6 +814,7 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   if (attacker.status.confused > 0) attacker.status.confused -= 1
 
   let damage = attacker.damage * mult
+  if (hasAbility(runtime, attacker, 'Jaws')) damage += target.damage
   if (attacker.status.burn > 0) damage *= 0.85
   const off = offensive(runtime, attacker, target, damage)
   damage = off.damage
@@ -914,6 +938,9 @@ function resolveDeaths(runtime: Runtime) {
 }
 
 function statusStart(runtime: Runtime, attacker: CombatCard, target: CombatCard) {
+  if (hasAbility(runtime, target, 'Lightning Strike') && alive(target) && alive(attacker)) {
+    dealDamage(runtime, target, attacker, 0.75)
+  }
   const poisonPercent = attacker.counters.poisonPercent || 0
   const poisonFlat = attacker.counters.poisonFlat || 0
   if (poisonPercent) attacker.hp = Math.max(0, attacker.hp + poisonPercent * attacker.maxHp)
@@ -957,6 +984,36 @@ function statusEnd(runtime: Runtime, attacker: CombatCard) {
   }
 }
 
+function prepareTurn(runtime: Runtime, attacker: CombatCard) {
+  if (hasAbility(runtime, attacker, 'First Tail') && (attacker.counters.tail || 0) < 9) {
+    attacker.counters.tail = (attacker.counters.tail || 0) + 1
+    boostStats(attacker, 1.2)
+  }
+  if (hasAbility(runtime, attacker, 'Grind')) {
+    attacker.counters.grind = (attacker.counters.grind || 0) + 1
+    if (attacker.counters.grind <= 5) boostStats(attacker, 1.1)
+  }
+  if (hasAbility(runtime, attacker, 'Patience')) boostStats(attacker, 1.3)
+  if (hasAbility(runtime, attacker, 'Absolute Sovereignty')) for (const card of runtime.state.teams[attacker.team]) boostStats(card, 1.1)
+  if (hasAbility(runtime, attacker, 'World Creation')) {
+    attacker.counters.worldCreation = (attacker.counters.worldCreation || 0) + 1
+    if (attacker.counters.worldCreation % 3 === 0) boostStats(attacker, 2)
+  }
+  if (hasAbility(runtime, attacker, 'Persistent')) {
+    const normal = attacker.counters.normalDamage || attacker.damage
+    if (attacker.damage < normal) attacker.damage = normal
+  }
+  if (hasAbility(runtime, attacker, 'Sky Drop')) attacker.counters.drop = (attacker.counters.drop || 0) + 1
+  if (hasAbility(runtime, attacker, 'Snowbound')) {
+    attacker.counters.snowbound = (attacker.counters.snowbound || 0) + 1
+    if (attacker.counters.snowbound % 2 === 0) attacker.status.stunned = Math.max(1, attacker.status.stunned)
+  }
+  if (hasAbility(runtime, attacker, 'Defensive Maneuver')) {
+    attacker.counters.defensiveManeuver = (attacker.counters.defensiveManeuver || 0) + 1
+    if (attacker.counters.defensiveManeuver % 2 === 0) attacker.status.shield += 1
+  }
+}
+
 function beforeAttack(runtime: Runtime, attacker: CombatCard) {
   const target = active(runtime, OTHER_TEAM[attacker.team])
   if (hasAbility(runtime, attacker, 'Rejuvenate')) attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.35)
@@ -968,17 +1025,6 @@ function beforeAttack(runtime: Runtime, attacker: CombatCard) {
     if (rand(runtime, attacker.team) > 0.5) attacker.damage *= 1.3
   }
   if (hasAbility(runtime, attacker, 'Combatant')) attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.1)
-  if (hasAbility(runtime, attacker, 'Patience')) boostStats(attacker, 1.3)
-  if (hasAbility(runtime, attacker, 'Absolute Sovereignty')) for (const card of runtime.state.teams[attacker.team]) boostStats(card, 1.1)
-  if (hasAbility(runtime, attacker, 'Persistent')) {
-    const normal = attacker.counters.normalDamage || attacker.damage
-    if (attacker.damage < normal) attacker.damage = normal
-  }
-  if (hasAbility(runtime, attacker, 'Sky Drop')) attacker.counters.drop = (attacker.counters.drop || 0) + 1
-  if (hasAbility(runtime, attacker, 'Snowbound')) {
-    attacker.counters.snowbound = (attacker.counters.snowbound || 0) + 1
-    if (attacker.counters.snowbound % 2 === 0) attacker.status.stunned = Math.max(1, attacker.status.stunned)
-  }
 }
 
 function attackCount(attacker: CombatCard): { count: number; mult: number } {
@@ -1003,6 +1049,7 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
   let target = active(runtime, enemyTeam)
   if (!target || !alive(attacker)) return
 
+  prepareTurn(runtime, attacker)
   statusStart(runtime, attacker, target)
   resolveDeaths(runtime)
   if (!alive(attacker)) return
@@ -1017,6 +1064,9 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
       target = active(runtime, enemyTeam)
       if (!target || !alive(attacker)) break
       dealDamage(runtime, attacker, target)
+      if (hasAbility(runtime, attacker, 'Black Flash') && alive(attacker) && target.hp > 0) {
+        dealDamage(runtime, attacker, target, 0.5, true)
+      }
       resolveDeaths(runtime)
     }
   }
@@ -1058,8 +1108,17 @@ function scheduleExtraTurns(runtime: Runtime, attacker: CombatCard): boolean {
   if (!attacker.flags.onBonusTurn) {
     let count = 0
     if (hasAbility(runtime, attacker, 'Berserk') && attacker.hp / attacker.maxHp < 0.5) count += 1
+    if (hasAbility(runtime, attacker, 'Melancholy') && attacker.hp / attacker.maxHp > 0.5) count += 2
     if (hasAbility(runtime, attacker, 'Haste')) count += 1
     if (hasAbility(runtime, attacker, 'First Progenitor')) count += 1
+    if (hasAbility(runtime, attacker, 'The World')) {
+      if (attacker.flags.worldCooldown) attacker.flags.worldCooldown = false
+      else { count += 2; attacker.flags.worldCooldown = true }
+    }
+    if (hasAbility(runtime, attacker, 'Accelerate')) {
+      attacker.counters.turnsPerTurn = (attacker.counters.turnsPerTurn || 0) + 1
+      count += attacker.counters.turnsPerTurn
+    }
     if (count > 0) attacker.counters.extraTurns = count
   }
 

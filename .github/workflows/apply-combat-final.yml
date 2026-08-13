@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   patch:
-    if: github.event.head_commit.message == 'Queue final Depths ability patch'
+    if: github.event.head_commit.message == 'Fix final Depths ability patch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,8 +20,27 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Validate patch script
-        run: python -m py_compile scripts/apply-combat-final.py
+      - name: Repair and validate patch script
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/apply-combat-final.py')
+          s = p.read_text()
+          start = s.index('# Pandora is explicitly an RNG ability')
+          end = s.index('# Make zero remaining abilities a CI invariant.', start)
+          replacement = '''# Pandora is explicitly an RNG ability; Black Cat / Unlucky needs to recognize it.
+p = Path('src/engine/combat-data.ts')
+s = p.read_text()
+if "Pandora's Box" not in s:
+    marker = 'export const RNG_ABILITIES = new Set(['
+    idx = s.index(marker) + len(marker)
+    s = s[:idx] + "\n  \"Pandora's Box\"," + s[idx:]
+p.write_text(s)
+
+'''
+          p.write_text(s[:start] + replacement + s[end:])
+          PY
+          python -m py_compile scripts/apply-combat-final.py
       - name: Apply final combat patch
         run: python scripts/apply-combat-final.py
       - run: npm install

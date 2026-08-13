@@ -19,8 +19,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Apply active-pair timeout correction
-        if: github.event_name == 'push' && github.event.head_commit.message == 'Run active-pair timeout correction'
+      - name: Apply source-aligned timeout correction
+        if: github.event_name == 'push' && github.event.head_commit.message == 'Run source-aligned timeout correction'
         run: node scripts/fix-active-pair.mjs
       - run: npm install
       - run: npm run build
@@ -35,51 +35,34 @@ jobs:
           const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((match) => match[1])
           if (!scripts.length) throw new Error('No inline live-page script found')
           for (const script of scripts) new Function(script)
-
-          const requiredUiHooks = [
-            "new Worker('./browser/depths-worker.js')",
-            'CRE1-',
-            'Most common losing-floor enemies',
-            'crypto.getRandomValues',
-            'Fresh random enemies every test',
-          ]
-          for (const hook of requiredUiHooks) {
-            if (!html.includes(hook)) throw new Error(`Missing live-page hook: ${hook}`)
-          }
-
-          for (const removedHook of ['data-library-mode="bans"', 'data-library-mode="pool"', 'id="seedInput"']) {
-            if (html.includes(removedHook)) throw new Error(`Removed calculator-only control returned: ${removedHook}`)
-          }
-
+          const requiredUiHooks = ["new Worker('./browser/depths-worker.js')", 'CRE1-', 'Most common losing-floor enemies', 'crypto.getRandomValues', 'Fresh random enemies every test']
+          for (const hook of requiredUiHooks) if (!html.includes(hook)) throw new Error(`Missing live-page hook: ${hook}`)
+          for (const removedHook of ['data-library-mode="bans"', 'data-library-mode="pool"', 'id="seedInput"']) if (html.includes(removedHook)) throw new Error(`Removed calculator-only control returned: ${removedHook}`)
           const workerSource = fs.readFileSync('src/browser-worker.ts', 'utf8')
-          for (const removedField of ['excludedCardNames', 'selectedCardNames']) {
-            if (workerSource.includes(removedField)) throw new Error(`Removed calculator-only field returned: ${removedField}`)
-          }
-
+          for (const removedField of ['excludedCardNames', 'selectedCardNames']) if (workerSource.includes(removedField)) throw new Error(`Removed calculator-only field returned: ${removedField}`)
           const battle = fs.readFileSync('src/engine/battle-v2.ts', 'utf8')
-          if (!battle.includes("active(runtime, 'Allies')")) throw new Error('Stable allied active-card timeout key missing')
-          if (!battle.includes("active(runtime, 'Enemies')")) throw new Error('Stable enemy active-card timeout key missing')
-          if (!battle.includes('pairTurns[attacker.id] > 150')) throw new Error('150-turn per-card matchup limit missing')
-          if (battle.includes('const nextPairKey = `${attacker.id}|${defender.id}`')) throw new Error('Turn-order-dependent pair key returned')
-
+          if (!battle.includes('let turnsWithoutDeaths = 0')) throw new Error('Turns-without-deaths timeout state missing')
+          if (!battle.includes('attacker !== lastMover && attacker !== lastTarget')) throw new Error('Source-aligned attacker timeout reset missing')
+          if (!battle.includes('defender !== lastMover && defender !== lastTarget')) throw new Error('Source-aligned target timeout reset missing')
+          if (!battle.includes('turnsWithoutDeaths >= 150')) throw new Error('Expansion 150-turn timeout missing')
+          if (battle.includes('pairTurns[')) throw new Error('Incorrect per-attacker timeout counter returned')
           const styles = fs.readFileSync('src/styles.css', 'utf8')
           if (styles.includes('.aura-exact b{display:none!important}')) throw new Error('Resolved aura values are hidden')
-
           console.log(`Live page JavaScript parsed successfully (${scripts.length} inline script).`)
           NODE
       - name: Bundle browser simulation worker
         if: github.event_name == 'push'
         run: npx esbuild src/browser-worker.ts --bundle --platform=browser --format=iife --target=es2020 --minify --outfile=browser/depths-worker.js
-      - name: Commit validated active-pair correction
-        if: github.event_name == 'push' && github.event.head_commit.message == 'Run active-pair timeout correction'
+      - name: Commit validated source-aligned timeout correction
+        if: github.event_name == 'push' && github.event.head_commit.message == 'Run source-aligned timeout correction'
         run: |
           git config user.name "Drago"
           git config user.email "dragoidc3@gmail.com"
           git add src/engine/battle-v2.ts scripts/engine-smoke.ts browser/depths-worker.js
-          git commit -m "Fix stable per-card battle timeout tracking"
+          git commit -m "Align 150-turn timeout with original battle loop"
           git push
       - name: Commit browser simulation bundle
-        if: github.event_name == 'push' && github.event.head_commit.message != 'Run active-pair timeout correction'
+        if: github.event_name == 'push' && github.event.head_commit.message != 'Run source-aligned timeout correction'
         run: |
           git config user.name "Drago"
           git config user.email "dragoidc3@gmail.com"

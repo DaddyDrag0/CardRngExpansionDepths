@@ -36,6 +36,11 @@ export const SOURCE_ALIGNED_ABILITIES = new Set([
   'Jaws', 'Lightning Strike', 'Danger Sense', 'Defensive Maneuver', 'First Tail',
   'Grind', 'World Creation', 'Melancholy', 'The World', 'Accelerate', 'Black Flash',
   'Limitless', "Monkey King's Rage",
+  'A Pair of Two', 'Final Stand', 'Heard but not Seen', 'Lights Way', 'Eclipse',
+  'Friendship', 'Fusion... HA!', 'Divine Mist', 'Dark Qi Manipulation',
+  'Immortal Ascension', 'Hard Boiled', 'Tyrannospirit', 'Absolute Apex', 'Last Meal',
+  'Stolen Spotlight', 'Horned Attack', 'Creep', 'Protection of Gods', 'Upheaval',
+  'Deadly Ambush',
 ])
 
 export function getDepthsAbilityCoverage() {

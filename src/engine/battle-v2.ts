@@ -51,11 +51,16 @@ const FULLY_SUPPORTED = new Set([
   'Jaws', 'Lightning Strike', 'Danger Sense', 'Defensive Maneuver', 'First Tail',
   'Grind', 'World Creation', 'Melancholy', 'The World', 'Accelerate', 'Black Flash',
   'Limitless', "Monkey King's Rage",
+  'A Pair of Two', 'Final Stand', 'Heard but not Seen', 'Lights Way', 'Eclipse',
+  'Friendship', 'Fusion... HA!', 'Divine Mist', 'Dark Qi Manipulation',
+  'Immortal Ascension', 'Hard Boiled', 'Tyrannospirit', 'Absolute Apex', 'Last Meal',
+  'Stolen Spotlight', 'Horned Attack', 'Creep', 'Protection of Gods', 'Upheaval',
+  'Deadly Ambush',
 ])
 
 const BENCH_AFFECTING_UNSUPPORTED = new Set([
-  'Nightmare Melody', 'Protection of Gods', 'Creep', 'Water Shield of Xuanwu',
-  'Draconian', 'Mirror Image', 'Beyond The Grave', 'Better Days', 'Playing God',
+  'Nightmare Melody', 'Water Shield of Xuanwu', 'Draconian', 'Mirror Image',
+  'Beyond The Grave', 'Better Days', 'Playing God',
 ])
 
 interface Runtime {
@@ -92,6 +97,25 @@ function boostStats(card: CombatCard, mult: number) {
   card.damage *= mult
   card.maxHp *= mult
   card.hp *= mult
+}
+
+function statusProtected(runtime: Runtime, team: BattleTeam): boolean {
+  return runtime.state.teams[team].some((card) =>
+    !card.dead && !card.flags.sealed && ability(card) === 'Protection of Gods'
+  )
+}
+
+function clearStatuses(card: CombatCard) {
+  card.status.stunned = 0
+  card.status.confused = 0
+  card.status.burn = 0
+  card.status.weakness = false
+  card.status.blind = false
+  card.counters.bleed = 0
+  card.counters.frostbite = 0
+  card.counters.poisonFlat = 0
+  card.counters.poisonPercent = 0
+  card.counters.weaknessTurns = 0
 }
 
 function makePlayerCard(name: string, borders: CombatCard['borders'], index: number): CombatCard | null {
@@ -178,9 +202,9 @@ function rand(runtime: Runtime, team: BattleTeam): number {
 }
 
 function buildBoosts(loadout: TeamLoadout, state: BattleState): Record<BattleTeam, BattleBoosts> {
-  const boosts: Record<BattleTeam, BattleBoosts> = { Allies: {}, Enemies: {} }
+  const boosts: Record<BattleTeam, BattleBoosts> = { Allies: { fossils: 0 }, Enemies: { fossils: 0 } }
   const skill = buildSkillAuraBoosts(loadout.abilityAura)
-  boosts.Allies = { ...skill.boosts }
+  boosts.Allies = { fossils: 0, ...skill.boosts }
   if (skill.aura && !skill.implemented) state.unsupportedAbilities.add(`Aura: ${skill.aura.name}`)
   return boosts
 }
@@ -260,6 +284,15 @@ function onEntry(runtime: Runtime, card: CombatCard) {
       if (count) boostStats(card, Math.pow(1.5, count))
       break
     }
+    case 'Friendship': {
+      const unique = new Set(
+        [...runtime.state.teams[card.team], ...runtime.state.fallen[card.team]]
+          .filter((ally) => ability(ally) === 'Friendship')
+          .map((ally) => ally.definition.name),
+      ).size
+      if (unique > 0) boostStats(card, 1 + unique * 0.4)
+      break
+    }
     case "Humanity's Spirit": {
       const count = runtime.state.fallen[card.team].length
       if (count) boostStats(card, Math.pow(1.5, count))
@@ -281,6 +314,15 @@ function onEntry(runtime: Runtime, card: CombatCard) {
       break
     case 'Book of Death':
       enemy.counters.death = 2
+      break
+    case 'Divine Mist':
+      if (rand(runtime, card.team) < 0.7) {
+        const hp = getHealth(enemy.definition, [])
+        enemy.power = getPower(enemy.definition, [])
+        enemy.damage = getAttack(enemy.definition, [])
+        enemy.maxHp = hp
+        enemy.hp = hp
+      }
       break
     case 'Chimeric':
       boostStats(card, 4)
@@ -329,6 +371,11 @@ function onEntry(runtime: Runtime, card: CombatCard) {
     case 'Fury of the White Tiger':
       card.damage *= 3
       break
+    case 'Tyrannospirit': {
+      const fossils = runtime.state.boosts[card.team].fossils || 0
+      if (fossils > 0) card.damage *= Math.pow(1.5, fossils)
+      break
+    }
     case 'Turtle Shell':
       card.maxHp = 30_000
       card.hp = 30_000
@@ -340,7 +387,7 @@ function onEntry(runtime: Runtime, card: CombatCard) {
       card.counters.attacks = (card.counters.attacks || 0) + 3
       break
     case 'Red-Nosed Reindeer':
-      enemy.status.blind = true
+      if (!statusProtected(runtime, enemy.team)) enemy.status.blind = true
       break
     case 'Behavioral Therapy':
       enemy.flags.slowed = true
@@ -383,6 +430,18 @@ function onEntry(runtime: Runtime, card: CombatCard) {
         resolveDeaths(runtime)
       }
       break
+    case 'Stolen Spotlight': {
+      const deck = runtime.state.teams[card.team]
+      const behind = deck[1]
+      if (behind && behind !== card) {
+        card.damage += behind.damage
+        card.maxHp += behind.maxHp
+        card.hp += Math.max(0, behind.hp)
+        deck.splice(1, 1)
+        behind.dead = true
+      }
+      break
+    }
     case 'A Pair of Two':
       if (!card.flags.paired) {
         card.flags.paired = true
@@ -411,9 +470,32 @@ function onEntry(runtime: Runtime, card: CombatCard) {
     case 'First Blood':
       performEntryAttack(runtime, card, 0.5)
       break
+    case 'Deadly Ambush': {
+      const first = active(runtime, enemyTeam)
+      if (first) {
+        dealDamage(runtime, card, first)
+        const current = active(runtime, enemyTeam)
+        if (current && !statusProtected(runtime, current.team)) current.counters.poisonPercent = -0.15
+        resolveDeaths(runtime)
+      }
+      break
+    }
+    case 'Horned Attack': {
+      const first = active(runtime, enemyTeam)
+      if (first) {
+        const hpBefore = first.hp
+        const dealt = dealDamage(runtime, card, first)
+        resolveDeaths(runtime)
+        if (dealt > hpBefore && first.hp <= 0) {
+          const next = active(runtime, enemyTeam)
+          if (next) next.hp -= Math.min(next.hp, dealt - hpBefore)
+          resolveDeaths(runtime)
+        }
+      }
+      break
+    }
     case 'Fight Dirty':
     case 'Quick Strike':
-    case 'Horned Attack':
     case 'Heart Hunter':
       performEntryAttack(runtime, card, 1)
       if (name === 'Heart Hunter' && active(runtime, enemyTeam)) active(runtime, enemyTeam)!.counters.bleed = 100
@@ -437,11 +519,14 @@ function offensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
     'Prehistoric Wrath','Big and Large','Blade','Defraud','Assassinate','Sky Drop','Shadow Predator',
     'Apex Predator','Infinite Dagger Works','Extinction','God of Thunder','Fire World','Moonlight Beam',
     'Dirty Claw','Heart Hunter','Chainsaw','Firepower','Rapid Blows','Behavioral Therapy',
-    'Holy Wrath','Unlucky','Dragon Slayer','Frozen Wrath',
+    'Holy Wrath','Unlucky','Dragon Slayer','Frozen Wrath','Absolute Apex',
+    'Dark Qi Manipulation',
   ].includes(name)) special = true
 
   switch (name) {
     case 'True Strike': if (rand(runtime, attacker.team) > 0.5) damage *= 2; break
+    case 'Absolute Apex': damage *= 1.5; break
+    case 'Dark Qi Manipulation': if (attacker.flags.awakened) damage *= 2; break
     case "Monkey King's Rage":
       if (attacker.hp / attacker.maxHp <= 0.5 && !attacker.flags.transformed) {
         attacker.flags.transformed = true
@@ -550,6 +635,7 @@ function defensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
 
   switch (name) {
     case 'Danger Sense':
+    case 'Deadly Ambush':
       if (!target.flags.dangerSense && damage > target.hp) {
         target.flags.dangerSense = true
         damage = 0
@@ -639,6 +725,8 @@ function defensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
       if (rand(runtime, target.team) > 0.6) { damage = 0; target.flags.double = true }
       break
     case 'Apex Predator': damage *= 0.5; break
+    case 'Absolute Apex': damage *= 0.5; break
+    case 'Immortal Ascension': if (target.flags.awakened) damage *= 0.5; break
     case 'Final Tail': damage = 0; break
     case 'Persistent': {
       const persistence = target.counters.persistence || 0
@@ -747,8 +835,14 @@ function targetRetro(runtime: Runtime, attacker: CombatCard, target: CombatCard,
         for (const ally of runtime.state.teams[target.team]) boostStats(ally, 1.2)
       }
       break
-    case 'Boiling Blood': attacker.status.burn = 3; break
-    case 'Melt': attacker.status.burn += 5; break
+    case 'Last Meal':
+      if (damage > 0) {
+        const fossils = runtime.state.boosts[target.team].fossils || 0
+        attacker.counters.death = Math.max(2, 5 - fossils)
+      }
+      break
+    case 'Boiling Blood': if (!statusProtected(runtime, attacker.team)) attacker.status.burn = 3; break
+    case 'Melt': if (!statusProtected(runtime, attacker.team)) attacker.status.burn += 5; break
   }
 }
 
@@ -778,7 +872,18 @@ function attackerRetro(runtime: Runtime, attacker: CombatCard, target: CombatCar
       attacker.hp = Math.min(attacker.maxHp, attacker.hp + damage * lifestealFraction(runtime, attacker, 1)); didRegen = true
       const stolen = Math.min(target.damage, damage); attacker.damage += stolen; target.damage -= stolen; break
     }
-    case 'Unholy Creature': target.counters.poisonPercent = -0.15; break
+    case 'Unholy Creature': if (!statusProtected(runtime, target.team)) target.counters.poisonPercent = -0.15; break
+    case 'Eclipse': if (damage > 0) target.flags.sealed = true; break
+    case 'Dark Qi Manipulation':
+      if (attacker.flags.awakened) {
+        attacker.hp = Math.min(attacker.maxHp, attacker.hp + damage * 0.3)
+        didRegen = true
+        if (target.hp <= 0) boostStats(attacker, 1.5)
+      }
+      break
+    case 'Immortal Ascension':
+      if (attacker.flags.awakened && target.hp <= 0) boostStats(attacker, 1.5)
+      break
     case 'Doom': if (target.hp > 0 && rand(runtime, attacker.team) > 1 - damage / target.hp) { target.hp = 0; target.flags.sealed = true }; break
     case 'Decapitate':
       if (target.hp <= 0) { boostStats(attacker, 1.2); attacker.flags.extraTurn = true }
@@ -827,6 +932,7 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
     target.hp -= target.maxHp / 5
   }
 
+  if (statusProtected(runtime, target.team)) clearStatuses(target)
   if (target.status.weakness) damage *= 1.3
 
   if (!bypass && target.flags.eternalDevotion) { target.flags.eternalDevotion = false; damage = 0 }
@@ -861,9 +967,9 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   if (hasAbility(runtime, attacker, 'Disarm') && damage > 0) target.damage = Math.max(0, target.damage - damage * 0.4)
 
   const flame = runtime.state.boosts[attacker.team].flameWizard
-  if (flame && damage > 0 && runtime.rng.next() * 100 < flame) target.status.burn = 2
+  if (!statusProtected(runtime, target.team) && flame && damage > 0 && runtime.rng.next() * 100 < flame) target.status.burn = 2
   const phantom = runtime.state.boosts[attacker.team].phantom
-  if (phantom && damage > 0 && runtime.rng.next() * 100 < phantom) target.status.stunned = Math.max(1, target.status.stunned)
+  if (!statusProtected(runtime, target.team) && phantom && damage > 0 && runtime.rng.next() * 100 < phantom) target.status.stunned = Math.max(1, target.status.stunned)
 
   if (hasAbility(runtime, target, 'Chimeric') && target.hp > 0 && target.hp <= target.maxHp / 2 && !target.flags.chimericFaded) {
     target.flags.chimericFaded = true
@@ -890,6 +996,9 @@ function applyOnDeath(runtime: Runtime, dead: CombatCard, opponent: CombatCard |
   const next = deck[0]
   const name = ability(dead)
 
+  if (name === 'Hard Boiled') runtime.state.boosts[team].fossils = (runtime.state.boosts[team].fossils || 0) + 3
+  if (name === 'Extinction') runtime.state.boosts[team].fossils = (runtime.state.boosts[team].fossils || 0) + 2
+
   if (opponent && alive(opponent) && hasAbility(runtime, opponent, 'Prehistoric Wrath')) opponent.damage *= 2
   if (opponent && alive(opponent) && hasAbility(runtime, opponent, 'All Father')) for (const card of runtime.state.teams[opponent.team]) boostStats(card, 1.25)
 
@@ -897,6 +1006,11 @@ function applyOnDeath(runtime: Runtime, dead: CombatCard, opponent: CombatCard |
   if (name === 'Blessing') { next.damage += dead.damage / 2; next.maxHp += dead.maxHp / 2; next.hp += dead.maxHp / 2 }
   if (name === 'Heart Legacy') { next.maxHp += dead.maxHp; next.hp += dead.maxHp }
   if (name === 'Tonic') boostStats(next, 1.2)
+  if (name === 'Fusion... HA!' && rand(runtime, team) > 0.5) {
+    next.damage += dead.damage * 0.5
+    next.maxHp += dead.maxHp * 0.5
+    next.hp += dead.maxHp * 0.5
+  }
   if (name === 'Destiny Sight') next.flags.dodgeLethal = true
   if (name === 'Housewife\'s Blessing') { boostStats(next, 2); next.status.stunned = 2 }
   if (name === 'Eternal Devotion') next.flags.eternalDevotion = true
@@ -938,6 +1052,7 @@ function resolveDeaths(runtime: Runtime) {
 }
 
 function statusStart(runtime: Runtime, attacker: CombatCard, target: CombatCard) {
+  if (statusProtected(runtime, attacker.team)) clearStatuses(attacker)
   if (hasAbility(runtime, target, 'Lightning Strike') && alive(target) && alive(attacker)) {
     dealDamage(runtime, target, attacker, 0.75)
   }
@@ -955,6 +1070,10 @@ function statusStart(runtime: Runtime, attacker: CombatCard, target: CombatCard)
 }
 
 function statusEnd(runtime: Runtime, attacker: CombatCard) {
+  if (statusProtected(runtime, attacker.team)) {
+    clearStatuses(attacker)
+    return
+  }
   if (attacker.status.burn > 0) {
     attacker.hp -= attacker.maxHp * 0.1
     attacker.status.burn -= 1
@@ -985,6 +1104,24 @@ function statusEnd(runtime: Runtime, attacker: CombatCard) {
 }
 
 function prepareTurn(runtime: Runtime, attacker: CombatCard) {
+  if (hasAbility(runtime, attacker, 'Dark Qi Manipulation') && !attacker.flags.awakened) {
+    attacker.counters.ascension = (attacker.counters.ascension || 0) + 1
+    if (attacker.counters.ascension <= 2) boostStats(attacker, 1.3)
+    else attacker.flags.awakened = true
+  }
+  if (hasAbility(runtime, attacker, 'Immortal Ascension') && !attacker.flags.awakened) {
+    attacker.counters.ascension = (attacker.counters.ascension || 0) + 1
+    if (attacker.counters.ascension <= 2) boostStats(attacker, 1.3)
+    else attacker.flags.awakened = true
+  }
+  if (hasAbility(runtime, attacker, 'Upheaval')) {
+    attacker.counters.upheaval = (attacker.counters.upheaval || 0) + 1
+    if (attacker.counters.upheaval % 3 == 0) {
+      attacker.damage *= 2
+      const target = active(runtime, OTHER_TEAM[attacker.team])
+      if (target && !statusProtected(runtime, target.team)) target.status.stunned = Math.max(1, target.status.stunned)
+    }
+  }
   if (hasAbility(runtime, attacker, 'First Tail') && (attacker.counters.tail || 0) < 9) {
     attacker.counters.tail = (attacker.counters.tail || 0) + 1
     boostStats(attacker, 1.2)
@@ -1071,6 +1208,16 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
     }
   }
 
+  const creepTarget = active(runtime, enemyTeam)
+  if (creepTarget && alive(attacker)) {
+    for (const creep of runtime.state.teams[attacker.team].slice(1)) {
+      if (hasAbility(runtime, creep, 'Creep') && alive(creep) && active(runtime, enemyTeam)) {
+        dealDamage(runtime, creep, active(runtime, enemyTeam)!, 0.25)
+        resolveDeaths(runtime)
+      }
+    }
+  }
+
   const currentTarget = active(runtime, enemyTeam)
   if (currentTarget && alive(currentTarget) && alive(attacker)) {
     const berserker = runtime.state.boosts[currentTarget.team].berserker
@@ -1079,6 +1226,8 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
       || hasAbility(runtime, currentTarget, 'Perseverance')
       || hasAbility(runtime, currentTarget, 'Spikes')
       || hasAbility(runtime, currentTarget, 'Blood Drinker')
+      || hasAbility(runtime, currentTarget, 'Stolen Spotlight')
+      || (hasAbility(runtime, currentTarget, 'Absolute Apex') && (runtime.state.boosts[currentTarget.team].fossils || 0) > 2)
     if (shouldCounter) dealDamage(runtime, currentTarget, attacker, hasAbility(runtime, currentTarget, 'Perseverance') ? 0.1 : 1)
   }
 
@@ -1170,6 +1319,7 @@ export function simulateBattleV2(loadout: TeamLoadout, enemies: DepthsEnemy[], s
     if (!extra) {
       const nextTeam = OTHER_TEAM[state.moving]
       const next = active(runtime, nextTeam)
+      if (next && statusProtected(runtime, nextTeam)) clearStatuses(next)
       if (next && next.status.stunned > 0) {
         next.status.stunned -= 1
       } else if (next && next.flags.slowed) {

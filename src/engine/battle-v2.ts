@@ -10,7 +10,8 @@ import type {
 } from '../types'
 import { applyStatAura, buildSkillAuraBoosts } from './auras'
 import { SeededRng } from './rng'
-import { getAttack, getHealth, getPower } from './stats'
+import { getAttack, getHealth, getPower, rarityWithBorders } from './stats'
+import { DEMON_CARDS, DRAGON_CARDS, IMP_BOOSTED_CARDS, RNG_ABILITIES, UNDEAD_CARDS } from './combat-data'
 
 const OTHER_TEAM: Record<BattleTeam, BattleTeam> = { Allies: 'Enemies', Enemies: 'Allies' }
 
@@ -41,6 +42,9 @@ const FULLY_SUPPORTED = new Set([
   'Run As Fast As You Can', 'Bind', 'Guerilla Warfare', 'Avalon', 'Reflective Shell',
   'Moonlight Beam', 'Firepower', 'Chainsaw',
   'Third Eye', 'Influence', 'Art of War', 'Dominate', 'Lightning Slash', 'True Fang',
+  'Book of Death', 'Holy Wrath', 'Telekinesis', 'Unlucky', 'Dragon Slayer', 'Outrank',
+  'Golden Bell Shield', 'Frozen Wrath', 'Immortal', 'Haste', 'Tonic', 'Destiny Sight',
+  'Eternal Devotion', "Unpaid 'Interns'", 'Infectious',
 ])
 
 const BENCH_AFFECTING_UNSUPPORTED = new Set([
@@ -269,6 +273,9 @@ function onEntry(runtime: Runtime, card: CombatCard) {
     case 'Fire World':
       for (const target of runtime.state.teams[enemyTeam]) target.status.burn = 100
       break
+    case 'Book of Death':
+      enemy.counters.death = 2
+      break
     case 'Chimeric':
       boostStats(card, 4)
       break
@@ -288,6 +295,9 @@ function onEntry(runtime: Runtime, card: CombatCard) {
       enemy.damage *= enemy.boss ? 0.85 : 0.5
       enemy.hp *= enemy.boss ? 0.85 : 0.5
       break
+    case 'Dragon Slayer':
+      card.damage *= 1.75
+      break
     case 'Greater Might':
       boostStats(card, 1.4)
       break
@@ -305,6 +315,10 @@ function onEntry(runtime: Runtime, card: CombatCard) {
       card.damage *= 1.25
       card.maxHp *= 1.25
       card.hp = card.maxHp
+      break
+    case 'Immortal':
+      card.maxHp *= 3.5
+      card.hp *= 3.5
       break
     case 'Fury of the White Tiger':
       card.damage *= 3
@@ -380,10 +394,13 @@ function offensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
     'Prehistoric Wrath','Big and Large','Blade','Defraud','Assassinate','Sky Drop','Shadow Predator',
     'Apex Predator','Infinite Dagger Works','Extinction','God of Thunder','Fire World','Moonlight Beam',
     'Dirty Claw','Heart Hunter','Chainsaw','Firepower','Rapid Blows','Behavioral Therapy',
+    'Holy Wrath','Unlucky','Dragon Slayer','Frozen Wrath',
   ].includes(name)) special = true
 
   switch (name) {
     case 'True Strike': if (rand(runtime, attacker.team) > 0.5) damage *= 2; break
+    case 'Holy Wrath': if (UNDEAD_CARDS.has(target.definition.name)) damage *= 2; break
+    case 'Unlucky': if (target.definition.ability && RNG_ABILITIES.has(target.definition.ability)) damage *= 2; break
     case 'Maelstrom':
       attacker.counters.maelstrom = (attacker.counters.maelstrom || 0) % 2 + 1
       if (attacker.counters.maelstrom === 1) damage *= 2
@@ -401,6 +418,8 @@ function offensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
       attacker.counters.telekinesis = (attacker.counters.telekinesis || 0) % 2 + 1
       damage *= attacker.counters.telekinesis === 1 ? 2 : 4
       break
+    case 'Dragon Slayer': if (DRAGON_CARDS.has(target.definition.name)) damage *= 2; break
+    case 'Frozen Wrath': target.counters.frostbite = 1; break
     case 'Favorable Odds': damage *= Math.max(1, Math.ceil(rand(runtime, attacker.team) * 5)); break
     case 'Vainglory': if (attacker.hp / attacker.maxHp > 0.5) damage *= 1.5; break
     case 'Modesty': damage *= 0.7; break
@@ -475,6 +494,12 @@ function defensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
       if (damage >= target.hp && !target.flags.lastStand) { damage = target.hp - 1; target.flags.lastStand = true }
       break
     case 'Armor': damage = Math.max(0, damage - target.maxHp * 0.1); break
+    case 'Dragon Slayer': if (DRAGON_CARDS.has(attacker.definition.name)) damage *= 0.5; break
+    case 'Outrank':
+      if (rarityWithBorders(attacker.definition, attacker.borders) < rarityWithBorders(target.definition, target.borders)) damage *= 0.5
+      break
+    case 'Golden Bell Shield': if (DEMON_CARDS.has(attacker.definition.name) || IMP_BOOSTED_CARDS.has(attacker.definition.name)) damage /= 3; break
+    case 'Frozen Wrath': if ((attacker.counters.frostbite || 0) > 0) damage *= 0.5; break
     case 'Brittle': damage *= 2; break
     case 'Mana Shield':
       if (!target.flags.manaShield && damage < target.hp) { damage = 0; target.flags.manaShield = true }
@@ -851,7 +876,7 @@ function statusStart(runtime: Runtime, attacker: CombatCard, target: CombatCard)
   if (hasAbility(runtime, attacker, 'Sacrificial Tides')) target.hp -= target.maxHp * 0.2
 }
 
-function statusEnd(attacker: CombatCard) {
+function statusEnd(runtime: Runtime, attacker: CombatCard) {
   if (attacker.status.burn > 0) {
     attacker.hp -= attacker.maxHp * 0.1
     attacker.status.burn -= 1
@@ -859,6 +884,21 @@ function statusEnd(attacker: CombatCard) {
   if ((attacker.counters.bleed || 0) > 0) {
     attacker.hp -= attacker.maxHp * 0.15
     attacker.counters.bleed -= 1
+  }
+  if ((attacker.counters.frostbite || 0) > 0) {
+    attacker.counters.frostbite -= 1
+    if (runtime.rng.next() <= 0.5) {
+      attacker.status.stunned = Math.max(1, attacker.status.stunned)
+      attacker.hp -= attacker.maxHp * 0.2
+    }
+  }
+  if ((attacker.counters.death || 0) > 0 && ability(attacker) !== 'Erosion') {
+    attacker.counters.death -= 1
+    if (attacker.counters.death <= 0) attacker.hp = 0
+  }
+  if (ability(attacker) === 'Final Tail') {
+    attacker.counters.finalTail = (attacker.counters.finalTail || 0) + 1
+    if (attacker.counters.finalTail >= 3) attacker.hp = 0
   }
   if (attacker.status.weakness && (attacker.counters.weaknessTurns || 0) > 0) {
     attacker.counters.weaknessTurns -= 1
@@ -935,7 +975,7 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
   if (hasAbility(runtime, attacker, 'Combatant') && alive(attacker)) attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.1)
   if (hasAbility(runtime, attacker, 'First Progenitor') && alive(attacker)) attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.1)
 
-  statusEnd(attacker)
+  statusEnd(runtime, attacker)
   resolveDeaths(runtime)
 }
 

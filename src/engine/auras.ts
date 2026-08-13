@@ -61,16 +61,11 @@ export function getAuraRarity(aura: AuraDefinition, border?: AuraBorderName | nu
   return aura.rarity * (border ? AURA_RARITY_MULTIPLIERS[border] : 1)
 }
 
-/**
- * Expansion's Stat aura formula from the battle/util code.
- * Border rarity is applied first; Great/Mighty/Almighty are intentionally unsupported.
- */
 export function getStatAuraValue(aura: AuraDefinition, border?: AuraBorderName | null): number {
   const rarity = getAuraRarity(aura, border)
   return rarity > 0 ? Math.floor(Math.pow(2, Math.log10(rarity)) / 2) : 0
 }
 
-/** Skill auras normally use Base + PerLevel * aura tier, with a few explicit tables in the game. */
 export function getSkillAuraValue(aura: AuraDefinition, border?: AuraBorderName | null): number {
   const tier = getAuraTier(border)
   const custom = CUSTOM_SKILL_VALUES[aura.name]
@@ -103,7 +98,6 @@ export function statAuraPercentForCard(
   return isStatAuraBoosted(aura, card) ? base * Number(aura.boostMult || 1) : base
 }
 
-/** Applies the same pre-battle HP/Damage multiplier used by the original server setupDeck path. */
 export function applyStatAura(
   team: CombatCard[],
   selection?: AuraSelection | null,
@@ -128,6 +122,7 @@ const DIRECT_SKILL_BOOST_KEYS: Record<string, keyof BattleBoosts> = {
   Fate: 'fate',
   Shielder: 'shielder',
   'Flame Wizard': 'flameWizard',
+  Phantom: 'phantom',
   Berserker: 'berserker',
   'Synth Human': 'synthHuman',
   'End Times': 'endTimes',
@@ -153,7 +148,6 @@ export function buildSkillAuraBoosts(selection?: AuraSelection | null): {
     return { boosts, aura, implemented: true }
   }
 
-  // These require their own battle/setup behavior and are ported separately.
   return { boosts, aura, implemented: false }
 }
 

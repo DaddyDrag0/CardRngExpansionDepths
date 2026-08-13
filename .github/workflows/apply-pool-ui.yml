@@ -1,0 +1,109 @@
+name: Apply Cards Bans Pool Interface
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/apply-pool-ui.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message == 'Queue Cards Bans Pool interface'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Add calculator-only enemy pool controls
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text()
+          def rep(old, new):
+              global s
+              if old not in s:
+                  raise SystemExit('UI anchor missing: ' + old[:180])
+              s = s.replace(old, new, 1)
+
+          rep(
+              ".library-list button{min-height:53px}.card-tooltip",
+              ".library-list button{min-height:53px}.library-tabs{display:flex;gap:6px;padding:0 14px 10px}.library-tabs button{flex:1;border:1px solid #253142;border-radius:9px;background:#0b1119;color:#7f8c9d;padding:7px 8px;font-size:9px;font-weight:700;cursor:pointer}.library-tabs button.on{border-color:#477b76;background:rgba(135,216,202,.1);color:#d5efeb}.library-mode-note{margin:0 14px 10px;border:1px solid #202b3a;border-radius:9px;background:#0a0f16;color:#798799;padding:8px 10px;font-size:9px;line-height:1.45}.library-mode-note b{color:#b6c2cf}.card-tooltip"
+          )
+
+          rep(
+              "const state={cards:[],auras:[],abilities:{},thumbs:{},teams:Array.from({length:5},blankTeam),activeTeam:0,activeSlot:0,query:'',runs:15,cap:50000,seed:1000,running:false,runningLabel:'',workerReady:false};",
+              "const state={cards:[],auras:[],abilities:{},thumbs:{},teams:Array.from({length:5},blankTeam),activeTeam:0,activeSlot:0,libraryMode:'cards',excludedCards:[],selectedPool:[],query:'',runs:15,cap:50000,seed:1000,running:false,runningLabel:'',workerReady:false};"
+          )
+
+          rep(
+              "activeTeam:state.activeTeam,runs:state.runs,cap:state.cap,seed:state.seed}))",
+              "activeTeam:state.activeTeam,runs:state.runs,cap:state.cap,seed:state.seed,excludedCards:state.excludedCards,selectedPool:state.selectedPool}))"
+          )
+
+          rep(
+              "state.seed=Number(s.seed)||1000}catch(_){}",
+              "state.seed=Number(s.seed)||1000;state.excludedCards=Array.isArray(s.excludedCards)?s.excludedCards.filter(name=>cardByName(name)):[];state.selectedPool=Array.isArray(s.selectedPool)?s.selectedPool.filter(name=>cardByName(name)):[]}catch(_){}"
+          )
+
+          rep(
+              "<span class=\"kicker\">CARD LIBRARY</span><h3>Slot ${state.activeSlot+1}</h3>",
+              "<span class=\"kicker\">CARD LIBRARY</span><h3>${state.libraryMode==='cards'?`Slot ${state.activeSlot+1}`:state.libraryMode==='bans'?`Bans · ${state.excludedCards.length}`:`Pool · ${state.selectedPool.length}`}</h3>"
+          )
+
+          rep(
+              "</small></div><input class=\"search\" id=\"cardSearch\"",
+              "</small></div><div class=\"library-tabs\"><button data-library-mode=\"cards\" class=\"${state.libraryMode==='cards'?'on':''}\">Cards</button><button data-library-mode=\"bans\" class=\"${state.libraryMode==='bans'?'on':''}\">Bans ${state.excludedCards.length?`(${state.excludedCards.length})`:''}</button><button data-library-mode=\"pool\" class=\"${state.libraryMode==='pool'?'on':''}\">Pool ${state.selectedPool.length?`(${state.selectedPool.length})`:''}</button></div>${state.libraryMode==='bans'?'<div class=\"library-mode-note\"><b>Calculator-only.</b> Selected cards are removed from generated Depths enemy teams. Empty means no extra exclusions.</div>':state.libraryMode==='pool'?'<div class=\"library-mode-note\"><b>Calculator-only.</b> If at least one card is selected, only those cards can generate, while normal floor unlocks and weather weights still apply. Empty means the normal Expansion pool.</div>':''}<input class=\"search\" id=\"cardSearch\""
+          )
+
+          rep(
+              "class=\"${team.cards[state.activeSlot]?.cardName===card.name?'selected':''}\"",
+              "class=\"${state.libraryMode==='cards'?(team.cards[state.activeSlot]?.cardName===card.name?'selected':''):state.libraryMode==='bans'?(state.excludedCards.includes(card.name)?'selected':''):(state.selectedPool.includes(card.name)?'selected':'')}\""
+          )
+
+          rep(
+              "<em>1 / ${compact(card.rarity)}</em>",
+              "<em>${state.libraryMode==='bans'?(state.excludedCards.includes(card.name)?'BANNED':'ADD'):state.libraryMode==='pool'?(state.selectedPool.includes(card.name)?'IN POOL':'ADD'):`1 / ${compact(card.rarity)}`}</em>"
+          )
+
+          rep(
+              "<div class=\"sim-note\"><b>Source-aligned combat engine</b><p>Depths enemies, all selectable player abilities, card borders, Stat auras, and Ability auras are simulated in a background worker.</p></div>",
+              "<div class=\"sim-note\"><b>Source-aligned combat engine</b><p>Depths enemies, all selectable player abilities, card borders, Stat auras, and Ability auras are simulated in a background worker.</p>${state.excludedCards.length||state.selectedPool.length?`<p><b>Calculator-only enemy filters:</b> ${state.excludedCards.length} excluded · ${state.selectedPool.length?`${state.selectedPool.length} selected-pool cards`:'normal game pool'}</p>`:''}</div>"
+          )
+
+          rep(
+              "state.activeSlot=Number(el.dataset.slot);render()",
+              "state.activeSlot=Number(el.dataset.slot);state.libraryMode='cards';render()"
+          )
+
+          old_click = "root.querySelectorAll('[data-card]').forEach(el=>el.addEventListener('click',()=>{current().cards[state.activeSlot].cardName=el.dataset.card;current().result=null;persist();render()}));"
+          new_click = "root.querySelectorAll('[data-library-mode]').forEach(el=>el.addEventListener('click',()=>{state.libraryMode=el.dataset.libraryMode;render()}));root.querySelectorAll('[data-card]').forEach(el=>el.addEventListener('click',()=>{const name=el.dataset.card;if(state.libraryMode==='cards'){current().cards[state.activeSlot].cardName=name;current().result=null}else if(state.libraryMode==='bans'){if(state.excludedCards.includes(name))state.excludedCards=state.excludedCards.filter(item=>item!==name);else{state.excludedCards=[...state.excludedCards,name];state.selectedPool=state.selectedPool.filter(item=>item!==name)}state.teams.forEach(team=>{team.result=null;team.elapsedMs=0;team.lastError=''})}else{if(state.selectedPool.includes(name))state.selectedPool=state.selectedPool.filter(item=>item!==name);else{state.selectedPool=[...state.selectedPool,name];state.excludedCards=state.excludedCards.filter(item=>item!==name)}state.teams.forEach(team=>{team.result=null;team.elapsedMs=0;team.lastError=''})}persist();render()}));"
+          rep(old_click, new_click)
+
+          rep(
+              "worker.postMessage({id,loadout:loadoutFor(t),runs:state.runs,floorCap:state.cap,seed:state.seed>>>0})",
+              "worker.postMessage({id,loadout:loadoutFor(t),runs:state.runs,floorCap:state.cap,seed:state.seed>>>0,excludedCardNames:[...state.excludedCards],selectedCardNames:[...state.selectedPool]})"
+          )
+
+          p.write_text(s)
+      - name: Validate live page JavaScript
+        run: |
+          node <<'NODE'
+          const fs = require('fs')
+          const html = fs.readFileSync('index.html', 'utf8')
+          for (const match of html.matchAll(/<script>([\s\S]*?)<\/script>/g)) new Function(match[1])
+          for (const needle of ['data-library-mode="bans"','data-library-mode="pool"','excludedCardNames:[...state.excludedCards]','selectedCardNames:[...state.selectedPool]']) {
+            if (!html.includes(needle)) throw new Error(`Missing pool UI hook: ${needle}`)
+          }
+          NODE
+      - name: Commit pool interface
+        run: |
+          rm .github/workflows/apply-pool-ui.yml
+          git config user.name "Drago"
+          git config user.email "dragoidc3@gmail.com"
+          git add -A
+          git commit -m "Add Cards Bans and Pool modes"
+          git push

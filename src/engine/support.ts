@@ -27,6 +27,9 @@ export const SOURCE_ALIGNED_ABILITIES = new Set([
   'Perfect Sacrifice', 'Guilt', 'Melt', 'Boiling Blood', 'Run As Fast As You Can',
   'Bind', 'Guerilla Warfare', 'Avalon', 'Reflective Shell', 'Firepower', 'Chainsaw',
   'Third Eye', 'Influence', 'Art of War', 'Dominate', 'Lightning Slash', 'True Fang',
+  'Book of Death', 'Holy Wrath', 'Telekinesis', 'Unlucky', 'Dragon Slayer', 'Outrank',
+  'Golden Bell Shield', 'Frozen Wrath', 'Immortal', 'Haste', 'Tonic', 'Destiny Sight',
+  'Eternal Devotion', "Unpaid 'Interns'", 'Infectious',
 ])
 
 export function getDepthsAbilityCoverage() {

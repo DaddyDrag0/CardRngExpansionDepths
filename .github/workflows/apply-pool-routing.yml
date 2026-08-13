@@ -57,14 +57,7 @@ jobs:
           if old not in s: raise SystemExit('regression import anchor missing')
           s = s.replace(old, new, 1)
           anchor = "assert(strongest.length === 4, 'Could not build a four-card regression team')\nconst runLoadout: TeamLoadout = { cards: strongest }"
-          replacement = """assert(strongest.length === 4, 'Could not build a four-card regression team')
-const selectedPoolCard = strongest[0].cardName
-const selectedPoolTeam = generateDepthsTeam(50_000, 445566, { selectedCardNames: [selectedPoolCard] })
-assert(selectedPoolTeam.length === 4, 'Selected enemy pool did not generate four enemies')
-assert(selectedPoolTeam.every((enemy) => enemy.card.name === selectedPoolCard), 'Selected enemy pool generated an unselected card')
-const emptyFilteredPool = generateDepthsTeam(50_000, 445566, { selectedCardNames: [selectedPoolCard], excludedCardNames: [selectedPoolCard] })
-assert(emptyFilteredPool.length === 0, 'Excluded card remained in the selected enemy pool')
-const runLoadout: TeamLoadout = { cards: strongest }"""
+          replacement = "assert(strongest.length === 4, 'Could not build a four-card regression team')\nconst selectedPoolCard = strongest[0].cardName\nconst selectedPoolTeam = generateDepthsTeam(50_000, 445566, { selectedCardNames: [selectedPoolCard] })\nassert(selectedPoolTeam.length === 4, 'Selected enemy pool did not generate four enemies')\nassert(selectedPoolTeam.every((enemy) => enemy.card.name === selectedPoolCard), 'Selected enemy pool generated an unselected card')\nconst emptyFilteredPool = generateDepthsTeam(50_000, 445566, { selectedCardNames: [selectedPoolCard], excludedCardNames: [selectedPoolCard] })\nassert(emptyFilteredPool.length === 0, 'Excluded card remained in the selected enemy pool')\nconst runLoadout: TeamLoadout = { cards: strongest }"
           if anchor not in s: raise SystemExit('regression pool anchor missing')
           p.write_text(s.replace(anchor, replacement, 1))
       - uses: actions/setup-node@v4

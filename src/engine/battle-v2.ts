@@ -45,6 +45,9 @@ const FULLY_SUPPORTED = new Set([
   'Book of Death', 'Holy Wrath', 'Telekinesis', 'Unlucky', 'Dragon Slayer', 'Outrank',
   'Golden Bell Shield', 'Frozen Wrath', 'Immortal', 'Haste', 'Tonic', 'Destiny Sight',
   'Eternal Devotion', "Unpaid 'Interns'", 'Infectious',
+  "Hell's Curse", 'Final Tail', "Reaper's Luck", 'Decay', 'Purifying Fire',
+  'Sacrificial Tides', 'Rejuvenate', 'Twilight Sparkle', 'Viral Breath', 'Herbal Alchemy',
+  'Revenge', 'Northern Winds', 'Azure Dragon Wrath', 'Stampede', 'Ice Age',
 ])
 
 const BENCH_AFFECTING_UNSUPPORTED = new Set([
@@ -340,6 +343,43 @@ function onEntry(runtime: Runtime, card: CombatCard) {
       enemy.flags.slowed = true
       enemy.counters.slowed = 0
       break
+    case 'Stampede':
+      card.counters.attacks = (card.counters.attacks || 0) + 1
+      enemy.status.stunned = Math.max(1, enemy.status.stunned)
+      break
+    case 'Ice Age':
+      enemy.flags.slowed = true
+      enemy.counters.slowed = 0
+      break
+    case "Hell's Curse":
+      enemy.flags.sealed = true
+      enemy.hp /= 2
+      break
+    case 'Northern Winds': {
+      dealDamage(runtime, card, enemy)
+      card.damage += enemy.damage * 0.25
+      enemy.damage *= 0.75
+      resolveDeaths(runtime)
+      if (alive(enemy) && hasAbility(runtime, enemy, 'Hatred') && alive(card)) {
+        dealDamage(runtime, enemy, card, 0.5)
+        resolveDeaths(runtime)
+      }
+      break
+    }
+    case 'Azure Dragon Wrath':
+      dealDamage(runtime, card, enemy, 1.5, true)
+      resolveDeaths(runtime)
+      if (alive(enemy) && hasAbility(runtime, enemy, 'Hatred') && alive(card)) {
+        dealDamage(runtime, enemy, card, 0.5)
+        resolveDeaths(runtime)
+      }
+      break
+    case 'Revenge':
+      if (runtime.state.fallen[card.team].length > 0) {
+        dealDamage(runtime, card, enemy, 2)
+        resolveDeaths(runtime)
+      }
+      break
     case 'A Pair of Two':
       if (!card.flags.paired) {
         card.flags.paired = true
@@ -399,6 +439,16 @@ function offensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
 
   switch (name) {
     case 'True Strike': if (rand(runtime, attacker.team) > 0.5) damage *= 2; break
+    case "Reaper's Luck": {
+      const changes = [-0.1, 0.15, 0.3]
+      const roll = rand(runtime, attacker.team)
+      const change = changes[Math.max(0, Math.min(2, Math.ceil(roll * 3) - 1))]
+      const ratio = attacker.maxHp > 0 ? attacker.hp / attacker.maxHp : 0
+      attacker.maxHp *= 1 + change
+      attacker.hp = ratio * attacker.maxHp
+      attacker.damage *= 1 + change
+      break
+    }
     case 'Holy Wrath': if (UNDEAD_CARDS.has(target.definition.name)) damage *= 2; break
     case 'Unlucky': if (target.definition.ability && RNG_ABILITIES.has(target.definition.ability)) damage *= 2; break
     case 'Maelstrom':
@@ -566,6 +616,7 @@ function defensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
       if (rand(runtime, target.team) > 0.6) { damage = 0; target.flags.double = true }
       break
     case 'Apex Predator': damage *= 0.5; break
+    case 'Final Tail': damage = 0; break
     case 'Persistent': {
       const persistence = target.counters.persistence || 0
       if (damage >= target.hp && persistence < 2) {
@@ -907,6 +958,16 @@ function statusEnd(runtime: Runtime, attacker: CombatCard) {
 }
 
 function beforeAttack(runtime: Runtime, attacker: CombatCard) {
+  const target = active(runtime, OTHER_TEAM[attacker.team])
+  if (hasAbility(runtime, attacker, 'Rejuvenate')) attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.35)
+  if (hasAbility(runtime, attacker, 'First Progenitor')) attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.1)
+  if (hasAbility(runtime, attacker, 'Twilight Sparkle') && rand(runtime, attacker.team) > 0.6) attacker.hp = attacker.maxHp
+  if (target && hasAbility(runtime, attacker, 'Viral Breath')) target.hp -= target.maxHp * 0.25
+  if (hasAbility(runtime, attacker, 'Herbal Alchemy')) {
+    attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.2)
+    if (rand(runtime, attacker.team) > 0.5) attacker.damage *= 1.3
+  }
+  if (hasAbility(runtime, attacker, 'Combatant')) attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.1)
   if (hasAbility(runtime, attacker, 'Patience')) boostStats(attacker, 1.3)
   if (hasAbility(runtime, attacker, 'Absolute Sovereignty')) for (const card of runtime.state.teams[attacker.team]) boostStats(card, 1.1)
   if (hasAbility(runtime, attacker, 'Persistent')) {
@@ -972,8 +1033,6 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
   }
 
   if (hasAbility(runtime, attacker, 'Martial Will') && alive(attacker)) attacker.damage *= 1.3
-  if (hasAbility(runtime, attacker, 'Combatant') && alive(attacker)) attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.1)
-  if (hasAbility(runtime, attacker, 'First Progenitor') && alive(attacker)) attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.1)
 
   statusEnd(runtime, attacker)
   resolveDeaths(runtime)

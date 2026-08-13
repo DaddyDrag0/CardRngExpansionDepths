@@ -30,6 +30,9 @@ export const SOURCE_ALIGNED_ABILITIES = new Set([
   'Book of Death', 'Holy Wrath', 'Telekinesis', 'Unlucky', 'Dragon Slayer', 'Outrank',
   'Golden Bell Shield', 'Frozen Wrath', 'Immortal', 'Haste', 'Tonic', 'Destiny Sight',
   'Eternal Devotion', "Unpaid 'Interns'", 'Infectious',
+  "Hell's Curse", 'Final Tail', "Reaper's Luck", 'Decay', 'Purifying Fire',
+  'Sacrificial Tides', 'Rejuvenate', 'Twilight Sparkle', 'Viral Breath', 'Herbal Alchemy',
+  'Revenge', 'Northern Winds', 'Azure Dragon Wrath', 'Stampede', 'Ice Age',
 ])
 
 export function getDepthsAbilityCoverage() {

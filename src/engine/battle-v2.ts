@@ -2332,8 +2332,9 @@ export function simulateBattleV2(
   const state = createBattleStateV2(loadout, enemies)
   const runtime: Runtime = { state, rng: new SeededRng(seed) }
   resolveConstellarArts(runtime)
-  let activePairKey = ''
-  let pairTurns: Record<string, number> = {}
+  let turnsWithoutDeaths = 0
+  let lastMover: CombatCard | undefined
+  let lastTarget: CombatCard | undefined
   while (state.teams.Allies.length && state.teams.Enemies.length && state.turn < maxTurns) {
     state.turn += 1
     let attacker = active(runtime, state.moving)
@@ -2348,20 +2349,17 @@ export function simulateBattleV2(
     defender = active(runtime, OTHER_TEAM[state.moving])
     if (!attacker || !defender) break
 
-    const allyActive = active(runtime, 'Allies')
-    const enemyActive = active(runtime, 'Enemies')
-    const nextPairKey = allyActive && enemyActive ? `${allyActive.id}|${enemyActive.id}` : ''
-    if (nextPairKey !== activePairKey) {
-      activePairKey = nextPairKey
-      pairTurns = {}
-    }
-    pairTurns[attacker.id] = (pairTurns[attacker.id] || 0) + 1
-    if (pairTurns[attacker.id] > 150) {
+    turnsWithoutDeaths += 1
+    if (attacker !== lastMover && attacker !== lastTarget) turnsWithoutDeaths = 0
+    if (defender !== lastMover && defender !== lastTarget) turnsWithoutDeaths = 0
+    if (turnsWithoutDeaths >= 150) {
       attacker.hp = 0
       defender.hp = 0
       resolveDeaths(runtime)
       continue
     }
+    lastMover = attacker
+    lastTarget = defender
 
     doTurn(runtime, attacker)
     processDivination(runtime)

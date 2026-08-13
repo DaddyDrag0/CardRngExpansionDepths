@@ -893,7 +893,7 @@ function offensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
       damage *= attacker.counters.telekinesis === 1 ? 2 : 4
       break
     case 'Dragon Slayer': if (DRAGON_CARDS.has(target.definition.name)) damage *= 2; break
-    case 'Frozen Wrath': target.counters.frostbite = 1; break
+    case 'Frozen Wrath': if (!statusProtected(runtime, target.team)) target.counters.frostbite = Math.max(target.counters.frostbite || 0, 2); break
     case 'Favorable Odds': damage *= Math.max(1, Math.ceil(rand(runtime, attacker.team) * 5)); break
     case 'Vainglory': if (attacker.hp / attacker.maxHp > 0.5) damage *= 1.5; break
     case 'Modesty': damage *= 0.7; break
@@ -1385,6 +1385,8 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   if (attacker.status.confused > 0 && runtime.rng.next() < 0.5) target = attacker
   if (attacker.status.confused > 0) attacker.status.confused -= 1
 
+  const frostbiteActiveOnAttack = (target.counters.frostbite || 0) > 0 && !statusProtected(runtime, target.team)
+
   let damage = attacker.damage * mult
   if (hasAbility(runtime, attacker, 'Jaws')) damage += target.damage
   if (attacker.status.burn > 0) damage *= 0.85
@@ -1438,6 +1440,10 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   target = farm.target
   damage = farm.damage
   target.hp -= Math.min(target.hp, damage)
+
+  if (frostbiteActiveOnAttack && target.hp > 0 && runtime.rng.next() < 0.5) {
+    target.hp -= Math.min(target.hp, target.maxHp * 0.2)
+  }
 
   if (hasAbility(runtime, active(runtime, OTHER_TEAM[attacker.team]), 'Am I Beautiful?')) {
     if (target.team === attacker.team) target.damage *= 0.8
@@ -1639,13 +1645,7 @@ function statusEnd(runtime: Runtime, attacker: CombatCard) {
     attacker.counters.poisonTurns -= 1
     if (attacker.counters.poisonTurns <= 0) attacker.counters.poisonPercent = 0
   }
-  if ((attacker.counters.frostbite || 0) > 0) {
-    attacker.counters.frostbite -= 1
-    if (runtime.rng.next() <= 0.5) {
-      attacker.status.stunned = Math.max(1, attacker.status.stunned)
-      attacker.hp -= attacker.maxHp * 0.2
-    }
-  }
+  if ((attacker.counters.frostbite || 0) > 0) attacker.counters.frostbite -= 1
   if ((attacker.counters.death || 0) > 0 && !abilityNames(attacker).includes('Erosion')) {
     attacker.counters.death -= 1
     if (attacker.counters.death <= 0) attacker.hp = 0

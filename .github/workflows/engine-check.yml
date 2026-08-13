@@ -24,6 +24,17 @@ jobs:
       - run: npm run test:engine
       - run: npm run test:depths
       - run: npm run test:player
+      - name: Validate live page JavaScript
+        run: |
+          node <<'NODE'
+          const fs = require('fs')
+          const html = fs.readFileSync('index.html', 'utf8')
+          const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((match) => match[1])
+          if (!scripts.length) throw new Error('No inline live-page script found')
+          for (const script of scripts) new Function(script)
+          if (!html.includes("new Worker('./browser/depths-worker.js')")) throw new Error('Live page is not wired to the simulation worker')
+          console.log(`Live page JavaScript parsed successfully (${scripts.length} inline script).`)
+          NODE
       - name: Bundle browser simulation worker
         if: github.event_name == 'push'
         run: npx esbuild src/browser-worker.ts --bundle --platform=browser --format=iife --target=es2020 --minify --outfile=browser/depths-worker.js

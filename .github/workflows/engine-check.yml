@@ -6,11 +6,16 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -19,3 +24,18 @@ jobs:
       - run: npm run test:engine
       - run: npm run test:depths
       - run: npm run test:player
+      - name: Bundle browser simulation worker
+        if: github.event_name == 'push'
+        run: npx esbuild src/browser-worker.ts --bundle --platform=browser --format=iife --target=es2020 --minify --outfile=browser/depths-worker.js
+      - name: Commit browser simulation bundle
+        if: github.event_name == 'push'
+        run: |
+          git config user.name "Drago"
+          git config user.email "dragoidc3@gmail.com"
+          git add browser/depths-worker.js
+          if git diff --cached --quiet; then
+            echo "Browser bundle unchanged."
+            exit 0
+          fi
+          git commit -m "Build browser simulation bundle"
+          git push

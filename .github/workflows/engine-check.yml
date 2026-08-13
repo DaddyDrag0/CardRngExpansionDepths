@@ -56,11 +56,8 @@ jobs:
 
           const styles = fs.readFileSync('src/styles.css', 'utf8')
           if (styles.includes('.aura-exact b{display:none!important}')) throw new Error('Resolved aura values are hidden')
-
-          if (githubEventPatchCheck) console.log(githubEventPatchCheck)
+          console.log(`Live page JavaScript parsed successfully (${scripts.length} inline script).`)
           NODE
-        env:
-          githubEventPatchCheck: ${{ github.event.head_commit.message == 'Apply turn-limit randomization patch' && 'Turn-limit/randomization patch active for validation.' || '' }}
       - name: Validate turn-limit/randomization patch
         if: github.event_name == 'push' && github.event.head_commit.message == 'Apply turn-limit randomization patch'
         run: |

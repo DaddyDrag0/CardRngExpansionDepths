@@ -67,6 +67,7 @@ export interface CombatCard {
   dead: boolean
   boss: boolean
   abilityOverride?: string | null
+  bonusAbilities?: string[]
   status: {
     stunned: number
     confused: number

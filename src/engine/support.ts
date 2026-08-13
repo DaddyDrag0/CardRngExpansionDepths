@@ -44,7 +44,7 @@ export const SOURCE_ALIGNED_ABILITIES = new Set([
   'Full Moon', 'Unholy Creature', 'The Underworld', 'Devilish', 'Chaos Destruction',
   'Beyond The Grave', 'Creation and Restoration', 'Dispel', 'Healing Miracle',
   'Laser Gun', 'Lotus Sutra', 'Origin', 'Outshine', 'Pandemic', 'Railgun',
-  'Shiny Steal', 'Water Shield of Xuanwu',
+  'Shiny Steal', 'Water Shield of Xuanwu', 'Constellar', "Pandora's Box",
 ])
 
 export function getDepthsAbilityCoverage() {

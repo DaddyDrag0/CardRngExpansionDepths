@@ -58,6 +58,7 @@ assert(battle.turns > 0, 'Controlled battle did not advance turns')
 
 const coverage = getDepthsAbilityCoverage()
 assert(coverage.total > 150, 'Depths ability coverage scan did not see the full pool')
+assert(coverage.unsupported === 0, `Unimplemented Depths abilities remain: ${coverage.unsupportedAbilities.join(', ')}`)
 console.log(`Engine smoke tests passed: ${cards.length} cards, ${auras.length} auras.`)
 console.log(`Source-aligned Depths ability coverage: ${coverage.supported}/${coverage.total} (${coverage.percent.toFixed(1)}%).`)
 console.log(`Remaining unsupported Depths abilities (${coverage.unsupported}): ${coverage.unsupportedAbilities.join(' | ')}`)

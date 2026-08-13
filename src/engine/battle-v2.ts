@@ -59,12 +59,35 @@ const FULLY_SUPPORTED = new Set([
   'Full Moon', 'Unholy Creature', 'The Underworld', 'Devilish', 'Chaos Destruction',
   'Beyond The Grave', 'Creation and Restoration', 'Dispel', 'Healing Miracle',
   'Laser Gun', 'Lotus Sutra', 'Origin', 'Outshine', 'Pandemic', 'Railgun',
-  'Shiny Steal', 'Water Shield of Xuanwu',
+  'Shiny Steal', 'Water Shield of Xuanwu', 'Constellar', "Pandora's Box",
+  'ConstellarVirgo', 'ConstellarScorpio', 'ConstellarSagittarius',
+  'ConstellarAquarius', 'ConstellarGemini', 'ConstellarTaurus', 'ConstellarCancer',
 ])
 
 const BENCH_AFFECTING_UNSUPPORTED = new Set([
   'Nightmare Melody', 'Draconian', 'Mirror Image', 'Better Days', 'Playing God',
 ])
+
+const CONSTELLAR_ABILITIES = [
+  'ConstellarVirgo', 'ConstellarScorpio', 'ConstellarSagittarius',
+  'ConstellarAquarius', 'ConstellarGemini', 'ConstellarTaurus', 'ConstellarCancer',
+] as const
+
+const DODGE_ABILITIES = new Set([
+  'Danger Sense', 'Deadly Ambush', 'Evasion', 'Untouchable', 'Guerilla Warfare',
+  'The Loser', 'Invisibility', 'Limitless', 'Transcend Time', 'Snowbound',
+  'Sky Drop', 'Shadow Predator', 'Run As Fast As You Can', 'Heard but not Seen',
+  'Lights Way',
+])
+
+const GENERAL_MOON_ZOO_ABILITY = cards.find((card) => card.name === 'General Moon Zoo')?.ability
+const PANDORA_ABILITY_POOL = [...new Set(
+  cards.map((card) => card.ability).filter((name): name is string => Boolean(name)),
+)].filter((name) =>
+  name !== "Pandora's Box"
+  && name !== GENERAL_MOON_ZOO_ABILITY
+  && FULLY_SUPPORTED.has(name)
+)
 
 interface Runtime {
   state: BattleState
@@ -77,6 +100,41 @@ function definition(name: string) {
 
 function ability(card: CombatCard | undefined): string | null {
   return card?.abilityOverride ?? card?.definition.ability ?? null
+}
+
+function abilityNames(card: CombatCard | undefined): string[] {
+  if (!card) return []
+  return [...new Set([ability(card), ...(card.bonusAbilities || [])].filter((name): name is string => Boolean(name)))]
+}
+
+function withAbility<T>(card: CombatCard, name: string, fn: () => T): T {
+  const previous = card.abilityOverride
+  card.abilityOverride = name
+  try {
+    return fn()
+  } finally {
+    card.abilityOverride = previous
+  }
+}
+
+function randomConstellarAbility(runtime: Runtime): string {
+  return CONSTELLAR_ABILITIES[Math.floor(runtime.rng.next() * CONSTELLAR_ABILITIES.length)]
+}
+
+function resolvePandoraGainedAbility(runtime: Runtime, card: CombatCard, name: string): string {
+  if (name === 'Constellar') return randomConstellarAbility(runtime)
+  if (name === 'The Underworld') {
+    const copied = [...runtime.state.fallen[card.team]].reverse()
+      .flatMap((fallen) => abilityNames(fallen))
+      .find((candidate) => candidate !== 'The Underworld' && candidate !== "Pandora's Box")
+    if (copied) return copied
+  }
+  return name
+}
+
+function constellarTaurusFactor(card: CombatCard): number {
+  if (card.maxHp <= 0) return 2.5
+  return Math.min(2.5, 1 + (1 - Math.max(0, card.hp) / card.maxHp) * 1.5)
 }
 
 function primaryBorder(card: CombatCard): '' | 'Platinum' | 'Crystal' | 'Ruby' | 'Galaxy' {
@@ -104,7 +162,7 @@ function boostStats(card: CombatCard, mult: number) {
 
 function statusProtected(runtime: Runtime, team: BattleTeam): boolean {
   return runtime.state.teams[team].some((card) =>
-    !card.dead && !card.flags.sealed && ability(card) === 'Protection of Gods'
+    !card.dead && !card.flags.sealed && abilityNames(card).includes('Protection of Gods')
   )
 }
 
@@ -124,7 +182,7 @@ function randomCreatableCard(runtime: Runtime) {
 
 function waterShield(runtime: Runtime, team: BattleTeam, target: CombatCard): CombatCard | undefined {
   return runtime.state.teams[team].find((card) =>
-    card !== target && alive(card) && !card.flags.sealed && ability(card) === 'Water Shield of Xuanwu'
+    card !== target && alive(card) && !card.flags.sealed && abilityNames(card).includes('Water Shield of Xuanwu')
   )
 }
 
@@ -212,12 +270,13 @@ function cloneAtFraction(source: CombatCard, fraction: number, serial: number): 
 }
 
 function noteUnsupported(state: BattleState, card: CombatCard | undefined) {
-  const name = ability(card)
-  if (name && !FULLY_SUPPORTED.has(name)) state.unsupportedAbilities.add(name)
+  for (const name of abilityNames(card)) {
+    if (!FULLY_SUPPORTED.has(name)) state.unsupportedAbilities.add(name)
+  }
 }
 
 function hasAbility(runtime: Runtime, card: CombatCard | undefined, name: string): boolean {
-  if (!card || card.dead || card.flags.sealed || ability(card) !== name) return false
+  if (!card || card.dead || card.flags.sealed || !abilityNames(card).includes(name)) return false
   const enemy = runtime.state.boosts[OTHER_TEAM[card.team]]
   if (enemy.endTimes && runtime.rng.next() < enemy.endTimes / 100) return false
   return true
@@ -226,7 +285,7 @@ function hasAbility(runtime: Runtime, card: CombatCard | undefined, name: string
 function rand(runtime: Runtime, team: BattleTeam): number {
   const activeA = runtime.state.teams.Allies[0]
   const activeE = runtime.state.teams.Enemies[0]
-  if (ability(activeA) === 'Unlucky' || ability(activeE) === 'Unlucky') return 0
+  if (abilityNames(activeA).includes('Unlucky') || abilityNames(activeE).includes('Unlucky')) return 0
   if (runtime.state.teams[team][0]?.flags.noRng) return 0
   let roll = runtime.rng.next()
   const fate = runtime.state.boosts[team].fate
@@ -285,6 +344,23 @@ function active(runtime: Runtime, team: BattleTeam) {
   return runtime.state.teams[team][0]
 }
 
+function resolveConstellarArts(runtime: Runtime) {
+  for (const team of ['Allies', 'Enemies'] as BattleTeam[]) {
+    for (const card of runtime.state.teams[team]) {
+      if (card.definition.ability === 'Constellar' && !card.abilityOverride) {
+        card.abilityOverride = randomConstellarAbility(runtime)
+      }
+    }
+    const astraeusCount = runtime.state.teams[team].filter((card) => card.definition.name === 'Astraeus').length
+    for (const card of runtime.state.teams[team]) {
+      if (ability(card) === 'ConstellarGemini' && !card.flags.constellarGeminiApplied) {
+        card.flags.constellarGeminiApplied = true
+        boostStats(card, 1 + astraeusCount * 0.5)
+      }
+    }
+  }
+}
+
 function performEntryAttack(runtime: Runtime, card: CombatCard, mult = 1, allEnemies = false) {
   const enemyTeam = OTHER_TEAM[card.team]
   const first = active(runtime, enemyTeam)
@@ -307,6 +383,39 @@ function onEntry(runtime: Runtime, card: CombatCard) {
   let name = ability(card)
   if (!name) return
 
+  if (name === "Pandora's Box" && !card.flags.pandoraRolled) {
+    card.flags.pandoraRolled = true
+    const chosen: string[] = []
+    let attempts = 0
+    while (chosen.length < 2 && attempts++ < 100 && PANDORA_ABILITY_POOL.length) {
+      const raw = PANDORA_ABILITY_POOL[Math.floor(runtime.rng.next() * PANDORA_ABILITY_POOL.length)]
+      const gained = resolvePandoraGainedAbility(runtime, card, raw)
+      if (gained !== "Pandora's Box" && !chosen.includes(gained)) chosen.push(gained)
+    }
+    card.bonusAbilities = chosen
+    for (const gained of chosen) {
+      withAbility(card, gained, () => {
+        card.entered = false
+        onEntry(runtime, card)
+      })
+    }
+    card.entered = true
+    return
+  }
+
+  if (name === 'Constellar') {
+    card.abilityOverride = randomConstellarAbility(runtime)
+    name = ability(card)
+    if (name === 'ConstellarGemini' && !card.flags.constellarGeminiApplied) {
+      card.flags.constellarGeminiApplied = true
+      const count = runtime.state.teams[card.team].filter((ally) => ally.definition.name === 'Astraeus').length
+      boostStats(card, 1 + count * 0.5)
+    }
+    card.entered = false
+    onEntry(runtime, card)
+    return
+  }
+
   if (name === 'The Underworld') {
     const copied = [...runtime.state.fallen[card.team]].reverse()
       .map((fallen) => ability(fallen))
@@ -320,6 +429,16 @@ function onEntry(runtime: Runtime, card: CombatCard) {
   }
 
   switch (name) {
+    case 'ConstellarVirgo':
+      card.counters.hpShield = (card.counters.hpShield || 0) + card.maxHp * 2
+      break
+    case 'ConstellarGemini':
+      if (!card.flags.constellarGeminiApplied) {
+        card.flags.constellarGeminiApplied = true
+        const count = runtime.state.teams[card.team].filter((ally) => ally.definition.name === 'Astraeus').length
+        boostStats(card, 1 + count * 0.5)
+      }
+      break
     case 'Gathering': {
       const count = runtime.state.teams[card.team].length + runtime.state.fallen[card.team].length
       card.damage *= Math.pow(1.5, count)
@@ -381,6 +500,7 @@ function onEntry(runtime: Runtime, card: CombatCard) {
         entered: false,
         dead: false,
         abilityOverride: undefined,
+        bonusAbilities: undefined,
         status: { stunned: 0, confused: 0, burn: 0, weakness: false, blind: false, shield: 0 },
         flags: {},
         counters: { normalDamage: card.damage, normalMaxHp: card.maxHp },
@@ -590,6 +710,15 @@ function onEntry(runtime: Runtime, card: CombatCard) {
 }
 
 function offensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, initial: number): { damage: number; bypass: boolean; special: boolean } {
+  if (ability(attacker) === "Pandora's Box" && attacker.bonusAbilities?.length) {
+    let result = { damage: initial, bypass: false, special: false }
+    for (const gained of attacker.bonusAbilities) {
+      const next = withAbility(attacker, gained, () => offensive(runtime, attacker, target, result.damage))
+      result = { damage: next.damage, bypass: result.bypass || next.bypass, special: result.special || next.special }
+    }
+    return result
+  }
+
   const name = ability(attacker)
   let damage = initial
   let bypass = false
@@ -603,12 +732,13 @@ function offensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
     'Apex Predator','Infinite Dagger Works','Extinction','God of Thunder','Fire World','Moonlight Beam',
     'Dirty Claw','Heart Hunter','Chainsaw','Firepower','Rapid Blows','Behavioral Therapy',
     'Holy Wrath','Unlucky','Dragon Slayer','Frozen Wrath','Absolute Apex',
-    'Dark Qi Manipulation','Chaos Destruction',
+    'Dark Qi Manipulation','Chaos Destruction','ConstellarTaurus','ConstellarSagittarius',
   ].includes(name)) special = true
 
   switch (name) {
     case 'True Strike': if (rand(runtime, attacker.team) > 0.5) damage *= 2; break
     case 'Absolute Apex': damage *= 1.5; break
+    case 'ConstellarTaurus': damage *= constellarTaurusFactor(attacker); break
     case 'Chaos Destruction': if (attacker.flags.chaosTriple) { damage *= 3; attacker.flags.chaosTriple = false }; break
     case 'Dark Qi Manipulation': if (attacker.flags.awakened) damage *= 2; break
     case "Monkey King's Rage":
@@ -713,11 +843,28 @@ function offensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
 }
 
 function defensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, initial: number): number {
+  if (ability(target) === "Pandora's Box" && target.bonusAbilities?.length) {
+    let damage = initial
+    for (const gained of target.bonusAbilities) {
+      damage = withAbility(target, gained, () => defensive(runtime, attacker, target, damage))
+    }
+    return damage
+  }
+
   const name = ability(target)
   let damage = initial
   if (!name || !hasAbility(runtime, target, name)) return damage
 
   switch (name) {
+    case 'ConstellarTaurus': damage /= constellarTaurusFactor(target); break
+    case 'ConstellarCancer': {
+      const threshold = target.counters.cancerThreshold || 1
+      if (threshold > 0 && damage < target.maxHp * threshold) {
+        damage = 0
+        target.counters.cancerThreshold = Math.max(0, threshold - 0.15)
+      }
+      break
+    }
     case 'Danger Sense':
     case 'Deadly Ambush':
       if (!target.flags.dangerSense && damage > target.hp) {
@@ -845,11 +992,19 @@ function defensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
   }
 
   if (name === 'Dominate' && borderTier(target) > borderTier(attacker)) damage /= 2
+  if (initial > 0 && damage === 0 && DODGE_ABILITIES.has(name)) target.flags.evadedThisHit = true
   return damage
 }
 
 function tryRevive(runtime: Runtime, attacker: CombatCard, target: CombatCard): boolean {
   if (target.hp > 0) return false
+  if (ability(target) === "Pandora's Box" && target.bonusAbilities?.length) {
+    for (const gained of target.bonusAbilities) {
+      const revived = withAbility(target, gained, () => tryRevive(runtime, attacker, target))
+      if (revived) return true
+    }
+    return false
+  }
   const name = ability(target)
   if (!name) return false
   if (name === 'Revive' && !target.flags.revived && rand(runtime, target.team) > 0.5) {
@@ -871,6 +1026,12 @@ function tryRevive(runtime: Runtime, attacker: CombatCard, target: CombatCard): 
 }
 
 function targetRetro(runtime: Runtime, attacker: CombatCard, target: CombatCard, damage: number) {
+  if (ability(target) === "Pandora's Box" && target.bonusAbilities?.length) {
+    for (const gained of target.bonusAbilities) {
+      withAbility(target, gained, () => targetRetro(runtime, attacker, target, damage))
+    }
+    return
+  }
   const name = ability(target)
   if (!name || !hasAbility(runtime, target, name)) return
   switch (name) {
@@ -939,10 +1100,20 @@ function lifestealFraction(runtime: Runtime, attacker: CombatCard, base: number)
 }
 
 function attackerRetro(runtime: Runtime, attacker: CombatCard, target: CombatCard, damage: number): boolean {
+  if (ability(attacker) === "Pandora's Box" && attacker.bonusAbilities?.length) {
+    let didRegen = false
+    for (const gained of attacker.bonusAbilities) {
+      didRegen = withAbility(attacker, gained, () => attackerRetro(runtime, attacker, target, damage)) || didRegen
+    }
+    return didRegen
+  }
   const name = ability(attacker)
   let didRegen = false
   if (!name || !hasAbility(runtime, attacker, name)) return didRegen
   switch (name) {
+    case 'ConstellarScorpio':
+      if (damage > 0 && !statusProtected(runtime, target.team)) target.counters.poisonFlat = Math.max(target.counters.poisonFlat || 0, attacker.damage)
+      break
     case 'Regenerate': attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.2); didRegen = true; break
     case 'Plunder':
       if (target.hp <= 0 && target !== attacker) {
@@ -996,7 +1167,7 @@ function attackerRetro(runtime: Runtime, attacker: CombatCard, target: CombatCar
     case 'Immortal Ascension':
       if (attacker.flags.awakened && target.hp <= 0) boostStats(attacker, 1.5)
       break
-    case 'Doom': if (ability(target) !== 'Erosion' && target.hp > 0 && rand(runtime, attacker.team) > 1 - damage / target.hp) { target.hp = 0; target.flags.sealed = true }; break
+    case 'Doom': if (!abilityNames(target).includes('Erosion') && target.hp > 0 && rand(runtime, attacker.team) > 1 - damage / target.hp) { target.hp = 0; target.flags.sealed = true }; break
     case 'Decapitate':
       if (target.hp <= 0) { boostStats(attacker, 1.2); attacker.flags.extraTurn = true }
       break
@@ -1005,8 +1176,8 @@ function attackerRetro(runtime: Runtime, attacker: CombatCard, target: CombatCar
     case 'Defraud': attacker.hp -= attacker.maxHp / 4; break
     case 'Fight Dirty': target.damage = Math.floor(target.damage * 0.7); break
     case 'Unforgiving': target.maxHp = Math.max(1, target.maxHp - damage); target.hp = Math.min(target.hp, target.maxHp); break
-    case 'Eat The Moon': if (ability(target) !== 'Erosion' && target.hp / target.maxHp < 0.33) target.hp = 0; break
-    case 'Death Embrace': if (ability(target) !== 'Erosion' && target.hp > 0 && rand(runtime, attacker.team) > 1 - damage / target.hp) target.hp = 0; break
+    case 'Eat The Moon': if (!abilityNames(target).includes('Erosion') && target.hp / target.maxHp < 0.33) target.hp = 0; break
+    case 'Death Embrace': if (!abilityNames(target).includes('Erosion') && target.hp > 0 && rand(runtime, attacker.team) > 1 - damage / target.hp) target.hp = 0; break
     case 'Prehistoric Wrath': if (target.hp <= 0) attacker.damage *= 2; break
   }
   return didRegen
@@ -1048,9 +1219,12 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   if (hasAbility(runtime, target, 'Erosion') && off.special && damage >= target.hp) damage = Math.max(0, target.hp - 1)
   if (target.status.weakness) damage *= 1.3
 
+  target.flags.evadedThisHit = false
+  const beforeDefense = damage
   if (!bypass && target.flags.eternalDevotion) { target.flags.eternalDevotion = false; damage = 0 }
   else if (!bypass && target.flags.dodgeLethal) { target.flags.dodgeLethal = false; damage = 0 }
   else if (!bypass) damage = defensive(runtime, attacker, target, damage)
+  if (!bypass && target.flags.evadedThisHit && hasAbility(runtime, attacker, 'ConstellarSagittarius')) damage = beforeDefense * 2
 
   const shielder = runtime.state.boosts[target.team].shielder
   if (shielder) damage *= (100 - shielder) / 100
@@ -1062,6 +1236,12 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   if (target.status.shield > 0 && damage > 0) { target.status.shield -= 1; damage = 0 }
   if (damage < 0) damage = Math.max(-(target.maxHp - target.hp), damage)
   damage = Number.isFinite(damage) ? Math.ceil(damage) : target.hp
+
+  if ((target.counters.hpShield || 0) > 0 && damage > 0) {
+    const absorbed = Math.min(target.counters.hpShield, damage)
+    target.counters.hpShield -= absorbed
+    damage -= absorbed
+  }
 
   const xuanwu = damage > 0 ? waterShield(runtime, target.team, target) : undefined
   if (xuanwu) {
@@ -1120,20 +1300,30 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   return damage
 }
 
-function applyOnDeath(runtime: Runtime, dead: CombatCard, opponent: CombatCard | undefined) {
+function applyOnDeath(runtime: Runtime, dead: CombatCard, opponent: CombatCard | undefined, skipOpponentPassives = false) {
   const team = dead.team
   const deck = runtime.state.teams[team]
   const next = deck[0]
   const name = ability(dead)
 
+  if (!skipOpponentPassives) {
+    if (opponent && alive(opponent) && hasAbility(runtime, opponent, 'Prehistoric Wrath')) opponent.damage *= 2
+    if (opponent && alive(opponent) && hasAbility(runtime, opponent, 'All Father')) for (const card of runtime.state.teams[opponent.team]) boostStats(card, 1.25)
+  }
+
+  if (dead.flags.suppressOnDeath) return
+
+  if (name === "Pandora's Box" && dead.bonusAbilities?.length) {
+    for (const gained of dead.bonusAbilities) {
+      withAbility(dead, gained, () => applyOnDeath(runtime, dead, opponent, true))
+    }
+    return
+  }
+
   if (name === 'Hard Boiled') runtime.state.boosts[team].fossils = (runtime.state.boosts[team].fossils || 0) + 3
   if (name === 'Extinction') runtime.state.boosts[team].fossils = (runtime.state.boosts[team].fossils || 0) + 2
 
-  if (opponent && alive(opponent) && hasAbility(runtime, opponent, 'Prehistoric Wrath')) opponent.damage *= 2
-  if (opponent && alive(opponent) && hasAbility(runtime, opponent, 'All Father')) for (const card of runtime.state.teams[opponent.team]) boostStats(card, 1.25)
-
   if (!next || !name) return
-  if (dead.flags.suppressOnDeath) return
   if (name === 'Blessing') { next.damage += dead.damage / 2; next.maxHp += dead.maxHp / 2; next.hp += dead.maxHp / 2 }
   if (name === 'Heart Legacy') { next.maxHp += dead.maxHp; next.hp += dead.maxHp }
   if (name === 'Tonic') boostStats(next, 1.2)
@@ -1143,7 +1333,7 @@ function applyOnDeath(runtime: Runtime, dead: CombatCard, opponent: CombatCard |
     next.hp += dead.maxHp * 0.5
   }
   if (name === 'Destiny Sight') next.flags.dodgeLethal = true
-  if (name === 'Housewife\'s Blessing') { boostStats(next, 2); next.status.stunned = 2 }
+  if (name === "Housewife's Blessing") { boostStats(next, 2); next.status.stunned = 2 }
   if (name === 'Eternal Devotion') next.flags.eternalDevotion = true
   if (name === 'Final Stand') {
     next.damage += dead.damage * 0.25
@@ -1195,7 +1385,7 @@ function resolveDeaths(runtime: Runtime) {
 
       // Beyond The Grave is a bench/death trigger: a dead holder returns at half HP when a different ally dies.
       const revenants = runtime.state.fallen[team].filter((fallen) =>
-        fallen !== card && ability(fallen) === 'Beyond The Grave' && fallen.hp <= 0
+        fallen !== card && abilityNames(fallen).includes('Beyond The Grave') && fallen.hp <= 0
       )
       for (const revenant of revenants) {
         const fallenIndex = runtime.state.fallen[team].indexOf(revenant)
@@ -1252,11 +1442,11 @@ function statusEnd(runtime: Runtime, attacker: CombatCard) {
       attacker.hp -= attacker.maxHp * 0.2
     }
   }
-  if ((attacker.counters.death || 0) > 0 && ability(attacker) !== 'Erosion') {
+  if ((attacker.counters.death || 0) > 0 && !abilityNames(attacker).includes('Erosion')) {
     attacker.counters.death -= 1
     if (attacker.counters.death <= 0) attacker.hp = 0
   }
-  if (ability(attacker) === 'Final Tail') {
+  if (hasAbility(runtime, attacker, 'Final Tail')) {
     attacker.counters.finalTail = (attacker.counters.finalTail || 0) + 1
     if (attacker.counters.finalTail >= 3) attacker.hp = 0
   }
@@ -1271,6 +1461,10 @@ function statusEnd(runtime: Runtime, attacker: CombatCard) {
 }
 
 function prepareTurn(runtime: Runtime, attacker: CombatCard) {
+  if (hasAbility(runtime, attacker, 'ConstellarAquarius')) {
+    if (attacker.hp < attacker.maxHp / 2) attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.3)
+    else attacker.maxHp *= 1.25
+  }
   if (hasAbility(runtime, attacker, 'Full Moon')) {
     attacker.counters.fullMoon = (attacker.counters.fullMoon || 0) + 1
     if (attacker.counters.fullMoon % 2 === 0) {
@@ -1338,20 +1532,21 @@ function beforeAttack(runtime: Runtime, attacker: CombatCard) {
   if (hasAbility(runtime, attacker, 'Combatant')) attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.1)
 }
 
-function attackCount(attacker: CombatCard): { count: number; mult: number } {
-  const name = ability(attacker)
+function attackCount(runtime: Runtime, attacker: CombatCard): { count: number; mult: number } {
   const bonus = attacker.counters.attacks || 0
-  if (name === 'Rapid Blows') return { count: 3 + bonus, mult: 1 }
-  if (name === 'Chainsaw') return { count: 8 + bonus, mult: 1 }
-  if (name === 'Firepower') return { count: 5 + bonus, mult: 1 }
-  if (name === 'Behavioral Therapy') return { count: 2 + bonus, mult: 1 }
-  return { count: 1 + bonus, mult: 1 }
+  let base = 1
+  if (hasAbility(runtime, attacker, 'Rapid Blows')) base = Math.max(base, 3)
+  if (hasAbility(runtime, attacker, 'Chainsaw')) base = Math.max(base, 8)
+  if (hasAbility(runtime, attacker, 'Firepower')) base = Math.max(base, 5)
+  if (hasAbility(runtime, attacker, 'Behavioral Therapy')) base = Math.max(base, 2)
+  return { count: base + bonus, mult: 1 }
 }
 
-function canNormalAttack(attacker: CombatCard): boolean {
-  const name = ability(attacker)
-  if (name === 'Meow' || name === 'Never Forgotten' || name === 'Origin' || name === 'Laser Gun' || name === 'Lotus Sutra') return false
-  if (name === 'Sky Drop') return Boolean(attacker.counters.drop && attacker.counters.drop % 2 === 0)
+function canNormalAttack(runtime: Runtime, attacker: CombatCard): boolean {
+  if (hasAbility(runtime, attacker, 'Meow') || hasAbility(runtime, attacker, 'Never Forgotten')
+    || hasAbility(runtime, attacker, 'Origin') || hasAbility(runtime, attacker, 'Laser Gun')
+    || hasAbility(runtime, attacker, 'Lotus Sutra')) return false
+  if (hasAbility(runtime, attacker, 'Sky Drop')) return Boolean(attacker.counters.drop && attacker.counters.drop % 2 === 0)
   return true
 }
 
@@ -1484,8 +1679,8 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
     attacker.flags.chaosTriple = true
   }
 
-  if (canNormalAttack(attacker)) {
-    const { count } = attackCount(attacker)
+  if (canNormalAttack(runtime, attacker)) {
+    const { count } = attackCount(runtime, attacker)
     for (let i = 0; i < count; i++) {
       target = active(runtime, enemyTeam)
       if (!target || !alive(attacker)) break
@@ -1541,7 +1736,7 @@ function processDivination(runtime: Runtime) {
     ...runtime.state.teams.Enemies, ...runtime.state.fallen.Enemies,
   ]
   for (const card of allCards) {
-    if (ability(card) !== 'Divination' || card.flags.divinationFired) continue
+    if (!hasAbility(runtime, card, 'Divination') || card.flags.divinationFired) continue
     const moves = card.counters.divinationMoves || 0
     if (moves <= 0) continue
     card.counters.divinationMoves = moves - 1
@@ -1601,6 +1796,7 @@ function scheduleExtraTurns(runtime: Runtime, attacker: CombatCard): boolean {
 export function simulateBattleV2(loadout: TeamLoadout, enemies: DepthsEnemy[], seed = 1): BattleResult {
   const state = createBattleStateV2(loadout, enemies)
   const runtime: Runtime = { state, rng: new SeededRng(seed) }
+  resolveConstellarArts(runtime)
   let lastPair = ''
   let samePairTurns = 0
 

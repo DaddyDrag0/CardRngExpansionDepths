@@ -1,0 +1,39 @@
+name: Apply Final Depths Ability Patch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/apply-combat-final.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message == 'Queue final Depths ability patch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate patch script
+        run: python -m py_compile scripts/apply-combat-final.py
+      - name: Apply final combat patch
+        run: python scripts/apply-combat-final.py
+      - run: npm install
+      - run: npm run build
+      - run: npm run test:engine
+      - name: Remove temporary inspection and patch files
+        run: |
+          rm -f .github/workflows/apply-combat-final.yml scripts/apply-combat-final.py
+          rm -f debug/astraeus.png debug/astraeus-preview.b64
+          rmdir debug 2>/dev/null || true
+          git config user.name "Drago"
+          git config user.email "dragoidc3@gmail.com"
+          git add -A
+          git commit -m "Complete Depths ability engine"
+          git push

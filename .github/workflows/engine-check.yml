@@ -19,9 +19,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Apply pending turn-limit/randomization correction
-        if: github.event_name == 'push' && github.event.head_commit.message == 'Apply turn-limit randomization patch'
-        run: node scripts/fix-turn-limit-random.mjs
       - run: npm install
       - run: npm run build
       - run: npm run test:engine
@@ -35,35 +32,41 @@ jobs:
           const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((match) => match[1])
           if (!scripts.length) throw new Error('No inline live-page script found')
           for (const script of scripts) new Function(script)
-          const requiredUiHooks = ["new Worker('./browser/depths-worker.js')", 'CRE1-', 'Most common losing-floor enemies']
-          for (const hook of requiredUiHooks) if (!html.includes(hook)) throw new Error(`Missing live-page hook: ${hook}`)
-          for (const removedHook of ['data-library-mode="bans"', 'data-library-mode="pool"']) if (html.includes(removedHook)) throw new Error(`Removed calculator-only control returned: ${removedHook}`)
+
+          const requiredUiHooks = [
+            "new Worker('./browser/depths-worker.js')",
+            'CRE1-',
+            'Most common losing-floor enemies',
+            'crypto.getRandomValues',
+            'Fresh random enemies every test',
+          ]
+          for (const hook of requiredUiHooks) {
+            if (!html.includes(hook)) throw new Error(`Missing live-page hook: ${hook}`)
+          }
+
+          for (const removedHook of ['data-library-mode="bans"', 'data-library-mode="pool"', 'id="seedInput"']) {
+            if (html.includes(removedHook)) throw new Error(`Removed calculator-only control returned: ${removedHook}`)
+          }
+
           const workerSource = fs.readFileSync('src/browser-worker.ts', 'utf8')
-          for (const removedField of ['excludedCardNames', 'selectedCardNames']) if (workerSource.includes(removedField)) throw new Error(`Removed calculator-only field returned: ${removedField}`)
+          for (const removedField of ['excludedCardNames', 'selectedCardNames']) {
+            if (workerSource.includes(removedField)) throw new Error(`Removed calculator-only field returned: ${removedField}`)
+          }
+
+          const battle = fs.readFileSync('src/engine/battle-v2.ts', 'utf8')
+          if (!battle.includes('pairTurns[attacker.id]')) throw new Error('Per-card matchup turn counter missing')
+          if (!battle.includes('pairTurns[attacker.id] > 150')) throw new Error('150-turn per-card matchup limit missing')
+
           const styles = fs.readFileSync('src/styles.css', 'utf8')
           if (styles.includes('.aura-exact b{display:none!important}')) throw new Error('Resolved aura values are hidden')
+
           console.log(`Live page JavaScript parsed successfully (${scripts.length} inline script).`)
           NODE
-      - name: Validate turn-limit/randomization patch
-        if: github.event_name == 'push' && github.event.head_commit.message == 'Apply turn-limit randomization patch'
-        run: |
-          grep -q "pairTurns\[attacker.id\]" src/engine/battle-v2.ts
-          grep -q "pairTurns\[attacker.id\] > 150" src/engine/battle-v2.ts
-          if grep -q 'id="seedInput"' index.html; then exit 1; fi
-          grep -q 'crypto.getRandomValues' index.html
       - name: Bundle browser simulation worker
         if: github.event_name == 'push'
         run: npx esbuild src/browser-worker.ts --bundle --platform=browser --format=iife --target=es2020 --minify --outfile=browser/depths-worker.js
-      - name: Commit validated turn-limit/randomization patch
-        if: github.event_name == 'push' && github.event.head_commit.message == 'Apply turn-limit randomization patch'
-        run: |
-          git config user.name "Drago"
-          git config user.email "dragoidc3@gmail.com"
-          git add src/engine/battle-v2.ts index.html browser/depths-worker.js
-          git commit -m "Fix per-card turn limit and randomize tests"
-          git push
       - name: Commit browser simulation bundle
-        if: github.event_name == 'push' && github.event.head_commit.message != 'Apply turn-limit randomization patch'
+        if: github.event_name == 'push'
         run: |
           git config user.name "Drago"
           git config user.email "dragoidc3@gmail.com"

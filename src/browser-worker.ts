@@ -24,6 +24,17 @@ interface SingleRunRequest {
 
 type SimulationRequest = BatchRequest | SingleRunRequest
 
+type ProgressMessage = {
+  kind: 'progress'
+  id: number
+  runIndex: number
+  floor: number
+  completedRuns?: number
+  totalRuns?: number
+}
+
+const STALL_WATCHDOG_MS = 20_000
+
 function runSeed(batchSeed: number, runIndex: number): number {
   const rng = new SeededRng(batchSeed)
   let seed = 1
@@ -52,11 +63,11 @@ function summarize(results: DepthsRunResult[]) {
   }
 }
 
-function simulateOne(request: SingleRunRequest): DepthsRunResult {
+function simulateOne(request: SingleRunRequest, onProgress?: (floor: number) => void): DepthsRunResult {
   return simulateDepthsRun(request.loadout, {
     floorCap: request.floorCap,
     seed: runSeed(request.batchSeed, request.runIndex),
-  })
+  }, onProgress)
 }
 
 async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[]> {
@@ -65,14 +76,28 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
   const workerCount = Math.min(runs, Math.max(1, Math.min(8, hardware - 1 || 1)))
 
   if (workerCount <= 1 || runs === 1) {
-    return Array.from({ length: runs }, (_, runIndex) => simulateOne({
-      kind: 'single-run',
-      id: request.id,
-      loadout: request.loadout,
-      floorCap: request.floorCap,
-      batchSeed: request.seed,
-      runIndex,
-    }))
+    const results: DepthsRunResult[] = []
+    for (let runIndex = 0; runIndex < runs; runIndex++) {
+      const result = simulateOne({
+        kind: 'single-run',
+        id: request.id,
+        loadout: request.loadout,
+        floorCap: request.floorCap,
+        batchSeed: request.seed,
+        runIndex,
+      }, (floor) => {
+        self.postMessage({
+          kind: 'progress',
+          id: request.id,
+          runIndex,
+          floor,
+          completedRuns: results.length,
+          totalRuns: runs,
+        } satisfies ProgressMessage)
+      })
+      results.push(result)
+    }
+    return results
   }
 
   const results = new Array<DepthsRunResult>(runs)
@@ -84,6 +109,12 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
   return new Promise((resolve, reject) => {
     const stopAll = () => {
       for (const worker of workers) worker.terminate()
+    }
+    const fail = (error: Error) => {
+      if (settled) return
+      settled = true
+      stopAll()
+      reject(error)
     }
     const finishIfDone = () => {
       if (!settled && completed === runs) {
@@ -98,28 +129,55 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
         finishIfDone()
         return
       }
+
       const runIndex = nextRun++
+      let lastFloor = 1
+      let watchdog: ReturnType<typeof setTimeout> | null = null
+      const armWatchdog = () => {
+        if (watchdog) clearTimeout(watchdog)
+        watchdog = setTimeout(() => {
+          fail(new Error(`Simulation stalled on run ${runIndex + 1}/${runs} near floor ${lastFloor}. No floor progress for ${STALL_WATCHDOG_MS / 1000}s.`))
+        }, STALL_WATCHDOG_MS)
+      }
+      armWatchdog()
+
       worker.onmessage = (event: MessageEvent) => {
         const message = event.data
+        if (message?.kind === 'progress') {
+          lastFloor = Number(message.floor) || lastFloor
+          armWatchdog()
+          self.postMessage({
+            kind: 'progress',
+            id: request.id,
+            runIndex,
+            floor: lastFloor,
+            completedRuns: completed,
+            totalRuns: runs,
+          } satisfies ProgressMessage)
+          return
+        }
+
+        if (watchdog) clearTimeout(watchdog)
         if (!message?.ok) {
-          if (!settled) {
-            settled = true
-            stopAll()
-            reject(new Error(message?.error || 'Parallel simulation worker failed'))
-          }
+          fail(new Error(message?.error || 'Parallel simulation worker failed'))
           return
         }
         results[runIndex] = message.result
         completed += 1
+        self.postMessage({
+          kind: 'progress',
+          id: request.id,
+          runIndex,
+          floor: message.result?.deathFloor || lastFloor,
+          completedRuns: completed,
+          totalRuns: runs,
+        } satisfies ProgressMessage)
         dispatch(worker)
         finishIfDone()
       }
       worker.onerror = (event) => {
-        if (!settled) {
-          settled = true
-          stopAll()
-          reject(new Error(event.message || 'Parallel simulation worker failed'))
-        }
+        if (watchdog) clearTimeout(watchdog)
+        fail(new Error(event.message || 'Parallel simulation worker failed'))
       }
       worker.postMessage({
         kind: 'single-run',
@@ -138,9 +196,7 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
         dispatch(worker)
       }
     } catch (error) {
-      stopAll()
-      settled = true
-      reject(error)
+      fail(error instanceof Error ? error : new Error(String(error)))
     }
   })
 }
@@ -150,7 +206,15 @@ self.onmessage = async (event: MessageEvent<SimulationRequest>) => {
   const started = performance.now()
   try {
     if (request.kind === 'single-run') {
-      self.postMessage({ id: request.id, ok: true, elapsedMs: performance.now() - started, result: simulateOne(request) })
+      const result = simulateOne(request, (floor) => {
+        self.postMessage({
+          kind: 'progress',
+          id: request.id,
+          runIndex: request.runIndex,
+          floor,
+        } satisfies ProgressMessage)
+      })
+      self.postMessage({ id: request.id, ok: true, elapsedMs: performance.now() - started, result })
       return
     }
     const results = await simulateParallel(request)

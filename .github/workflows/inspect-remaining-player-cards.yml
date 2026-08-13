@@ -1,0 +1,55 @@
+name: Inspect Remaining Player Cards
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/inspect-remaining-player-cards.yml
+
+permissions:
+  contents: write
+
+jobs:
+  inspect:
+    if: github.event.head_commit.message == 'Inspect remaining player cards by name'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Download original place
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y megatools
+          mkdir -p /tmp/cardrng
+          megadl --path=/tmp/cardrng 'https://mega.nz/file/9ZgVmApB#q8wH37s5lzYuHpPhiJ1PgZS7kO8DOhNiIhyzL7yjp1A'
+      - name: Search by card name
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import html, re
+          path = next(Path('/tmp/cardrng').glob('*.rbxlx'))
+          text = html.unescape(path.read_text(errors='ignore'))
+          terms = ['Bloody Mary','Brachiosaurus','Dad','Glamour','Legends','Loki','Longmu','Naga','Sable The Envious','Sable, The Envious','The Composer','Witch']
+          for term in terms:
+            print('\n\n################ ' + term + ' ################')
+            start = 0
+            hits = 0
+            while hits < 8:
+              pos = text.find(term, start)
+              if pos < 0: break
+              hits += 1
+              print(f'--- HIT {hits} @ {pos} ---')
+              ctx = text[max(0,pos-7000):min(len(text),pos+len(term)+14000)]
+              print(re.sub(r'\r','',ctx))
+              start = pos + len(term)
+            if hits == 0: print('NO MATCH')
+          PY
+      - name: Remove workflow
+        run: |
+          rm .github/workflows/inspect-remaining-player-cards.yml
+          git config user.name "Drago"
+          git config user.email "dragoidc3@gmail.com"
+          git add -A
+          git commit -m "Remove remaining player source inspection"
+          git push

@@ -40,7 +40,8 @@ export const SOURCE_ALIGNED_ABILITIES = new Set([
   'Friendship', 'Fusion... HA!', 'Divine Mist', 'Dark Qi Manipulation',
   'Immortal Ascension', 'Hard Boiled', 'Tyrannospirit', 'Absolute Apex', 'Last Meal',
   'Stolen Spotlight', 'Horned Attack', 'Creep', 'Protection of Gods', 'Upheaval',
-  'Deadly Ambush',
+  'Deadly Ambush', 'Erosion', 'Divination', 'Insatiable', 'Poke the Beast',
+  'Full Moon', 'Unholy Creature', 'The Underworld', 'Devilish', 'Chaos Destruction',
 ])
 
 export function getDepthsAbilityCoverage() {

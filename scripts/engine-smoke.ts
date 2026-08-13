@@ -4,6 +4,7 @@ import { depthBudget, generateDepthsTeam } from '../src/engine/depths'
 import { getAura, getSkillAuraValue, getStatAuraValue } from '../src/engine/auras'
 import { getAttack, getHealth, rarityWithBorders } from '../src/engine/stats'
 import { simulateBattleV2 } from '../src/engine/battle-v2'
+import { getDepthsAbilityCoverage } from '../src/engine/support'
 import type { CardDefinition, DepthsEnemy, TeamLoadout } from '../src/types'
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -55,4 +56,7 @@ const battle = simulateBattleV2(loadout, enemies, 7)
 assert(battle.winner === 'Allies', 'Controlled battle should be won by the player card')
 assert(battle.turns > 0, 'Controlled battle did not advance turns')
 
+const coverage = getDepthsAbilityCoverage()
+assert(coverage.total > 150, 'Depths ability coverage scan did not see the full pool')
 console.log(`Engine smoke tests passed: ${cards.length} cards, ${auras.length} auras.`)
+console.log(`Source-aligned Depths ability coverage: ${coverage.supported}/${coverage.total} (${coverage.percent.toFixed(1)}%).`)

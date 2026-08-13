@@ -49,6 +49,13 @@ const BOOSTED_WEATHERS: Record<string, string> = {
   Disease: 'Virus',
 }
 
+export const TOY_CARD_NAMES = new Set([
+  'Toy Bear',
+  'Toy Car',
+  'Toy Jack-in-the-Box',
+  'Toy Nutcracker',
+])
+
 export function getAura(name: string | null | undefined): AuraDefinition | undefined {
   return name ? auras.find((aura) => aura.name === name) : undefined
 }
@@ -118,6 +125,49 @@ export function applyStatAura(
   return { aura, value: baseValue }
 }
 
+/**
+ * Applies skill-aura effects that modify the entire deck before battle begins.
+ * Direct combat-hook auras (Fate, Shielder, etc.) are handled by buildSkillAuraBoosts.
+ */
+export function applySkillAuraTeamEffects(
+  team: CombatCard[],
+  selection?: AuraSelection | null,
+): { aura?: AuraDefinition; value?: number; implemented: boolean } {
+  const aura = getAura(selection?.auraName)
+  if (!aura || aura.type !== 'Skill') return { implemented: true }
+
+  const value = getSkillAuraValue(aura, selection?.border)
+
+  if (aura.name === 'Jurassic World') {
+    const prehistoricCount = team.filter((card) => card.definition.pack === 'Prehistoric').length
+    const multiplier = 1 + prehistoricCount * value / 100
+    if (prehistoricCount > 0) {
+      for (const card of team) {
+        if (card.definition.pack !== 'Prehistoric') continue
+        card.damage *= multiplier
+        card.maxHp *= multiplier
+        card.hp *= multiplier
+      }
+    }
+    return { aura, value, implemented: true }
+  }
+
+  if (aura.name === 'Magical Elf') {
+    const uniqueToys = new Set(
+      team.filter((card) => TOY_CARD_NAMES.has(card.definition.name)).map((card) => card.definition.name),
+    ).size
+    const awakened = uniqueToys >= value
+    for (const card of team) {
+      if (!TOY_CARD_NAMES.has(card.definition.name)) continue
+      card.counters.toyCount = uniqueToys
+      if (awakened) card.flags.awakened = true
+    }
+    return { aura, value, implemented: true }
+  }
+
+  return { aura, value, implemented: false }
+}
+
 const DIRECT_SKILL_BOOST_KEYS: Record<string, keyof BattleBoosts> = {
   Fate: 'fate',
   Shielder: 'shielder',
@@ -145,6 +195,10 @@ export function buildSkillAuraBoosts(selection?: AuraSelection | null): {
   const key = DIRECT_SKILL_BOOST_KEYS[aura.name]
   if (key) {
     ;(boosts as unknown as Record<string, number>)[key] = value
+    return { boosts, aura, implemented: true }
+  }
+
+  if (aura.name === 'Jurassic World' || aura.name === 'Magical Elf') {
     return { boosts, aura, implemented: true }
   }
 

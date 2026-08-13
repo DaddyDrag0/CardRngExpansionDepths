@@ -1,8 +1,10 @@
 import cards from '../src/data/cards'
-import { simulateBattleV2 } from '../src/engine/battle-v2'
+import { cardAge } from '../src/data/ages'
+import { createBattleStateV2, simulateBattleV2 } from '../src/engine/battle-v2'
+import { DRAGON_CARDS } from '../src/engine/combat-data'
 import { isDepthsSourceEligible } from '../src/engine/depths'
 import { simulateDepthsBatch, simulateDepthsRun } from '../src/engine/simulation'
-import { getPower } from '../src/engine/stats'
+import { getAttack, getHealth, getPower } from '../src/engine/stats'
 import type { BattleResult, CardDefinition, CombatCard, DepthsEnemy, TeamLoadout } from '../src/types'
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -16,6 +18,31 @@ function findBattleCard(result: BattleResult, name: string): CombatCard | undefi
     ...result.state.teams.Enemies,
     ...result.state.fallen.Enemies,
   ].find((card) => card.definition.name === name)
+}
+
+function allBattleCards(result: BattleResult): CombatCard[] {
+  return [
+    ...result.state.teams.Allies,
+    ...result.state.fallen.Allies,
+    ...result.state.teams.Enemies,
+    ...result.state.fallen.Enemies,
+  ]
+}
+
+function cardByAbility(ability: string) {
+  const card = cards.find((candidate) => !candidate.unobtainable && candidate.ability === ability)
+  assert(card, `Missing selectable card for ${ability}`)
+  return card
+}
+
+function cardByName(name: string) {
+  const card = cards.find((candidate) => candidate.name === name)
+  assert(card, `Missing card ${name}`)
+  return card
+}
+
+function loadout(names: string[]): TeamLoadout {
+  return { cards: names.map((cardName) => ({ cardName, borders: [] })) }
 }
 
 const dummyDefinition: CardDefinition = {
@@ -41,6 +68,15 @@ function dummyEnemy(health = 1, attack = 1): DepthsEnemy {
   }
 }
 
+function namedDummy(name: string, health: number, attack: number, ability: string | null = null): DepthsEnemy {
+  return {
+    card: { ...dummyDefinition, name, ability },
+    power: Math.max(1, attack * 2),
+    attack,
+    health,
+  }
+}
+
 // Execute one representative of every ability that can naturally appear in Depths.
 // This catches runtime exceptions that a coverage-set check cannot catch.
 const representatives = new Map<string, (typeof cards)[number]>()
@@ -53,8 +89,8 @@ assert(representatives.size === 176, `Expected 176 Depths abilities, found ${rep
 
 let executed = 0
 for (const [ability, card] of representatives) {
-  const loadout: TeamLoadout = { cards: [{ cardName: card.name, borders: [] }] }
-  const battle = simulateBattleV2(loadout, [dummyEnemy()], 10_000 + executed)
+  const representativeLoadout: TeamLoadout = { cards: [{ cardName: card.name, borders: [] }] }
+  const battle = simulateBattleV2(representativeLoadout, [dummyEnemy()], 10_000 + executed)
   assert(battle.turns > 0 && battle.turns <= 2_000, `${ability}: invalid turn count ${battle.turns}`)
   assert(!battle.unsupportedAbilities.includes(ability), `${ability}: marked unsupported at runtime`)
   executed += 1
@@ -88,6 +124,179 @@ assert(astraeusCardA && astraeusCardB, 'Astraeus disappeared from battle state')
 assert(astraeusCardA.abilityOverride?.startsWith('Constellar'), 'Astraeus did not resolve a Constellar art ability')
 assert(astraeusCardA.abilityOverride === astraeusCardB.abilityOverride, 'Constellar art is not deterministic for the same seed')
 
+// Final selectable-player mechanics recovered from the original server Battles source.
+// Whooping doubles damage when its original card age is older than the target age (default 1).
+{
+  const whooping = cardByAbility('Whooping')
+  assert(cardAge(whooping.name) > 1, `${whooping.name}: expected age > 1 for the Whooping regression`)
+  const damage = getAttack(whooping, [])
+  const hp = getHealth(whooping, [])
+  const enemyHealth = damage * 20 + 100
+  const result = simulateBattleV2(loadout([whooping.name]), [namedDummy('__Age One Target__', enemyHealth, hp * 10)], 1101)
+  const target = result.state.teams.Enemies[0]
+  assert(target, 'Whooping target should survive the opening hit')
+  assert(Math.abs((enemyHealth - target.hp) - Math.ceil(damage * 2)) < 1e-6, 'Whooping did not double damage against a younger target')
+}
+
+// Reveal heals once below 65% HP, then cannot trigger again.
+{
+  const reveal = cardByAbility('Reveal')
+  const damage = getAttack(reveal, [])
+  const hp = getHealth(reveal, [])
+  const result = simulateBattleV2(loadout([reveal.name]), [namedDummy('__Reveal Target__', damage * 2.2, hp * 0.4)], 1102)
+  const holder = result.state.teams.Allies.find((card) => card.definition.name === reveal.name)
+  assert(holder, 'Reveal holder should survive the prepared scenario')
+  assert(holder.flags.revealed, 'Reveal never fired')
+  assert(holder.hp < holder.maxHp * 0.65, 'Reveal incorrectly healed more than once')
+  assert(holder.hp > holder.maxHp * 0.5, 'Reveal holder ended below the expected post-second-hit range')
+}
+
+// Sap has a guaranteed proc when self Damage >= opposing Damage and steals half the opposing Damage.
+{
+  const sap = cardByAbility('Sap')
+  const damage = getAttack(sap, [])
+  const hp = getHealth(sap, [])
+  const enemyAttack = Math.max(1, Math.min(damage * 0.25, hp * 0.1))
+  const expectedDamage = damage + enemyAttack * 0.5
+  const result = simulateBattleV2(loadout([sap.name]), [namedDummy('__Sap Target__', expectedDamage * 1.5, enemyAttack)], 1103)
+  const holder = result.state.teams.Allies.find((card) => card.definition.name === sap.name)
+  const fallenEnemy = result.state.fallen.Enemies.find((card) => card.definition.name === '__Sap Target__')
+  assert(holder && fallenEnemy, 'Sap scenario did not finish in the expected state')
+  assert(Math.abs(holder.damage - expectedDamage) <= Math.max(1e-6, Math.abs(expectedDamage) * 1e-12), 'Sap did not gain half the opposing Damage')
+  assert(Math.abs(fallenEnemy.damage - enemyAttack * 0.5) <= Math.max(1e-6, enemyAttack * 1e-12), 'Sap did not halve the opposing Damage')
+}
+
+// Long Reach leaves active HP untouched and applies the completed hit directly to slot 2.
+{
+  const longReach = cardByAbility('Long Reach')
+  const damage = getAttack(longReach, [])
+  const hp = getHealth(longReach, [])
+  const activeHealth = damage * 100 + 100
+  const result = simulateBattleV2(
+    loadout([longReach.name]),
+    [namedDummy('__Long Reach Active__', activeHealth, hp * 10), namedDummy('__Long Reach Bench__', Math.max(1, damage * 0.5), 0)],
+    1104,
+  )
+  const activeTarget = result.state.teams.Enemies.find((card) => card.definition.name === '__Long Reach Active__')
+  const fallenBench = result.state.fallen.Enemies.find((card) => card.definition.name === '__Long Reach Bench__')
+  assert(activeTarget && fallenBench, 'Long Reach did not remove slot 2 while leaving slot 1 active')
+  assert(activeTarget.hp === activeHealth, 'Long Reach damaged the active target HP')
+}
+
+// Draconian fixes Longmu's ability from the original slot and grants the documented shields.
+{
+  const longmu = cardByName('Longmu')
+  const dragon = cards.find((card) => card.name !== 'Longmu' && DRAGON_CARDS.has(card.name))
+  assert(dragon, 'No Dragon card available for Draconian regression')
+  const guarding = createBattleStateV2(loadout([longmu.name, dragon.name]), [])
+  assert(guarding.teams.Allies[0]?.abilityOverride === 'Safeguarding', 'Slot-1 Longmu did not receive Safeguarding')
+  assert(guarding.teams.Allies[0]?.status.shield === 1, 'Slot-1 Longmu did not receive one shield')
+  const mother = createBattleStateV2(loadout([dragon.name, longmu.name]), [])
+  assert(mother.teams.Allies[1]?.abilityOverride === 'Mother of Dragons', 'Benched Longmu did not receive Mother of Dragons')
+  assert(mother.teams.Allies[0]?.status.shield === 2, 'Mother of Dragons did not grant two Dragon shields')
+}
+
+// Heroes copies the original abilities of the first two fallen allies simultaneously.
+{
+  const heroes = cardByAbility('Heroes')
+  const first = cardByAbility('Armor')
+  const second = cardByAbility('Regenerate')
+  const result = simulateBattleV2(loadout([first.name, second.name, heroes.name]), [namedDummy('__Heroes Executioner__', 1e250, 1e250)], 1105)
+  const holder = findBattleCard(result, heroes.name)
+  assert(holder, 'Heroes holder disappeared from battle state')
+  assert(JSON.stringify(holder.bonusAbilities) === JSON.stringify(['Armor', 'Regenerate']), 'Heroes did not retain both first-two-fallen abilities')
+}
+
+// Mirror Image can return from Fallen at full HP when a different ally dies.
+{
+  const mirror = cardByAbility('Mirror Image')
+  const filler = cards.find((card) => !card.unobtainable && !card.ability && card.name !== mirror.name)
+  assert(filler, 'No ability-less filler card available for Mirror Image regression')
+  const mirrorDamage = getAttack(mirror, [])
+  const fillerDamage = getAttack(filler, [])
+  const mirrorHp = getHealth(mirror, [])
+  const fillerHp = getHealth(filler, [])
+  const enemyHealth = mirrorDamage + fillerDamage + mirrorDamage * 0.5
+  const enemyAttack = Math.max(mirrorHp, fillerHp) * 20
+  let revived = false
+  for (let seed = 1; seed <= 100 && !revived; seed++) {
+    const result = simulateBattleV2(loadout([mirror.name, filler.name]), [namedDummy('__Mirror Target__', enemyHealth, enemyAttack)], seed)
+    const holder = allBattleCards(result).find((card) => card.definition.name === mirror.name && card.flags.mirrorImageReturned)
+    if (!holder) continue
+    revived = true
+    assert(result.winner === 'Allies', 'Revived Mirror Image did not finish the prepared target')
+    assert(holder.hp === holder.maxHp, 'Mirror Image did not return at full HP')
+  }
+  assert(revived, 'No deterministic seed procured Mirror Image in 100 attempts')
+}
+
+// Nightmare Melody starts at 10% confusion chance, ramps by 10%, and caps at 40%.
+{
+  const composer = cardByAbility('Nightmare Melody')
+  const damage = getAttack(composer, [])
+  const initial = createBattleStateV2(loadout([composer.name]), [namedDummy('__Composer Initial__', damage * 5, 0)])
+  assert(initial.boosts.Allies.composerCount === 1, 'Nightmare Melody field count did not initialize')
+  assert(initial.boosts.Allies.composerThreshold === 1, 'Nightmare Melody threshold did not initialize at 1')
+  const result = simulateBattleV2(loadout([composer.name]), [namedDummy('__Composer Target__', damage * 4.5, 0)], 1106)
+  assert(result.state.boosts.Allies.composerCount === 1, 'Living Composer unexpectedly lost its field count')
+  assert(Math.abs((result.state.boosts.Allies.composerThreshold ?? 0) - 0.6) < 1e-12, 'Nightmare Melody threshold did not cap at 0.6')
+}
+
+// God of Trickery and Shapeshifter use seeded random card identities.
+{
+  const trickster = cardByAbility('God of Trickery')
+  const shapeshifter = cardByAbility('Shapeshifter')
+  const filler = cards.find((card) => !card.unobtainable && !card.ability && card.name !== trickster.name && card.name !== shapeshifter.name)
+  assert(filler, 'No ability-less real card available for identity regressions')
+
+  const identityTarget = (attacker: CardDefinition): DepthsEnemy => ({
+    card: filler,
+    power: getHealth(attacker, []) * 20,
+    attack: getHealth(attacker, []) * 10,
+    health: 1e200,
+  })
+
+  let trickSeed = 0
+  let trickIdentity = ''
+  for (let seed = 1; seed <= 50 && !trickSeed; seed++) {
+    const result = simulateBattleV2(loadout([trickster.name]), [identityTarget(trickster)], seed)
+    const holder = findBattleCard(result, trickster.name)
+    const enemy = findBattleCard(result, filler.name)
+    if (holder?.identityOverride === filler.name && enemy?.identityOverride) {
+      trickSeed = seed
+      trickIdentity = enemy.identityOverride
+    }
+  }
+  assert(trickSeed > 0 && trickIdentity, 'God of Trickery never produced a stable identity-transfer scenario')
+  const trickRepeat = simulateBattleV2(loadout([trickster.name]), [identityTarget(trickster)], trickSeed)
+  assert(findBattleCard(trickRepeat, filler.name)?.identityOverride === trickIdentity, 'God of Trickery identity was not seed-repeatable')
+
+  const shapeA = simulateBattleV2(loadout([shapeshifter.name]), [identityTarget(shapeshifter)], 2202)
+  const shapeB = simulateBattleV2(loadout([shapeshifter.name]), [identityTarget(shapeshifter)], 2202)
+  const shapeCardA = findBattleCard(shapeA, shapeshifter.name)
+  const shapeCardB = findBattleCard(shapeB, shapeshifter.name)
+  assert(shapeCardA?.identityOverride, 'Shapeshifter never assumed a random identity')
+  assert(shapeCardA.identityOverride === shapeCardB?.identityOverride, 'Shapeshifter identity was not seed-repeatable')
+}
+
+// Jealousy copies the opponent ability while suppressing that same opponent ability.
+{
+  const jealousy = cardByAbility('Jealousy')
+  const damage = getAttack(jealousy, [])
+  const hp = getHealth(jealousy, [])
+  const suppressionHealth = damage * 100 + 100
+  const suppression = simulateBattleV2(loadout([jealousy.name]), [namedDummy('__Jealous Armor__', suppressionHealth, hp * 10, 'Armor')], 3301)
+  const suppressionTarget = suppression.state.teams.Enemies.find((card) => card.definition.name === '__Jealous Armor__')
+  assert(suppressionTarget, 'Jealousy suppression target should survive the opening hit')
+  assert(Math.abs((suppressionHealth - suppressionTarget.hp) - Math.ceil(damage)) < 1e-6, 'Jealousy did not suppress opposing Armor')
+
+  const copied = simulateBattleV2(loadout([jealousy.name]), [namedDummy('__Jealous Armor Copy__', damage * 1.5, hp * 0.2, 'Armor')], 3302)
+  const sable = copied.state.teams.Allies.find((card) => card.definition.name === jealousy.name)
+  assert(sable, 'Sable did not survive the copied-Armor scenario')
+  const lostFraction = (sable.maxHp - sable.hp) / sable.maxHp
+  assert(lostFraction >= 0.09 && lostFraction <= 0.11, `Jealousy copied Armor incorrectly; lost ${(lostFraction * 100).toFixed(2)}% HP`)
+}
+
 // Use four strong eligible cards for run-level deterministic and high-floor checks.
 const strongest = cards
   .filter(isDepthsSourceEligible)
@@ -114,6 +323,7 @@ assert(highFloor.totalTurns >= 1 && highFloor.totalTurns <= 6_000, `High-floor r
 assert(Number.isFinite(highFloor.deathFloor), 'High-floor run returned a non-finite death floor')
 
 console.log(`Depths regression tests passed: executed ${executed}/176 abilities.`)
+console.log('Final selectable-player mechanics regression suite passed.')
 console.log(`Pandora seed bonuses: ${pandoraCardA.bonusAbilities?.join(' + ')}`)
 console.log(`Constellar seed art: ${astraeusCardA.abilityOverride}`)
 console.log(`Regression team: ${strongest.map((slot) => slot.cardName).join(' | ')}`)

@@ -1,4 +1,5 @@
 import cards from '../src/data/cards'
+import abilities from '../src/data/abilities'
 import auras from '../src/data/auras'
 import { buildSkillAuraBoosts } from '../src/engine/auras'
 import { simulateBattleV2 } from '../src/engine/battle-v2'
@@ -42,7 +43,8 @@ const unsupportedAuras = selectableSkillAuras
 console.log(`Selectable player ability types: ${representatives.size}`)
 console.log(`Unsupported selectable player abilities (${unsupportedCards.size}):`)
 for (const [ability, runtime] of unsupportedCards) {
-  console.log(`- ${ability}: ${runtime.join(', ')}`)
+  const card = representatives.get(ability)
+  console.log(`- ${ability} | card=${card?.name ?? 'unknown'} | ${abilities[ability] ?? 'No description'} | runtime=${runtime.join(', ')}`)
 }
 console.log(`Selectable skill auras: ${selectableSkillAuras.length}`)
 console.log(`Unsupported selectable skill auras (${unsupportedAuras.length}):`)

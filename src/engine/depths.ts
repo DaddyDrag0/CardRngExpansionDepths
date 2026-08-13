@@ -20,6 +20,19 @@ const WEATHER_WEIGHTS: Record<string, number> = {
   Virus: 0.2,
 }
 
+interface PreparedDepthsCard {
+  card: CardDefinition
+  weight: number
+  unlockFloor: number
+  originalIndex: number
+}
+
+interface PreparedPool {
+  entries: PreparedDepthsCard[]
+  cumulative: number[]
+  totalWeight: number
+}
+
 export function depthBudget(floor: number): number {
   return 3000 + Math.pow(floor, 2.75) * 40
 }
@@ -38,36 +51,95 @@ export function isDepthsSourceEligible(card: CardDefinition): boolean {
     && card.pack !== 'Halloween2'
 }
 
+function minimumUnlockFloor(card: CardDefinition): number {
+  const threshold = getAttack(card) * getHealth(card)
+  if (threshold < depthBudget(1)) return 1
+
+  const approximate = Math.max(1, Math.floor(Math.pow(Math.max(0, threshold - 3000) / 40, 1 / 2.75)))
+  let floor = approximate
+  while (floor > 1 && threshold < depthBudget(floor - 1)) floor -= 1
+  while (!(threshold < depthBudget(floor))) floor += 1
+  return floor
+}
+
+const PREPARED = cards
+  .map((card, originalIndex) => ({
+    card,
+    originalIndex,
+    weight: card.weather ? (WEATHER_WEIGHTS[card.weather] ?? 1) : 1,
+    unlockFloor: isDepthsSourceEligible(card) ? minimumUnlockFloor(card) : Number.POSITIVE_INFINITY,
+  }))
+  .filter((entry) => Number.isFinite(entry.unlockFloor))
+
+const UNLOCK_FLOORS = [...new Set(PREPARED.map((entry) => entry.unlockFloor))].sort((a, b) => a - b)
+const POOL_CACHE = new Map<number, PreparedPool>()
+
+function unlockTier(floor: number): number {
+  let low = 0
+  let high = UNLOCK_FLOORS.length
+  while (low < high) {
+    const mid = (low + high) >>> 1
+    if (UNLOCK_FLOORS[mid] <= floor) low = mid + 1
+    else high = mid
+  }
+  return low - 1
+}
+
+function preparedPool(floor: number): PreparedPool {
+  const tier = unlockTier(floor)
+  if (tier < 0) return { entries: [], cumulative: [], totalWeight: 0 }
+
+  const cached = POOL_CACHE.get(tier)
+  if (cached) return cached
+
+  const maxUnlockFloor = UNLOCK_FLOORS[tier]
+  const entries = PREPARED
+    .filter((entry) => entry.unlockFloor <= maxUnlockFloor)
+    .sort((a, b) => a.originalIndex - b.originalIndex)
+
+  const cumulative: number[] = []
+  let totalWeight = 0
+  for (const entry of entries) {
+    totalWeight += entry.weight
+    cumulative.push(totalWeight)
+  }
+
+  const pool = { entries, cumulative, totalWeight }
+  POOL_CACHE.set(tier, pool)
+  return pool
+}
+
 export function isUnlockedAtFloor(card: CardDefinition, floor: number): boolean {
   if (!isDepthsSourceEligible(card)) return false
   return getAttack(card) * getHealth(card) < depthBudget(floor)
 }
 
 export function getDepthsPool(floor: number) {
-  return cards
-    .filter((card) => isUnlockedAtFloor(card, floor))
-    .map((card) => ({ card, weight: card.weather ? (WEATHER_WEIGHTS[card.weather] ?? 1) : 1 }))
+  const pool = preparedPool(floor)
+  return pool.entries.map(({ card, weight }) => ({ card, weight }))
+}
+
+function pickWeighted(pool: PreparedPool, roll: number): CardDefinition {
+  let low = 0
+  let high = pool.cumulative.length - 1
+  while (low < high) {
+    const mid = (low + high) >>> 1
+    if (roll < pool.cumulative[mid]) high = mid
+    else low = mid + 1
+  }
+  return pool.entries[low].card
 }
 
 export function generateDepthsTeam(floor: number, seed = floor): DepthsEnemy[] {
-  const pool = getDepthsPool(floor)
-  const totalWeight = pool.reduce((sum, item) => sum + item.weight, 0)
+  const pool = preparedPool(floor)
   const rng = new SeededRng(seed)
   const power = depthsPower(floor)
   const result: DepthsEnemy[] = []
 
-  if (!pool.length || totalWeight <= 0) return result
+  if (!pool.entries.length || pool.totalWeight <= 0) return result
 
   for (let slot = 0; slot < 4; slot++) {
-    let roll = rng.next() * totalWeight
-    let picked = pool[pool.length - 1].card
-    for (const entry of pool) {
-      roll -= entry.weight
-      if (roll < 0) {
-        picked = entry.card
-        break
-      }
-    }
+    const picked = pickWeighted(pool, rng.next() * pool.totalWeight)
     result.push({
       card: picked,
       power,

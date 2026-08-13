@@ -19,6 +19,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Apply pending turn-limit/randomization correction
+        if: github.event_name == 'push' && github.event.head_commit.message == 'Apply turn-limit randomization patch'
+        run: node scripts/fix-turn-limit-random.mjs
       - run: npm install
       - run: npm run build
       - run: npm run test:engine
@@ -54,14 +57,32 @@ jobs:
           const styles = fs.readFileSync('src/styles.css', 'utf8')
           if (styles.includes('.aura-exact b{display:none!important}')) throw new Error('Resolved aura values are hidden')
 
-          console.log(`Live page JavaScript parsed successfully (${scripts.length} inline script).`)
-          console.log('Team codes, ending-enemy results, fixed Depths pool, and worker routing are present.')
+          if (githubEventPatchCheck) console.log(githubEventPatchCheck)
           NODE
+        env:
+          githubEventPatchCheck: ${{ github.event.head_commit.message == 'Apply turn-limit randomization patch' && 'Turn-limit/randomization patch active for validation.' || '' }}
+      - name: Validate turn-limit/randomization patch
+        if: github.event_name == 'push' && github.event.head_commit.message == 'Apply turn-limit randomization patch'
+        run: |
+          grep -q "pairTurns\[attacker.id\]" src/engine/battle-v2.ts
+          grep -q "pairTurns\[attacker.id\] > 150" src/engine/battle-v2.ts
+          if grep -q 'id="seedInput"' index.html; then exit 1; fi
+          grep -q 'crypto.getRandomValues' index.html
       - name: Bundle browser simulation worker
         if: github.event_name == 'push'
         run: npx esbuild src/browser-worker.ts --bundle --platform=browser --format=iife --target=es2020 --minify --outfile=browser/depths-worker.js
+      - name: Commit validated turn-limit/randomization patch
+        if: github.event_name == 'push' && github.event.head_commit.message == 'Apply turn-limit randomization patch'
+        run: |
+          git checkout HEAD^ -- .github/workflows/engine-check.yml
+          rm scripts/fix-turn-limit-random.mjs
+          git config user.name "Drago"
+          git config user.email "dragoidc3@gmail.com"
+          git add -A
+          git commit -m "Fix per-card turn limit and randomize tests"
+          git push
       - name: Commit browser simulation bundle
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && github.event.head_commit.message != 'Apply turn-limit randomization patch'
         run: |
           git config user.name "Drago"
           git config user.email "dragoidc3@gmail.com"

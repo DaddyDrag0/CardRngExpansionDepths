@@ -2348,7 +2348,9 @@ export function simulateBattleV2(
     defender = active(runtime, OTHER_TEAM[state.moving])
     if (!attacker || !defender) break
 
-    const nextPairKey = `${attacker.id}|${defender.id}`
+    const allyActive = active(runtime, 'Allies')
+    const enemyActive = active(runtime, 'Enemies')
+    const nextPairKey = allyActive && enemyActive ? `${allyActive.id}|${enemyActive.id}` : ''
     if (nextPairKey !== activePairKey) {
       activePairKey = nextPairKey
       pairTurns = {}

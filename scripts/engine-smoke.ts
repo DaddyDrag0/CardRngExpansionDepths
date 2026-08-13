@@ -62,6 +62,24 @@ assert(!fateBattle.unsupportedAbilities.includes('Aura: Fate'), 'Fate was incorr
 const coverage = getDepthsAbilityCoverage()
 assert(coverage.total > 150, 'Depths ability coverage scan did not see the full pool')
 assert(coverage.unsupported === 0, `Unimplemented Depths abilities remain: ${coverage.unsupportedAbilities.join(', ')}`)
+
+const timeoutEnemies: DepthsEnemy[] = [{
+  card: { ...dummy, name: '__Timeout Enemy__' },
+  power: 1,
+  attack: 0,
+  health: 1e30,
+}]
+const timeoutBattle = simulateBattleV2(
+  { cards: [{ cardName: 'Mastermind', borders: [] }] },
+  timeoutEnemies,
+  12345,
+  10_000,
+  true,
+)
+assert(!timeoutBattle.unsupportedAbilities.includes('Battle turn cap reached'), 'Stable active-pair timeout failed before emergency cap')
+assert(timeoutBattle.turns < 1_000, `Stable active-pair timeout took too long: ${timeoutBattle.turns}`)
+console.log('Stable active-pair timeout regression passed:', timeoutBattle.turns, 'turns')
+
 console.log(`Engine smoke tests passed: ${cards.length} cards, ${auras.length} auras.`)
 console.log(`Source-aligned Depths ability coverage: ${coverage.supported}/${coverage.total} (${coverage.percent.toFixed(1)}%).`)
 console.log(`Remaining unsupported Depths abilities (${coverage.unsupported}): ${coverage.unsupportedAbilities.join(' | ')}`)

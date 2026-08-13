@@ -1,5 +1,5 @@
 import type { TeamLoadout } from '../types'
-import { generateDepthsTeam } from './depths'
+import { generateDepthsTeam, type DepthsPoolSelection } from './depths'
 import { SeededRng } from './rng'
 import { simulateBattleV2 } from './battle-v2'
 
@@ -23,6 +23,16 @@ export interface DepthsBatchResult {
   unsupportedAbilities: string[]
 }
 
+export interface DepthsSimulationOptions extends DepthsPoolSelection {
+  startFloor?: number
+  floorCap?: number
+  seed?: number
+}
+
+export interface DepthsBatchOptions extends DepthsSimulationOptions {
+  runs?: number
+}
+
 function mixSeed(runSeed: number, floor: number): number {
   let x = (runSeed ^ Math.imul(floor, 0x9e3779b1)) >>> 0
   x ^= x >>> 16
@@ -35,18 +45,22 @@ function mixSeed(runSeed: number, floor: number): number {
 /** Every Depth floor starts a new full battle with a fresh copy of the selected team. */
 export function simulateDepthsRun(
   loadout: TeamLoadout,
-  options: { startFloor?: number; floorCap?: number; seed?: number } = {},
+  options: DepthsSimulationOptions = {},
 ): DepthsRunResult {
   const startFloor = Math.max(1, Math.floor(options.startFloor ?? 1))
   const floorCap = Math.max(startFloor, Math.floor(options.floorCap ?? 50_000))
   const runSeed = options.seed ?? 1
   const unsupported = new Set<string>()
+  const poolSelection: DepthsPoolSelection = {
+    excludedCardNames: options.excludedCardNames,
+    selectedCardNames: options.selectedCardNames,
+  }
   let totalTurns = 0
   let battles = 0
 
   for (let floor = startFloor; floor <= floorCap; floor++) {
     const floorSeed = mixSeed(runSeed, floor)
-    const enemies = generateDepthsTeam(floor, floorSeed)
+    const enemies = generateDepthsTeam(floor, floorSeed, poolSelection)
     const battle = simulateBattleV2(loadout, enemies, floorSeed ^ 0x51ed270b)
     battles += 1
     totalTurns += battle.turns
@@ -78,7 +92,7 @@ export function simulateDepthsRun(
 
 export function simulateDepthsBatch(
   loadout: TeamLoadout,
-  options: { runs?: number; startFloor?: number; floorCap?: number; seed?: number } = {},
+  options: DepthsBatchOptions = {},
 ): DepthsBatchResult {
   const runs = Math.max(1, Math.floor(options.runs ?? 15))
   const seed = options.seed ?? 1
@@ -92,6 +106,8 @@ export function simulateDepthsBatch(
       startFloor: options.startFloor,
       floorCap: options.floorCap,
       seed: runSeed,
+      excludedCardNames: options.excludedCardNames,
+      selectedCardNames: options.selectedCardNames,
     })
     results.push(result)
     for (const ability of result.unsupportedAbilities) unsupported.add(ability)

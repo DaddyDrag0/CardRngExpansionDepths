@@ -2,7 +2,7 @@ import cards from '../src/data/cards'
 import { cardAge } from '../src/data/ages'
 import { createBattleStateV2, simulateBattleV2 } from '../src/engine/battle-v2'
 import { DRAGON_CARDS } from '../src/engine/combat-data'
-import { isDepthsSourceEligible } from '../src/engine/depths'
+import { generateDepthsTeam, isDepthsSourceEligible } from '../src/engine/depths'
 import { simulateDepthsBatch, simulateDepthsRun } from '../src/engine/simulation'
 import { getAttack, getHealth, getPower } from '../src/engine/stats'
 import type { BattleResult, CardDefinition, CombatCard, DepthsEnemy, TeamLoadout } from '../src/types'
@@ -286,6 +286,12 @@ const strongest = cards
   .map((entry) => ({ cardName: entry.card.name, borders: [] as TeamLoadout['cards'][number]['borders'] }))
 
 assert(strongest.length === 4, 'Could not build a four-card regression team')
+const selectedPoolCard = strongest[0].cardName
+const selectedPoolTeam = generateDepthsTeam(50_000, 445566, { selectedCardNames: [selectedPoolCard] })
+assert(selectedPoolTeam.length === 4, 'Selected enemy pool did not generate four enemies')
+assert(selectedPoolTeam.every((enemy) => enemy.card.name === selectedPoolCard), 'Selected enemy pool generated an unselected card')
+const emptyFilteredPool = generateDepthsTeam(50_000, 445566, { selectedCardNames: [selectedPoolCard], excludedCardNames: [selectedPoolCard] })
+assert(emptyFilteredPool.length === 0, 'Excluded card remained in the selected enemy pool')
 const runLoadout: TeamLoadout = { cards: strongest }
 
 const batchOptions = { runs: 3, startFloor: 1, floorCap: 20, seed: 98_765 }

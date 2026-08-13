@@ -19,6 +19,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Apply active-pair timeout correction
+        if: github.event_name == 'push' && github.event.head_commit.message == 'Run active-pair timeout correction'
+        run: node scripts/fix-active-pair.mjs
       - run: npm install
       - run: npm run build
       - run: npm run test:engine
@@ -54,8 +57,10 @@ jobs:
           }
 
           const battle = fs.readFileSync('src/engine/battle-v2.ts', 'utf8')
-          if (!battle.includes('pairTurns[attacker.id]')) throw new Error('Per-card matchup turn counter missing')
+          if (!battle.includes("active(runtime, 'Allies')")) throw new Error('Stable allied active-card timeout key missing')
+          if (!battle.includes("active(runtime, 'Enemies')")) throw new Error('Stable enemy active-card timeout key missing')
           if (!battle.includes('pairTurns[attacker.id] > 150')) throw new Error('150-turn per-card matchup limit missing')
+          if (battle.includes('const nextPairKey = `${attacker.id}|${defender.id}`')) throw new Error('Turn-order-dependent pair key returned')
 
           const styles = fs.readFileSync('src/styles.css', 'utf8')
           if (styles.includes('.aura-exact b{display:none!important}')) throw new Error('Resolved aura values are hidden')
@@ -65,8 +70,16 @@ jobs:
       - name: Bundle browser simulation worker
         if: github.event_name == 'push'
         run: npx esbuild src/browser-worker.ts --bundle --platform=browser --format=iife --target=es2020 --minify --outfile=browser/depths-worker.js
+      - name: Commit validated active-pair correction
+        if: github.event_name == 'push' && github.event.head_commit.message == 'Run active-pair timeout correction'
+        run: |
+          git config user.name "Drago"
+          git config user.email "dragoidc3@gmail.com"
+          git add src/engine/battle-v2.ts scripts/engine-smoke.ts browser/depths-worker.js
+          git commit -m "Fix stable per-card battle timeout tracking"
+          git push
       - name: Commit browser simulation bundle
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && github.event.head_commit.message != 'Run active-pair timeout correction'
         run: |
           git config user.name "Drago"
           git config user.email "dragoidc3@gmail.com"

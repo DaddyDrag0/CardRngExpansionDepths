@@ -8,7 +8,7 @@ import type {
   DepthsEnemy,
   TeamLoadout,
 } from '../types'
-import { applyStatAura, buildSkillAuraBoosts } from './auras'
+import { applySkillAuraTeamEffects, applyStatAura, buildSkillAuraBoosts, TOY_CARD_NAMES } from './auras'
 import { SeededRng } from './rng'
 import { getAttack, getHealth, getPower, rarityWithBorders } from './stats'
 import { DEMON_CARDS, DRAGON_CARDS, IMP_BOOSTED_CARDS, RNG_ABILITIES, UNDEAD_CARDS } from './combat-data'
@@ -155,6 +155,14 @@ function primaryBorder(card: CombatCard): '' | 'Platinum' | 'Crystal' | 'Ruby' |
 function borderTier(card: CombatCard): number {
   const border = primaryBorder(card)
   return border === 'Galaxy' ? 30 : border === 'Ruby' ? 25 : border === 'Crystal' ? 20 : border === 'Platinum' ? 10 : 0
+}
+
+function toyBearAwakenedMultiplier(card: CombatCard, fallenToys: number): number {
+  const border = primaryBorder(card)
+  const current = border === 'Galaxy' ? 64 : border === 'Ruby' ? 32 : border === 'Crystal' ? 16 : border === 'Platinum' ? 4 : 1
+  const ladder = [1, 4, 16, 32, 64]
+  const start = Math.max(0, ladder.indexOf(current))
+  return ladder[Math.min(ladder.length - 1, start + fallenToys)] / current
 }
 
 function alive(card: CombatCard | undefined): card is CombatCard {
@@ -349,7 +357,9 @@ export function createBattleStateV2(loadout: TeamLoadout, enemies: DepthsEnemy[]
   applyDeckPassives(allies)
   applyDeckPassives(enemyCards)
   const stat = applyStatAura(allies, loadout.statAura)
+  const skillTeam = applySkillAuraTeamEffects(allies, loadout.abilityAura)
   state.boosts = buildBoosts(loadout, state)
+  if (skillTeam.aura && !skillTeam.implemented) state.unsupportedAbilities.add(`Aura: ${skillTeam.aura.name}`)
   if (stat.aura) {
     state.boosts.Allies.statAuraName = stat.aura.name
     state.boosts.Allies.statAuraValue = stat.value
@@ -405,6 +415,9 @@ function onEntry(runtime: Runtime, card: CombatCard) {
 
   if (enemy !== card && hasAbility(runtime, enemy, 'Desire')) stealStats(card, enemy, 0.1)
   if (enemy !== card && hasAbility(runtime, enemy, 'Cosmic Maw')) stealStats(card, enemy, 0.2)
+  if (enemy !== card && enemy.flags.awakened && hasAbility(runtime, enemy, 'Pop-Up Impression') && !statusProtected(runtime, card.team)) {
+    card.status.confused = Math.max(card.status.confused, enemy.counters.toyCount || 1)
+  }
 
   let name = ability(card)
   if (!name) return
@@ -648,7 +661,10 @@ function onEntry(runtime: Runtime, card: CombatCard) {
       break
     }
     case 'Pop-Up Impression':
-      if (!statusProtected(runtime, enemy.team)) enemy.status.confused = Math.max(enemy.status.confused, 2)
+      if (!statusProtected(runtime, enemy.team)) {
+        const turns = card.flags.awakened ? (card.counters.toyCount || 1) : 2
+        enemy.status.confused = Math.max(enemy.status.confused, turns)
+      }
       break
     case 'Naughty List':
       for (const ally of runtime.state.teams[card.team]) {
@@ -666,10 +682,17 @@ function onEntry(runtime: Runtime, card: CombatCard) {
       card.flags.bloodlustFirstTurn = true
       break
     case 'Fluffy Aggression':
-      card.damage *= 2
+      if (card.flags.awakened) {
+        const fallenToys = new Set(
+          runtime.state.fallen[card.team]
+            .filter((fallen) => TOY_CARD_NAMES.has(fallen.definition.name))
+            .map((fallen) => fallen.definition.name),
+        ).size
+        card.damage *= toyBearAwakenedMultiplier(card, fallenToys)
+      } else card.damage *= 2
       break
     case 'Speedy Progression':
-      card.counters.attacks = (card.counters.attacks || 0) + 3
+      card.counters.attacks = (card.counters.attacks || 0) + (card.flags.awakened ? (card.counters.toyCount || 1) : 3)
       break
     case 'Red-Nosed Reindeer':
       if (!statusProtected(runtime, enemy.team)) enemy.status.blind = true
@@ -1173,6 +1196,17 @@ function targetRetro(runtime: Runtime, attacker: CombatCard, target: CombatCard,
       break
     case 'Steal Christmas':
       if (damage > 0 && attacker !== target) stealStats(attacker, target, 0.2)
+      break
+    case 'Shelter Obsession':
+      if (damage > 0 && target.flags.awakened) {
+        const seen = new Set<string>()
+        const toyDeck = [...runtime.state.teams[target.team], ...runtime.state.fallen[target.team]]
+        for (const toy of toyDeck) {
+          if (!TOY_CARD_NAMES.has(toy.definition.name) || seen.has(toy.definition.name)) continue
+          seen.add(toy.definition.name)
+          boostStats(toy, 1.1)
+        }
+      }
       break
     case 'Poke the Beast':
       if (damage > 0 && !statusProtected(runtime, attacker.team)) attacker.status.burn = Math.max(attacker.status.burn, 2)

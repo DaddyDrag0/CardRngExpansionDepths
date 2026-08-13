@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "test:engine": "tsx scripts/engine-smoke.ts",
+    "test:depths": "tsx scripts/depths-regression.ts",
     "preview": "vite preview"
   },
   "dependencies": {

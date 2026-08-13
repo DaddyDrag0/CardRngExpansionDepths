@@ -34,6 +34,8 @@ export interface DepthsBatchOptions extends DepthsSimulationOptions {
   runs?: number
 }
 
+export type DepthsProgressCallback = (floor: number) => void
+
 function mixSeed(runSeed: number, floor: number): number {
   let x = (runSeed ^ Math.imul(floor, 0x9e3779b1)) >>> 0
   x ^= x >>> 16
@@ -43,9 +45,11 @@ function mixSeed(runSeed: number, floor: number): number {
   return (x ^ (x >>> 16)) >>> 0
 }
 
+/** Every Depth floor starts a new full battle with a fresh copy of the selected team. */
 export function simulateDepthsRun(
   loadout: TeamLoadout,
   options: DepthsSimulationOptions = {},
+  onProgress?: DepthsProgressCallback,
 ): DepthsRunResult {
   const startFloor = Math.max(1, Math.floor(options.startFloor ?? 1))
   const floorCap = Math.max(startFloor, Math.floor(options.floorCap ?? 50_000))
@@ -55,6 +59,7 @@ export function simulateDepthsRun(
   let battles = 0
 
   for (let floor = startFloor; floor <= floorCap; floor++) {
+    if (onProgress && (floor === startFloor || floor % 10 === 0)) onProgress(floor)
     const floorSeed = mixSeed(runSeed, floor)
     const enemies = generateDepthsTeam(floor, floorSeed)
     const hasTurnCap = Number.isFinite(options.battleTurnCap)
@@ -65,6 +70,7 @@ export function simulateDepthsRun(
     for (const ability of battle.unsupportedAbilities) unsupported.add(ability)
 
     if (battle.winner !== 'Allies') {
+      onProgress?.(floor)
       return {
         deathFloor: floor,
         floorsCleared: floor - startFloor,
@@ -77,6 +83,7 @@ export function simulateDepthsRun(
     }
   }
 
+  onProgress?.(floorCap)
   return {
     deathFloor: floorCap + 1,
     floorsCleared: floorCap - startFloor + 1,
@@ -112,7 +119,9 @@ export function simulateDepthsBatch(
 
   const floors = results.map((result) => result.deathFloor).sort((a, b) => a - b)
   const middle = Math.floor(floors.length / 2)
-  const medianFloor = floors.length % 2 ? floors[middle] : (floors[middle - 1] + floors[middle]) / 2
+  const medianFloor = floors.length % 2
+    ? floors[middle]
+    : (floors[middle - 1] + floors[middle]) / 2
 
   return {
     runs: results,

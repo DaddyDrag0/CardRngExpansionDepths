@@ -1,2 +1,3 @@
 # CardRngExpansionDepths
-A Depths calculator for Card Rng Expansion 
+
+Card RNG Expansion Depths calculator.

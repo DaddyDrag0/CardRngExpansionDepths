@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#080b10" />
+  <title>Card RNG Expansion · Depths Calculator</title>
+  <link rel="stylesheet" href="./src/styles.css" />
+  <style>
+    .loading{min-height:100vh;display:grid;place-items:center;background:#080b10;color:#8693a4;font:14px Inter,system-ui,sans-serif}.intro.compact{grid-template-columns:1fr;padding-bottom:22px}.intro.compact h2{max-width:900px}.site-note{color:#8693a4;font-size:11px}.library-list button{min-height:53px}.toolbar{display:flex;gap:8px;align-items:center}.toolbar button{border:1px solid #2a394a;background:#121a25;border-radius:9px;padding:8px 10px;cursor:pointer;font-size:10px}.toolbar button:hover{border-color:#4b817b}.empty-state{padding:28px 16px;text-align:center;color:#647286;font-size:11px}.status-chip{color:#87d8ca;border:1px solid #355e5a;background:rgba(135,216,202,.11);border-radius:999px;font-size:9px;letter-spacing:.1em;padding:5px 8px}.locked.compact-lock{margin-top:12px}.locked.compact-lock p{max-width:520px}.error-box{margin:80px auto;max-width:620px;border:1px solid #432a2a;background:#151013;color:#d9b4b4;padding:20px;border-radius:16px;font:13px system-ui;line-height:1.55}
+  </style>
+</head>
+<body>
+<div id="root"><div class="loading">Loading Depths calculator…</div></div>
+<script>
+(() => {
+  const root = document.getElementById('root');
+  const BORDER_MULT = { Platinum:100, Crystal:10000, Ruby:100000, Galaxy:1000000 };
+  const BORDERS = Object.keys(BORDER_MULT);
+  const HARD_EXCLUSIONS = new Set(['Samurai','Seraphim','Vampire Lord','Loki','Fuxi','Parallax','Nán Fāng Zhū Què','Brachiosaurus','Jersey Devil']);
+  const WEATHER_WEIGHTS = { Storm:.5, Snow:.5, Aurora:.3, 'Meteor Shower':.2, 'Blood Rain':.1, Shroud:.1, Eclipse:.1, Rapture:.05, Virus:.2 };
+  const preferred = ['Mastermind','Piccolo','Yamato no Orochi','Kuchisake-onna'];
+  const state = { cards:[], auras:[], team:[], activeSlot:0, query:'', aura:'', floor:1000, seed:1000 };
+
+  const esc = (v='') => String(v).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  const compact = n => Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:2}).format(n);
+  const full = n => Math.round(n).toLocaleString('en-US');
+  const imageUrl = id => id ? `https://www.roblox.com/asset-thumbnail/image?assetId=${id}&width=180&height=180&format=png` : '';
+  const portrait = (card, cls='mini-portrait') => card && card.imageAssetId ? `<span class="${cls}"><img src="${imageUrl(card.imageAssetId)}" alt=""></span>` : `<span class="${cls}">${esc(card?.name?.[0] || '?')}</span>`;
+
+  function rarityWithBorders(card, borders=[]){ return borders.reduce((r,b)=>r*(BORDER_MULT[b]||1), card.rarity); }
+  function getPower(card,borders=[]){ const rarity = card.name === 'Ouroboros' ? 100000000000000 : rarityWithBorders(card,borders); return rarity>0 ? Math.pow(2,Math.log10(rarity))*10*(card.statMultiplier||1) : 0; }
+  function getAttack(card,borders=[]){ return getPower(card,borders)/2; }
+  function getHealth(card,borders=[]){ return getPower(card,borders)*(card.hpMultiplier||1); }
+  function depthBudget(floor){ return 3000 + Math.pow(floor,2.75)*40; }
+  function depthsPower(floor){ return Math.ceil(Math.sqrt(depthBudget(floor)*2)); }
+  function eligible(card){ return !card.unobtainable && !card.expires && !card.boss && !HARD_EXCLUSIONS.has(card.name) && card.pack !== 'Christmas' && card.pack !== 'Halloween' && card.pack !== 'Halloween2'; }
+  function unlocked(card,floor){ return eligible(card) && getAttack(card)*getHealth(card) < depthBudget(floor); }
+  function poolFor(floor){ return state.cards.filter(c=>unlocked(c,floor)).map(card=>({card,weight:card.weather?(WEATHER_WEIGHTS[card.weather]??1):1})); }
+  function seeded(seed){ let s=(seed>>>0)||0x9e3779b9; return ()=>{ let t=(s+=0x6d2b79f5); t=Math.imul(t^(t>>>15),t|1); t^=t+Math.imul(t^(t>>>7),t|61); return ((t^(t>>>14))>>>0)/4294967296; }; }
+  function enemyTeam(floor,seed){ const pool=poolFor(floor); const total=pool.reduce((a,b)=>a+b.weight,0); if(!pool.length||total<=0)return[]; const rng=seeded(seed), power=depthsPower(floor), out=[]; for(let i=0;i<4;i++){ let roll=rng()*total,picked=pool[pool.length-1].card; for(const e of pool){ roll-=e.weight; if(roll<0){picked=e.card;break;} } out.push({card:picked,attack:power/2,health:power*(picked.hpMultiplier||1)}); } return out; }
+  function cardByName(name){ return state.cards.find(c=>c.name===name) || state.cards[0]; }
+
+  function render(){
+    const q=state.query.trim().toLowerCase();
+    const shown=state.cards.filter(c=>!c.unobtainable).filter(c=>!q||c.name.toLowerCase().includes(q)||(c.ability||'').toLowerCase().includes(q)).sort((a,b)=>b.rarity-a.rarity).slice(0,90);
+    const floor=Math.max(1,Number(state.floor)||1), enemies=enemyTeam(floor,Number(state.seed)||1), poolSize=poolFor(floor).length;
+    const aura=state.auras.find(a=>a.name===state.aura);
+
+    root.innerHTML = `<main class="shell">
+      <header class="topbar">
+        <div><p class="kicker">CARD RNG EXPANSION</p><h1>Depths Calculator</h1></div>
+        <span class="status-chip">DEPTHS TOOL</span>
+      </header>
+
+      <section class="intro compact">
+        <div><span class="kicker">TEAM BUILDER</span><h2>Build a team, inspect Depths matchups, and prepare runs.</h2><p>A clean workspace for Card RNG Expansion Depths testing.</p></div>
+      </section>
+
+      <section class="workspace">
+        <article class="panel loadout">
+          <div class="panel-head"><div><span class="kicker">LOADOUT</span><h3>Four-card team</h3></div><small>Click a slot, then choose a card</small></div>
+          <div class="team-list">
+            ${state.team.map((slot,index)=>{ const card=cardByName(slot.cardName), hp=getHealth(card,slot.borders), atk=getAttack(card,slot.borders); return `<button class="team-row ${state.activeSlot===index?'active':''}" data-slot="${index}">
+              <span class="slot">0${index+1}</span>${portrait(card,'portrait')}<span class="card-copy"><span class="name-line"><b>${esc(card.name)}</b><em>${esc(card.ability||'No ability')}</em></span><span class="numbers"><i><b>${compact(hp)}</b> HP</i><i><b>${compact(atk)}</b> ATK</i></span><span class="border-pills">${BORDERS.map(b=>`<label class="${slot.borders.includes(b)?'on':''}" data-border="${b}" data-border-slot="${index}">${b}</label>`).join('')}</span></span>
+            </button>`; }).join('')}
+          </div>
+          <div class="aura-select"><label>Aura card</label><select id="auraSelect"><option value="">No aura selected</option>${state.auras.filter(a=>!a.unobtainable).sort((a,b)=>a.name.localeCompare(b.name)).map(a=>`<option value="${esc(a.name)}" ${a.name===state.aura?'selected':''}>${esc(a.name)} · ${esc(a.skillName||'')}</option>`).join('')}</select><p>${aura?esc(aura.description||''): 'Choose an aura for this team.'}</p></div>
+        </article>
+
+        <article class="panel library">
+          <div class="panel-head"><div><span class="kicker">CARD LIBRARY</span><h3>Slot ${state.activeSlot+1}</h3></div><small>${shown.length} shown</small></div>
+          <input class="search" id="cardSearch" value="${esc(state.query)}" placeholder="Search card or ability…" />
+          <div class="library-list">${shown.length?shown.map(card=>`<button data-card="${esc(card.name)}" class="${state.team[state.activeSlot]?.cardName===card.name?'selected':''}">${portrait(card)}<span><b>${esc(card.name)}</b><small>${esc(card.ability||'No ability')}</small></span><em>1 / ${compact(card.rarity)}</em></button>`).join(''):'<div class="empty-state">No matching cards.</div>'}</div>
+        </article>
+
+        <article class="panel depths">
+          <div class="panel-head"><div><span class="kicker">DEPTHS</span><h3>Enemy preview</h3></div><div class="toolbar"><button id="rerollTop">New seed</button></div></div>
+          <div class="controls"><label><span>Floor</span><input id="floorInput" type="number" min="1" value="${floor}"></label><label><span>Preview seed</span><input id="seedInput" type="number" value="${Number(state.seed)||1}"></label></div>
+          <div class="pool"><b>${poolSize}</b><span>cards currently eligible in the enemy pool</span></div>
+          <div class="enemy-list">${enemies.map((enemy,index)=>`<div><span class="enemy-num">${index+1}</span>${portrait(enemy.card)}<span class="enemy-copy"><b>${esc(enemy.card.name)}</b><small>${esc(enemy.card.ability||'No ability')}</small></span><span class="enemy-stats"><b>${full(enemy.health)} HP</b><small>${full(enemy.attack)} ATK</small></span></div>`).join('')}</div>
+          <button class="reroll" id="reroll">Generate another enemy team</button>
+          <div class="locked compact-lock"><div><strong>Full run simulation</strong><p>Survival-floor testing will appear here when the combat simulator is ready.</p></div><button disabled>Run Depths simulation</button></div>
+        </article>
+      </section>
+      <footer><span>Card RNG Expansion Depths Calculator</span><span>Platinum · Crystal · Ruby · Galaxy</span></footer>
+    </main>`;
+
+    root.querySelectorAll('[data-slot]').forEach(el=>el.addEventListener('click',e=>{ if(e.target.closest('[data-border]'))return; state.activeSlot=Number(el.dataset.slot); render(); }));
+    root.querySelectorAll('[data-border]').forEach(el=>el.addEventListener('click',e=>{ e.preventDefault(); e.stopPropagation(); const i=Number(el.dataset.borderSlot), b=el.dataset.border, list=state.team[i].borders; state.team[i].borders=list.includes(b)?list.filter(x=>x!==b):[...list,b]; render(); }));
+    root.querySelectorAll('[data-card]').forEach(el=>el.addEventListener('click',()=>{ state.team[state.activeSlot].cardName=el.dataset.card; render(); }));
+    const search=root.querySelector('#cardSearch'); search.addEventListener('input',()=>{ state.query=search.value; render(); requestAnimationFrame(()=>{ const n=root.querySelector('#cardSearch'); n.focus(); n.setSelectionRange(n.value.length,n.value.length); }); });
+    root.querySelector('#auraSelect').addEventListener('change',e=>{state.aura=e.target.value;render();});
+    root.querySelector('#floorInput').addEventListener('change',e=>{state.floor=Math.max(1,Number(e.target.value)||1);render();});
+    root.querySelector('#seedInput').addEventListener('change',e=>{state.seed=Number(e.target.value)||1;render();});
+    const reroll=()=>{state.seed=(Number(state.seed)||1)+1;render();}; root.querySelector('#reroll').addEventListener('click',reroll); root.querySelector('#rerollTop').addEventListener('click',reroll);
+  }
+
+  async function load(){
+    try{
+      const cardFiles=[1,2,3,4,5,6].map(i=>fetch(`./src/data/cards-${i}.json`).then(r=>{if(!r.ok)throw new Error(`cards-${i}.json ${r.status}`);return r.json();}));
+      const auraFiles=[1,2].map(i=>fetch(`./src/data/auras-${i}.json`).then(r=>{if(!r.ok)throw new Error(`auras-${i}.json ${r.status}`);return r.json();}));
+      const [cardSets,auraSets]=await Promise.all([Promise.all(cardFiles),Promise.all(auraFiles)]);
+      state.cards=cardSets.flat(); state.auras=auraSets.flat();
+      const available=preferred.filter(n=>state.cards.some(c=>c.name===n));
+      const fallback=state.cards.filter(c=>!c.unobtainable).slice(0,4).map(c=>c.name);
+      state.team=[0,1,2,3].map(i=>({cardName:available[i]||fallback[i]||state.cards[0].name,borders:[]}));
+      render();
+    }catch(err){ console.error(err); root.innerHTML=`<div class="error-box"><b>Calculator failed to load.</b><br><br>${esc(err.message)}<br><br>Refresh the page after the latest GitHub Pages build finishes.</div>`; }
+  }
+  load();
+})();
+</script>
+</body>
+</html>

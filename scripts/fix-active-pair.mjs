@@ -8,22 +8,57 @@ function replaceOnce(text, oldText, newText, label) {
 {
   const path = 'src/engine/battle-v2.ts'
   let text = fs.readFileSync(path, 'utf8')
+
   text = replaceOnce(
     text,
-    "    const nextPairKey = `${attacker.id}|${defender.id}`\n",
-    "    const allyActive = active(runtime, 'Allies')\n    const enemyActive = active(runtime, 'Enemies')\n    const nextPairKey = allyActive && enemyActive ? `${allyActive.id}|${enemyActive.id}` : ''\n",
-    'stable active pair key',
+    "  let activePairKey = ''\n  let pairTurns: Record<string, number> = {}\n",
+    "  let turnsWithoutDeaths = 0\n  let lastMover: CombatCard | undefined\n  let lastTarget: CombatCard | undefined\n",
+    'timeout state',
   )
+
+  const oldBlock = `    const allyActive = active(runtime, 'Allies')
+    const enemyActive = active(runtime, 'Enemies')
+    const nextPairKey = allyActive && enemyActive ? \`${'${allyActive.id}'}|${'${enemyActive.id}'}\` : ''
+    if (nextPairKey !== activePairKey) {
+      activePairKey = nextPairKey
+      pairTurns = {}
+    }
+    pairTurns[attacker.id] = (pairTurns[attacker.id] || 0) + 1
+    if (pairTurns[attacker.id] > 150) {
+      attacker.hp = 0
+      defender.hp = 0
+      resolveDeaths(runtime)
+      continue
+    }
+`
+
+  const newBlock = `    turnsWithoutDeaths += 1
+    if (attacker !== lastMover && attacker !== lastTarget) turnsWithoutDeaths = 0
+    if (defender !== lastMover && defender !== lastTarget) turnsWithoutDeaths = 0
+    if (turnsWithoutDeaths >= 150) {
+      attacker.hp = 0
+      defender.hp = 0
+      resolveDeaths(runtime)
+      continue
+    }
+    lastMover = attacker
+    lastTarget = defender
+`
+
+  text = replaceOnce(text, oldBlock, newBlock, 'source-aligned timeout loop')
   fs.writeFileSync(path, text)
 }
 
 {
   const path = 'scripts/engine-smoke.ts'
   let text = fs.readFileSync(path, 'utf8')
-  const anchor = "console.log(`Engine smoke tests passed: ${cards.length} cards, ${auras.length} auras.`)"
-  if (!text.includes('Stable active-pair timeout regression passed')) {
-    const test = `\nconst timeoutEnemies: DepthsEnemy[] = [{\n  card: { ...dummy, name: '__Timeout Enemy__' },\n  power: 1,\n  attack: 0,\n  health: 1e30,\n}]\nconst timeoutBattle = simulateBattleV2(\n  { cards: [{ cardName: 'Mastermind', borders: [] }] },\n  timeoutEnemies,\n  12345,\n  10_000,\n  true,\n)\nassert(!timeoutBattle.unsupportedAbilities.includes('Battle turn cap reached'), 'Stable active-pair timeout failed before emergency cap')\nassert(timeoutBattle.turns < 1_000, \`Stable active-pair timeout took too long: \${timeoutBattle.turns}\`)\nconsole.log('Stable active-pair timeout regression passed:', timeoutBattle.turns, 'turns')\n\n`
-    text = replaceOnce(text, anchor, test + anchor, 'engine smoke log')
-  }
+  text = text.replace(
+    "assert(timeoutBattle.turns < 1_000, `Stable active-pair timeout took too long: ${timeoutBattle.turns}`)",
+    "assert(timeoutBattle.turns >= 145 && timeoutBattle.turns <= 155, `Source-aligned timeout should resolve at about 150 total turns, got ${timeoutBattle.turns}`)",
+  )
+  text = text.replace(
+    "console.log('Stable active-pair timeout regression passed:', timeoutBattle.turns, 'turns')",
+    "console.log('Source-aligned 150-turn timeout regression passed:', timeoutBattle.turns, 'turns')",
+  )
   fs.writeFileSync(path, text)
 }

@@ -1,4 +1,5 @@
 import cards from '../data/cards'
+import { cardAge } from '../data/ages'
 import type {
   BattleBoosts,
   BattleResult,
@@ -71,11 +72,12 @@ const FULLY_SUPPORTED = new Set([
   'Cosmic Maw', 'Hex', 'Order of the Cosmos', 'Honor',
   'Gehenna', 'Beyond Comprehension', 'Imminent Doom', 'Dance of Discord',
   'Snowscape', 'Plague', 'Spook', 'Perish', 'Blood Bath', 'Undying',
+  'Mirror Image', 'Long Reach', 'Whooping', 'Shapeshifter', 'Heroes',
+  'God of Trickery', 'Draconian', 'Safeguarding', 'Mother of Dragons', 'Reveal',
+  'Jealousy', 'Nightmare Melody', 'Sap',
 ])
 
-const BENCH_AFFECTING_UNSUPPORTED = new Set([
-  'Nightmare Melody', 'Draconian', 'Mirror Image',
-])
+const BENCH_AFFECTING_UNSUPPORTED = new Set<string>()
 
 const CONSTELLAR_ABILITIES = [
   'ConstellarVirgo', 'ConstellarScorpio', 'ConstellarSagittarius',
@@ -98,6 +100,10 @@ const PANDORA_ABILITY_POOL = [...new Set(
   && FULLY_SUPPORTED.has(name)
 )
 
+const RANDOM_CARD_POOL = cards.filter((card) =>
+  !card.unobtainable && card.ability !== "Pandora's Box" && card.ability !== 'Constellar'
+)
+
 interface Runtime {
   state: BattleState
   rng: SeededRng
@@ -107,13 +113,30 @@ function definition(name: string) {
   return cards.find((card) => card.name === name)
 }
 
+function effectiveCardName(card: CombatCard | undefined): string | null {
+  return card?.identityOverride ?? card?.definition.name ?? null
+}
+
 function ability(card: CombatCard | undefined): string | null {
-  return card?.abilityOverride ?? card?.definition.ability ?? null
+  if (!card) return null
+  if (card.abilityOverride !== undefined) return card.abilityOverride ?? null
+  const name = effectiveCardName(card)
+  if (!name) return null
+  if (card.identityOverride && name === 'Longmu') return null
+  return definition(name)?.ability ?? card.definition.ability ?? null
 }
 
 function abilityNames(card: CombatCard | undefined): string[] {
   if (!card) return []
   return [...new Set([ability(card), ...(card.bonusAbilities || [])].filter((name): name is string => Boolean(name)))]
+}
+
+function activeBonusAbilities(card: CombatCard): string[] {
+  const root = card.definition.ability
+  if ((root === "Pandora's Box" || root === 'Heroes') && ability(card) === root) {
+    return card.bonusAbilities || []
+  }
+  return []
 }
 
 function withAbility<T>(card: CombatCard, name: string, fn: () => T): T {
@@ -124,6 +147,10 @@ function withAbility<T>(card: CombatCard, name: string, fn: () => T): T {
   } finally {
     card.abilityOverride = previous
   }
+}
+
+function randomBattleCard(runtime: Runtime) {
+  return RANDOM_CARD_POOL[Math.floor(runtime.rng.next() * RANDOM_CARD_POOL.length)] || cards[0]
 }
 
 function randomConstellarAbility(runtime: Runtime): string {
@@ -190,9 +217,7 @@ function stealStats(from: CombatCard, to: CombatCard, fraction: number) {
 }
 
 function statusProtected(runtime: Runtime, team: BattleTeam): boolean {
-  return runtime.state.teams[team].some((card) =>
-    !card.dead && !card.flags.sealed && abilityNames(card).includes('Protection of Gods')
-  )
+  return runtime.state.teams[team].some((card) => hasAbility(runtime, card, 'Protection of Gods'))
 }
 
 function clearSkillAura(runtime: Runtime, team: BattleTeam) {
@@ -201,6 +226,8 @@ function clearSkillAura(runtime: Runtime, team: BattleTeam) {
     statAuraName: boosts.statAuraName,
     statAuraValue: boosts.statAuraValue,
     fossils: boosts.fossils || 0,
+    composerCount: boosts.composerCount,
+    composerThreshold: boosts.composerThreshold,
   }
 }
 
@@ -210,9 +237,7 @@ function randomCreatableCard(runtime: Runtime) {
 }
 
 function waterShield(runtime: Runtime, team: BattleTeam, target: CombatCard): CombatCard | undefined {
-  return runtime.state.teams[team].find((card) =>
-    card !== target && alive(card) && !card.flags.sealed && abilityNames(card).includes('Water Shield of Xuanwu')
-  )
+  return runtime.state.teams[team].find((card) => card !== target && hasAbility(runtime, card, 'Water Shield of Xuanwu'))
 }
 
 function resetCombatStats(card: CombatCard) {
@@ -292,6 +317,7 @@ function cloneAtFraction(source: CombatCard, fraction: number, serial: number): 
     power: source.power * fraction,
     entered: false,
     dead: false,
+    identityOverride: undefined,
     status: { stunned: 0, confused: 0, burn: 0, weakness: false, blind: false, shield: 0 },
     flags: {},
     counters: { normalDamage: source.damage * fraction },
@@ -304,8 +330,21 @@ function noteUnsupported(state: BattleState, card: CombatCard | undefined) {
   }
 }
 
+function active(runtime: Runtime, team: BattleTeam) {
+  return runtime.state.teams[team][0]
+}
+
 function hasAbility(runtime: Runtime, card: CombatCard | undefined, name: string): boolean {
-  if (!card || card.dead || card.flags.sealed || (card.counters.cosmosSeal || 0) > 0 || !abilityNames(card).includes(name)) return false
+  if (!card || card.dead || card.flags.sealed || (card.counters.cosmosSeal || 0) > 0) return false
+  const opposingCard = active(runtime, OTHER_TEAM[card.team])
+  const ownName = effectiveCardName(card)
+  const opposingName = effectiveCardName(opposingCard)
+  let matched = abilityNames(card).includes(name)
+  if (!matched && ability(card) === 'Jealousy' && opposingCard && opposingName !== 'Amenhotep') {
+    matched = abilityNames(opposingCard).includes(name)
+  }
+  if (!matched) return false
+  if (opposingCard && ability(opposingCard) === 'Jealousy' && ownName !== 'Amenhotep') return false
   const honorActive = [active(runtime, 'Allies'), active(runtime, 'Enemies')].some((activeCard) =>
     activeCard && !activeCard.dead && !activeCard.flags.sealed && abilityNames(activeCard).includes('Honor')
   )
@@ -315,10 +354,21 @@ function hasAbility(runtime: Runtime, card: CombatCard | undefined, name: string
   return true
 }
 
+function resolvedAbility(runtime: Runtime, card: CombatCard | undefined): string | null {
+  const raw = ability(card)
+  if (!card || !raw) return raw
+  const opposingCard = active(runtime, OTHER_TEAM[card.team])
+  if (raw === 'Jealousy' && opposingCard && effectiveCardName(opposingCard) !== 'Amenhotep') {
+    return ability(opposingCard)
+  }
+  if (opposingCard && ability(opposingCard) === 'Jealousy' && effectiveCardName(card) !== 'Amenhotep') return null
+  return raw
+}
+
 function rand(runtime: Runtime, team: BattleTeam): number {
   const activeA = runtime.state.teams.Allies[0]
   const activeE = runtime.state.teams.Enemies[0]
-  if (abilityNames(activeA).includes('Unlucky') || abilityNames(activeE).includes('Unlucky')) return 0
+  if (hasAbility(runtime, activeA, 'Unlucky') || hasAbility(runtime, activeE, 'Unlucky')) return 0
   if (runtime.state.teams[team][0]?.flags.noRng) return 0
   let roll = runtime.rng.next()
   const fate = runtime.state.boosts[team].fate
@@ -341,6 +391,22 @@ function applyDeckPassives(team: CombatCard[]) {
   if (damageMult !== 1) for (const card of team) card.damage *= damageMult
 }
 
+function applyDraconianSetup(team: CombatCard[]) {
+  let motherOfDragons = false
+  for (let index = 0; index < team.length; index++) {
+    const card = team[index]
+    if (card.definition.ability !== 'Draconian') continue
+    card.abilityOverride = index === 0 ? 'Safeguarding' : 'Mother of Dragons'
+    if (index === 0) card.status.shield = Math.max(card.status.shield, 1)
+    else motherOfDragons = true
+  }
+  if (motherOfDragons) {
+    for (const card of team) {
+      if (DRAGON_CARDS.has(card.definition.name)) card.status.shield = Math.max(card.status.shield, 2)
+    }
+  }
+}
+
 export function createBattleStateV2(loadout: TeamLoadout, enemies: DepthsEnemy[]): BattleState {
   const allies = loadout.cards
     .map((slot, index) => makePlayerCard(slot.cardName, slot.borders, index + 1))
@@ -358,9 +424,18 @@ export function createBattleStateV2(loadout: TeamLoadout, enemies: DepthsEnemy[]
 
   applyDeckPassives(allies)
   applyDeckPassives(enemyCards)
+  applyDraconianSetup(allies)
+  applyDraconianSetup(enemyCards)
   const stat = applyStatAura(allies, loadout.statAura)
   const skillTeam = applySkillAuraTeamEffects(allies, loadout.abilityAura)
   state.boosts = buildBoosts(loadout, state)
+  for (const team of ['Allies', 'Enemies'] as BattleTeam[]) {
+    const composerCount = state.teams[team].filter((card) => card.definition.ability === 'Nightmare Melody').length
+    if (composerCount > 0) {
+      state.boosts[team].composerCount = composerCount
+      state.boosts[team].composerThreshold = 1
+    }
+  }
   if (skillTeam.aura && !skillTeam.implemented) state.unsupportedAbilities.add(`Aura: ${skillTeam.aura.name}`)
   if (stat.aura) {
     state.boosts.Allies.statAuraName = stat.aura.name
@@ -373,10 +448,6 @@ export function createBattleStateV2(loadout: TeamLoadout, enemies: DepthsEnemy[]
     if (BENCH_AFFECTING_UNSUPPORTED.has(ability(card) || '')) noteUnsupported(state, card)
   }
   return state
-}
-
-function active(runtime: Runtime, team: BattleTeam) {
-  return runtime.state.teams[team][0]
 }
 
 function resolveConstellarArts(runtime: Runtime) {
@@ -421,7 +492,7 @@ function onEntry(runtime: Runtime, card: CombatCard) {
     card.status.confused = Math.max(card.status.confused, enemy.counters.toyCount || 1)
   }
 
-  let name = ability(card)
+  let name = resolvedAbility(runtime, card)
   if (!name) return
 
   if (name === "Pandora's Box" && !card.flags.pandoraRolled) {
@@ -435,6 +506,22 @@ function onEntry(runtime: Runtime, card: CombatCard) {
     }
     card.bonusAbilities = chosen
     for (const gained of chosen) {
+      withAbility(card, gained, () => {
+        card.entered = false
+        onEntry(runtime, card)
+      })
+    }
+    card.entered = true
+    return
+  }
+
+  if (name === 'Heroes') {
+    const chosen = runtime.state.fallen[card.team].slice(0, 2)
+      .filter((fallen) => fallen.definition.name !== card.definition.name && fallen.definition.name !== 'Legends')
+      .map((fallen) => fallen.definition.ability)
+      .filter((gained): gained is string => Boolean(gained))
+    if (chosen.length) card.bonusAbilities = [...new Set(chosen)]
+    for (const gained of activeBonusAbilities(card)) {
       withAbility(card, gained, () => {
         card.entered = false
         onEntry(runtime, card)
@@ -560,10 +647,15 @@ function onEntry(runtime: Runtime, card: CombatCard) {
       card.counters.perishTurns = 3
       break
     case 'Desire':
-      // Desire itself triggers when the opposing card enters; no extra self-entry effect.
       break
     case 'Cosmic Maw':
       stealStats(enemy, card, 0.2)
+      break
+    case 'Sap':
+      if (rand(runtime, card.team) > 1 - card.damage / enemy.damage) {
+        card.damage += enemy.damage * 0.5
+        enemy.damage *= 0.5
+      }
       break
     case 'Haunt': {
       const damageLoss = card.damage * 0.35
@@ -585,6 +677,14 @@ function onEntry(runtime: Runtime, card: CombatCard) {
     case 'Am I Beautiful?':
       enemy.status.confused = 2
       break
+    case 'God of Trickery': {
+      const randomCard = randomBattleCard(runtime)
+      enemy.identityOverride = randomCard.name
+      enemy.abilityOverride = undefined
+      card.identityOverride = enemy.definition.name
+      card.abilityOverride = undefined
+      break
+    }
     case 'Fire World':
       for (const target of runtime.state.teams[enemyTeam]) target.status.burn = 100
       break
@@ -610,6 +710,7 @@ function onEntry(runtime: Runtime, card: CombatCard) {
         power: card.power,
         entered: false,
         dead: false,
+        identityOverride: undefined,
         abilityOverride: undefined,
         bonusAbilities: undefined,
         status: { stunned: 0, confused: 0, burn: 0, weakness: false, blind: false, shield: 0 },
@@ -869,16 +970,16 @@ function onEntry(runtime: Runtime, card: CombatCard) {
 }
 
 function offensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, initial: number): { damage: number; bypass: boolean; special: boolean } {
-  if (ability(attacker) === "Pandora's Box" && attacker.bonusAbilities?.length) {
+  if (activeBonusAbilities(attacker).length) {
     let result = { damage: initial, bypass: false, special: false }
-    for (const gained of attacker.bonusAbilities) {
+    for (const gained of activeBonusAbilities(attacker)) {
       const next = withAbility(attacker, gained, () => offensive(runtime, attacker, target, result.damage))
       result = { damage: next.damage, bypass: result.bypass || next.bypass, special: result.special || next.special }
     }
     return result
   }
 
-  const name = ability(attacker)
+  const name = resolvedAbility(runtime, attacker)
   let damage = initial
   let bypass = false
   if (!name || !hasAbility(runtime, attacker, name)) return { damage, bypass, special: false }
@@ -891,12 +992,13 @@ function offensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
     'Apex Predator','Infinite Dagger Works','Extinction','God of Thunder','Fire World','Moonlight Beam',
     'Dirty Claw','Heart Hunter','Chainsaw','Firepower','Rapid Blows','Behavioral Therapy',
     'Holy Wrath','Unlucky','Dragon Slayer','Frozen Wrath','Absolute Apex',
-    'Dark Qi Manipulation','Chaos Destruction','ConstellarTaurus','ConstellarSagittarius',
+    'Dark Qi Manipulation','Chaos Destruction','ConstellarTaurus','ConstellarSagittarius','Whooping',
   ].includes(name)) special = true
 
   switch (name) {
     case 'True Strike': if (rand(runtime, attacker.team) > 0.5) damage *= 2; break
     case 'Absolute Apex': damage *= 1.5; break
+    case 'Whooping': if (cardAge(attacker.definition.name) > cardAge(target.definition.name)) damage *= 2; break
     case 'ConstellarTaurus': damage *= constellarTaurusFactor(attacker); break
     case 'Chaos Destruction': if (attacker.flags.chaosTriple) { damage *= 3; attacker.flags.chaosTriple = false }; break
     case 'Dark Qi Manipulation': if (attacker.flags.awakened) damage *= 2; break
@@ -1002,15 +1104,15 @@ function offensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
 }
 
 function defensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, initial: number): number {
-  if (ability(target) === "Pandora's Box" && target.bonusAbilities?.length) {
+  if (activeBonusAbilities(target).length) {
     let damage = initial
-    for (const gained of target.bonusAbilities) {
+    for (const gained of activeBonusAbilities(target)) {
       damage = withAbility(target, gained, () => defensive(runtime, attacker, target, damage))
     }
     return damage
   }
 
-  const name = ability(target)
+  const name = resolvedAbility(runtime, target)
   let damage = initial
   if (!name || !hasAbility(runtime, target, name)) return damage
 
@@ -1157,14 +1259,14 @@ function defensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
 
 function tryRevive(runtime: Runtime, attacker: CombatCard, target: CombatCard): boolean {
   if (target.hp > 0) return false
-  if (ability(target) === "Pandora's Box" && target.bonusAbilities?.length) {
-    for (const gained of target.bonusAbilities) {
+  if (activeBonusAbilities(target).length) {
+    for (const gained of activeBonusAbilities(target)) {
       const revived = withAbility(target, gained, () => tryRevive(runtime, attacker, target))
       if (revived) return true
     }
     return false
   }
-  const name = ability(target)
+  const name = resolvedAbility(runtime, target)
   if (!name) return false
   if (name === 'Revive' && !target.flags.revived && rand(runtime, target.team) > 0.5) {
     target.flags.revived = true; target.hp = target.maxHp * 0.5; return true
@@ -1185,13 +1287,13 @@ function tryRevive(runtime: Runtime, attacker: CombatCard, target: CombatCard): 
 }
 
 function targetRetro(runtime: Runtime, attacker: CombatCard, target: CombatCard, damage: number) {
-  if (ability(target) === "Pandora's Box" && target.bonusAbilities?.length) {
-    for (const gained of target.bonusAbilities) {
+  if (activeBonusAbilities(target).length) {
+    for (const gained of activeBonusAbilities(target)) {
       withAbility(target, gained, () => targetRetro(runtime, attacker, target, damage))
     }
     return
   }
-  const name = ability(target)
+  const name = resolvedAbility(runtime, target)
   if (!name || !hasAbility(runtime, target, name)) return
   switch (name) {
     case 'Restoration': if (target.hp > 0) target.hp += damage * 0.7; break
@@ -1279,14 +1381,14 @@ function lifestealFraction(runtime: Runtime, attacker: CombatCard, base: number)
 }
 
 function attackerRetro(runtime: Runtime, attacker: CombatCard, target: CombatCard, damage: number): boolean {
-  if (ability(attacker) === "Pandora's Box" && attacker.bonusAbilities?.length) {
+  if (activeBonusAbilities(attacker).length) {
     let didRegen = false
-    for (const gained of attacker.bonusAbilities) {
+    for (const gained of activeBonusAbilities(attacker)) {
       didRegen = withAbility(attacker, gained, () => attackerRetro(runtime, attacker, target, damage)) || didRegen
     }
     return didRegen
   }
-  const name = ability(attacker)
+  const name = resolvedAbility(runtime, attacker)
   let didRegen = false
   if (!name || !hasAbility(runtime, attacker, name)) return didRegen
   switch (name) {
@@ -1300,9 +1402,7 @@ function attackerRetro(runtime: Runtime, attacker: CombatCard, target: CombatCar
       }
       break
     case 'Undying':
-      if (target.hp <= 0 && attacker.flags.undyingActive) {
-        attacker.counters.undyingTurns = (attacker.counters.undyingTurns || 0) + 1
-      }
+      if (target.hp <= 0 && attacker.flags.undyingActive) attacker.counters.undyingTurns = (attacker.counters.undyingTurns || 0) + 1
       break
     case "Witch's Curse":
       if (damage > 0 && !attacker.flags.witchCurseStolen) {
@@ -1341,6 +1441,7 @@ function attackerRetro(runtime: Runtime, attacker: CombatCard, target: CombatCar
             damage: attacker.damage,
             entered: false,
             dead: false,
+            identityOverride: undefined,
             abilityOverride: undefined,
             bonusAbilities: undefined,
             status: { stunned: 0, confused: 0, burn: 0, weakness: false, blind: false, shield: 0 },
@@ -1410,20 +1511,16 @@ function attackerRetro(runtime: Runtime, attacker: CombatCard, target: CombatCar
         if (target.hp <= 0) boostStats(attacker, 1.5)
       }
       break
-    case 'Immortal Ascension':
-      if (attacker.flags.awakened && target.hp <= 0) boostStats(attacker, 1.5)
-      break
-    case 'Doom': if (!abilityNames(target).includes('Erosion') && target.hp > 0 && rand(runtime, attacker.team) > 1 - damage / target.hp) { target.hp = 0; target.flags.sealed = true }; break
-    case 'Decapitate':
-      if (target.hp <= 0) { boostStats(attacker, 1.2); attacker.flags.extraTurn = true }
-      break
+    case 'Immortal Ascension': if (attacker.flags.awakened && target.hp <= 0) boostStats(attacker, 1.5); break
+    case 'Doom': if (!hasAbility(runtime, target, 'Erosion') && target.hp > 0 && rand(runtime, attacker.team) > 1 - damage / target.hp) { target.hp = 0; target.flags.sealed = true }; break
+    case 'Decapitate': if (target.hp <= 0) { boostStats(attacker, 1.2); attacker.flags.extraTurn = true }; break
     case 'Fury of the White Tiger': if (target.hp <= 0) { attacker.damage *= 1.35; attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.35) }; break
     case 'Feeder': if (target.hp <= 0) attacker.hp = attacker.maxHp; break
     case 'Defraud': attacker.hp -= attacker.maxHp / 4; break
     case 'Fight Dirty': target.damage = Math.floor(target.damage * 0.7); break
     case 'Unforgiving': target.maxHp = Math.max(1, target.maxHp - damage); target.hp = Math.min(target.hp, target.maxHp); break
-    case 'Eat The Moon': if (!abilityNames(target).includes('Erosion') && target.hp / target.maxHp < 0.33) target.hp = 0; break
-    case 'Death Embrace': if (!abilityNames(target).includes('Erosion') && target.hp > 0 && rand(runtime, attacker.team) > 1 - damage / target.hp) target.hp = 0; break
+    case 'Eat The Moon': if (!hasAbility(runtime, target, 'Erosion') && target.hp / target.maxHp < 0.33) target.hp = 0; break
+    case 'Death Embrace': if (!hasAbility(runtime, target, 'Erosion') && target.hp > 0 && rand(runtime, attacker.team) > 1 - damage / target.hp) target.hp = 0; break
     case 'Prehistoric Wrath': if (target.hp <= 0) attacker.damage *= 2; break
   }
   return didRegen
@@ -1507,7 +1604,18 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   const farm = resolveAuraFarm(runtime, target, damage)
   target = farm.target
   damage = farm.damage
-  target.hp -= Math.min(target.hp, damage)
+  const targetDeck = runtime.state.teams[target.team]
+  const longReachTarget = hasAbility(runtime, attacker, 'Long Reach') && targetDeck[0] === target ? targetDeck[1] : undefined
+  const hpTarget = longReachTarget || target
+  hpTarget.hp -= Math.min(hpTarget.hp, damage)
+  if (longReachTarget && longReachTarget.hp <= 0) {
+    const index = targetDeck.indexOf(longReachTarget)
+    if (index > 0) {
+      targetDeck.splice(index, 1)
+      longReachTarget.dead = true
+      runtime.state.fallen[longReachTarget.team].push(longReachTarget)
+    }
+  }
 
   if (frostbiteActiveOnAttack && target.hp > 0 && runtime.rng.next() < 0.5) {
     target.hp -= Math.min(target.hp, target.maxHp * 0.2)
@@ -1547,6 +1655,11 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   targetRetro(runtime, attacker, target, damage)
   const didRegen = attackerRetro(runtime, attacker, target, damage)
 
+  if (hasAbility(runtime, target, 'Reveal') && !target.flags.revealed && target.hp > 0 && target.hp / target.maxHp < 0.65) {
+    target.flags.revealed = true
+    target.hp = target.maxHp
+  }
+
   const vamp = runtime.state.boosts[attacker.team].vampireMatron
   if (damage > 0 && vamp && !didRegen && alive(attacker)) {
     attacker.hp = Math.min(attacker.maxHp, attacker.hp + damage * vamp / 100)
@@ -1562,7 +1675,7 @@ function applyOnDeath(runtime: Runtime, dead: CombatCard, opponent: CombatCard |
   const team = dead.team
   const deck = runtime.state.teams[team]
   const next = deck[0]
-  const name = ability(dead)
+  const name = resolvedAbility(runtime, dead)
 
   if (!skipOpponentPassives) {
     if (opponent && alive(opponent) && hasAbility(runtime, opponent, 'Prehistoric Wrath')) opponent.damage *= 2
@@ -1571,13 +1684,16 @@ function applyOnDeath(runtime: Runtime, dead: CombatCard, opponent: CombatCard |
 
   if (dead.flags.suppressOnDeath) return
 
-  if (name === "Pandora's Box" && dead.bonusAbilities?.length) {
-    for (const gained of dead.bonusAbilities) {
+  if (activeBonusAbilities(dead).length) {
+    for (const gained of activeBonusAbilities(dead)) {
       withAbility(dead, gained, () => applyOnDeath(runtime, dead, opponent, true))
     }
     return
   }
 
+  if (name === 'Nightmare Melody' && runtime.state.boosts[team].composerCount) {
+    runtime.state.boosts[team].composerCount = Math.max(0, (runtime.state.boosts[team].composerCount || 0) - 1)
+  }
   if (name === 'Hard Boiled') runtime.state.boosts[team].fossils = (runtime.state.boosts[team].fossils || 0) + 3
   if (name === 'Extinction') runtime.state.boosts[team].fossils = (runtime.state.boosts[team].fossils || 0) + 2
   if (name === 'Imminent Doom' && opponent && alive(opponent) && !statusProtected(runtime, opponent.team)) {
@@ -1694,10 +1810,24 @@ function resolveDeaths(runtime: Runtime) {
       card.hp = 0
       card.dead = true
       runtime.state.fallen[team].push(card)
+
+      if (!card.flags.mirrorImageReturned) {
+        for (let index = runtime.state.fallen[team].length - 1; index >= 0; index--) {
+          const mirror = runtime.state.fallen[team][index]
+          if (mirror === card || mirror.flags.sealed || !abilityNames(mirror).includes('Mirror Image')) continue
+          if (rand(runtime, team) <= 0.5) continue
+          mirror.flags.mirrorImageReturned = true
+          mirror.dead = false
+          mirror.hp = mirror.maxHp
+          mirror.entered = false
+          runtime.state.fallen[team].splice(index, 1)
+          deck.unshift(mirror)
+        }
+      }
+
       const opponent = active(runtime, OTHER_TEAM[team])
       applyOnDeath(runtime, card, opponent)
 
-      // Beyond The Grave is a bench/death trigger: a dead holder returns at half HP when a different ally dies.
       const revenants = runtime.state.fallen[team].filter((fallen) =>
         fallen !== card && abilityNames(fallen).includes('Beyond The Grave') && fallen.hp <= 0
       )
@@ -1753,7 +1883,7 @@ function statusEnd(runtime: Runtime, attacker: CombatCard) {
     }
   }
   if ((attacker.counters.frostbite || 0) > 0) attacker.counters.frostbite -= 1
-  if ((attacker.counters.death || 0) > 0 && !abilityNames(attacker).includes('Erosion')) {
+  if ((attacker.counters.death || 0) > 0 && !hasAbility(runtime, attacker, 'Erosion')) {
     attacker.counters.death -= 1
     if (attacker.counters.death <= 0) attacker.hp = 0
   }
@@ -1777,6 +1907,13 @@ function statusEnd(runtime: Runtime, attacker: CombatCard) {
 }
 
 function prepareTurn(runtime: Runtime, attacker: CombatCard) {
+  const composer = runtime.state.boosts[attacker.team]
+  if ((composer.composerCount || 0) > 0) {
+    composer.composerThreshold = Math.max(0.6, (composer.composerThreshold ?? 1) - 0.1)
+    const target = active(runtime, OTHER_TEAM[attacker.team])
+    if (target && rand(runtime, attacker.team) > composer.composerThreshold) target.status.confused = 2
+  }
+
   if (hasAbility(runtime, attacker, 'Perish') && (attacker.counters.perishTurns || 0) > 0) {
     attacker.counters.perishTurns -= 1
     if (attacker.counters.perishTurns <= 0) {
@@ -1825,11 +1962,26 @@ function prepareTurn(runtime: Runtime, attacker: CombatCard) {
     attacker.counters.tail = (attacker.counters.tail || 0) + 1
     boostStats(attacker, 1.2)
   }
+  if (hasAbility(runtime, attacker, 'Shapeshifter') || attacker.flags.shapeshifterActive) {
+    attacker.flags.shapeshifterActive = true
+    const shape = randomBattleCard(runtime)
+    attacker.identityOverride = shape.name
+    attacker.abilityOverride = undefined
+    attacker.entered = false
+  }
   if (hasAbility(runtime, attacker, 'Grind')) {
     attacker.counters.grind = (attacker.counters.grind || 0) + 1
     if (attacker.counters.grind <= 5) boostStats(attacker, 1.1)
   }
   if (hasAbility(runtime, attacker, 'Patience')) boostStats(attacker, 1.3)
+  if (hasAbility(runtime, attacker, 'Safeguarding')) {
+    for (const dragon of runtime.state.teams[attacker.team].slice(1)) {
+      if (!DRAGON_CARDS.has(dragon.definition.name)) continue
+      dragon.damage *= 1.2
+      dragon.maxHp *= 1.2
+      dragon.hp = dragon.maxHp
+    }
+  }
   if (hasAbility(runtime, attacker, 'Absolute Sovereignty')) for (const card of runtime.state.teams[attacker.team]) boostStats(card, 1.1)
   if (hasAbility(runtime, attacker, 'World Creation')) {
     attacker.counters.worldCreation = (attacker.counters.worldCreation || 0) + 1

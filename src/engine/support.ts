@@ -42,6 +42,9 @@ export const SOURCE_ALIGNED_ABILITIES = new Set([
   'Stolen Spotlight', 'Horned Attack', 'Creep', 'Protection of Gods', 'Upheaval',
   'Deadly Ambush', 'Erosion', 'Divination', 'Insatiable', 'Poke the Beast',
   'Full Moon', 'Unholy Creature', 'The Underworld', 'Devilish', 'Chaos Destruction',
+  'Beyond The Grave', 'Creation and Restoration', 'Dispel', 'Healing Miracle',
+  'Laser Gun', 'Lotus Sutra', 'Origin', 'Outshine', 'Pandemic', 'Railgun',
+  'Shiny Steal', 'Water Shield of Xuanwu',
 ])
 
 export function getDepthsAbilityCoverage() {

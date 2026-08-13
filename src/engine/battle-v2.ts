@@ -57,11 +57,13 @@ const FULLY_SUPPORTED = new Set([
   'Stolen Spotlight', 'Horned Attack', 'Creep', 'Protection of Gods', 'Upheaval',
   'Deadly Ambush', 'Erosion', 'Divination', 'Insatiable', 'Poke the Beast',
   'Full Moon', 'Unholy Creature', 'The Underworld', 'Devilish', 'Chaos Destruction',
+  'Beyond The Grave', 'Creation and Restoration', 'Dispel', 'Healing Miracle',
+  'Laser Gun', 'Lotus Sutra', 'Origin', 'Outshine', 'Pandemic', 'Railgun',
+  'Shiny Steal', 'Water Shield of Xuanwu',
 ])
 
 const BENCH_AFFECTING_UNSUPPORTED = new Set([
-  'Nightmare Melody', 'Water Shield of Xuanwu', 'Draconian', 'Mirror Image',
-  'Beyond The Grave', 'Better Days', 'Playing God',
+  'Nightmare Melody', 'Draconian', 'Mirror Image', 'Better Days', 'Playing God',
 ])
 
 interface Runtime {
@@ -112,6 +114,27 @@ function clearSkillAura(runtime: Runtime, team: BattleTeam) {
     statAuraName: boosts.statAuraName,
     statAuraValue: boosts.statAuraValue,
     fossils: boosts.fossils || 0,
+  }
+}
+
+function randomCreatableCard(runtime: Runtime) {
+  const pool = cards.filter((card) => !card.unobtainable && !card.boss && card.rarity > 0)
+  return pool[Math.floor(runtime.rng.next() * pool.length)] || cards[0]
+}
+
+function waterShield(runtime: Runtime, team: BattleTeam, target: CombatCard): CombatCard | undefined {
+  return runtime.state.teams[team].find((card) =>
+    card !== target && alive(card) && !card.flags.sealed && ability(card) === 'Water Shield of Xuanwu'
+  )
+}
+
+function resetCombatStats(card: CombatCard) {
+  const normalDamage = card.counters.normalDamage
+  const normalMaxHp = card.counters.normalMaxHp
+  if (normalDamage > 0) card.damage = normalDamage
+  if (normalMaxHp > 0) {
+    card.maxHp = normalMaxHp
+    card.hp = Math.min(card.hp, card.maxHp)
   }
 }
 
@@ -252,6 +275,7 @@ export function createBattleStateV2(loadout: TeamLoadout, enemies: DepthsEnemy[]
 
   for (const card of [...allies, ...enemyCards]) {
     card.counters.normalDamage = card.damage
+    card.counters.normalMaxHp = card.maxHp
     if (BENCH_AFFECTING_UNSUPPORTED.has(ability(card) || '')) noteUnsupported(state, card)
   }
   return state
@@ -342,6 +366,37 @@ function onEntry(runtime: Runtime, card: CombatCard) {
       break
     case 'Divination':
       card.counters.divinationMoves = 5
+      break
+    case 'Creation and Restoration': {
+      const createdDefinition = randomCreatableCard(runtime)
+      const created: CombatCard = {
+        ...card,
+        id: `${card.team}:created:${runtime.state.turn}:${createdDefinition.name}`,
+        definition: createdDefinition,
+        index: runtime.state.teams[card.team].length + 1,
+        hp: card.hp,
+        maxHp: card.maxHp,
+        damage: card.damage,
+        power: card.power,
+        entered: false,
+        dead: false,
+        abilityOverride: undefined,
+        status: { stunned: 0, confused: 0, burn: 0, weakness: false, blind: false, shield: 0 },
+        flags: {},
+        counters: { normalDamage: card.damage, normalMaxHp: card.maxHp },
+      }
+      runtime.state.teams[card.team].push(created)
+      break
+    }
+    case 'Dispel':
+      resetCombatStats(enemy)
+      break
+    case 'Pandemic':
+      for (const target of runtime.state.teams[enemyTeam]) {
+        if (statusProtected(runtime, target.team)) continue
+        target.counters.poisonPercent = Math.min(target.counters.poisonPercent || 0, -0.075)
+        target.counters.poisonTurns = Math.max(target.counters.poisonTurns || 0, 2)
+      }
       break
     case 'Divine Mist':
       if (rand(runtime, card.team) < 0.7) {
@@ -1008,6 +1063,13 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   if (damage < 0) damage = Math.max(-(target.maxHp - target.hp), damage)
   damage = Number.isFinite(damage) ? Math.ceil(damage) : target.hp
 
+  const xuanwu = damage > 0 ? waterShield(runtime, target.team, target) : undefined
+  if (xuanwu) {
+    const redirected = Math.ceil(damage * 0.5)
+    damage -= redirected
+    xuanwu.hp -= Math.min(xuanwu.hp, redirected)
+  }
+
   const farm = resolveAuraFarm(runtime, target, damage)
   target = farm.target
   damage = farm.damage
@@ -1023,6 +1085,16 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   }
 
   if (hasAbility(runtime, attacker, 'Disarm') && damage > 0) target.damage = Math.max(0, target.damage - damage * 0.4)
+  if (hasAbility(runtime, attacker, 'Shiny Steal') && damage > 0 && target !== attacker) {
+    const stolenDamage = target.damage * 0.1
+    const stolenHp = target.maxHp * 0.1
+    target.damage = Math.max(0, target.damage - stolenDamage)
+    target.maxHp = Math.max(1, target.maxHp - stolenHp)
+    target.hp = Math.min(target.hp, target.maxHp)
+    attacker.damage += stolenDamage
+    attacker.maxHp += stolenHp
+    attacker.hp += stolenHp
+  }
 
   const flame = runtime.state.boosts[attacker.team].flameWizard
   if (!statusProtected(runtime, target.team) && flame && damage > 0 && runtime.rng.next() * 100 < flame) target.status.burn = 2
@@ -1061,6 +1133,7 @@ function applyOnDeath(runtime: Runtime, dead: CombatCard, opponent: CombatCard |
   if (opponent && alive(opponent) && hasAbility(runtime, opponent, 'All Father')) for (const card of runtime.state.teams[opponent.team]) boostStats(card, 1.25)
 
   if (!next || !name) return
+  if (dead.flags.suppressOnDeath) return
   if (name === 'Blessing') { next.damage += dead.damage / 2; next.maxHp += dead.maxHp / 2; next.hp += dead.maxHp / 2 }
   if (name === 'Heart Legacy') { next.maxHp += dead.maxHp; next.hp += dead.maxHp }
   if (name === 'Tonic') boostStats(next, 1.2)
@@ -1119,6 +1192,19 @@ function resolveDeaths(runtime: Runtime) {
       runtime.state.fallen[team].push(card)
       const opponent = active(runtime, OTHER_TEAM[team])
       applyOnDeath(runtime, card, opponent)
+
+      // Beyond The Grave is a bench/death trigger: a dead holder returns at half HP when a different ally dies.
+      const revenants = runtime.state.fallen[team].filter((fallen) =>
+        fallen !== card && ability(fallen) === 'Beyond The Grave' && fallen.hp <= 0
+      )
+      for (const revenant of revenants) {
+        const fallenIndex = runtime.state.fallen[team].indexOf(revenant)
+        if (fallenIndex >= 0) runtime.state.fallen[team].splice(fallenIndex, 1)
+        revenant.dead = false
+        revenant.hp = revenant.maxHp * 0.5
+        revenant.entered = false
+        runtime.state.teams[team].unshift(revenant)
+      }
       changed = true
     }
   }
@@ -1154,6 +1240,10 @@ function statusEnd(runtime: Runtime, attacker: CombatCard) {
   if ((attacker.counters.bleed || 0) > 0) {
     attacker.hp -= attacker.maxHp * 0.15
     attacker.counters.bleed -= 1
+  }
+  if ((attacker.counters.poisonTurns || 0) > 0) {
+    attacker.counters.poisonTurns -= 1
+    if (attacker.counters.poisonTurns <= 0) attacker.counters.poisonPercent = 0
   }
   if ((attacker.counters.frostbite || 0) > 0) {
     attacker.counters.frostbite -= 1
@@ -1260,9 +1350,104 @@ function attackCount(attacker: CombatCard): { count: number; mult: number } {
 
 function canNormalAttack(attacker: CombatCard): boolean {
   const name = ability(attacker)
-  if (name === 'Meow' || name === 'Never Forgotten') return false
+  if (name === 'Meow' || name === 'Never Forgotten' || name === 'Origin' || name === 'Laser Gun' || name === 'Lotus Sutra') return false
   if (name === 'Sky Drop') return Boolean(attacker.counters.drop && attacker.counters.drop % 2 === 0)
   return true
+}
+
+function doLotusSutra(runtime: Runtime, attacker: CombatCard) {
+  const fallen = runtime.state.fallen[attacker.team]
+  const deadAlly = [...fallen].reverse().find((card) => card !== attacker)
+  if (deadAlly) {
+    const index = fallen.indexOf(deadAlly)
+    if (index >= 0) fallen.splice(index, 1)
+    deadAlly.dead = false
+    deadAlly.hp = deadAlly.maxHp * 0.5
+    deadAlly.entered = false
+    runtime.state.teams[attacker.team].push(deadAlly)
+    return
+  }
+
+  const allies = runtime.state.teams[attacker.team].filter((card) => card !== attacker && alive(card))
+  const target = allies.sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0]
+  if (!target) return
+  target.hp = Math.min(target.maxHp, target.hp + target.maxHp * 0.5)
+  if (target.hp >= target.maxHp) {
+    const deck = runtime.state.teams[attacker.team]
+    const index = deck.indexOf(attacker)
+    if (index >= 0 && deck.length > 1) {
+      deck.splice(index, 1)
+      deck.push(attacker)
+    }
+  }
+}
+
+function doOrigin(runtime: Runtime, attacker: CombatCard) {
+  const enemyTeam = OTHER_TEAM[attacker.team]
+  for (let hit = 0; hit < 4; hit++) {
+    const deck = runtime.state.teams[enemyTeam].filter(alive)
+    if (!deck.length || !alive(attacker)) break
+    const target = deck[Math.floor(runtime.rng.next() * deck.length)]
+    dealDamage(runtime, attacker, target, 0.5)
+    resolveDeaths(runtime)
+  }
+}
+
+function doLaserGun(runtime: Runtime, attacker: CombatCard) {
+  if (!attacker.flags.laserCharged) {
+    attacker.flags.laserCharged = true
+    return
+  }
+  attacker.flags.laserCharged = false
+  const enemyTeam = OTHER_TEAM[attacker.team]
+  const targets = Math.min(3, (runtime.state.boosts[attacker.team].fossils || 0) + 1)
+  for (const target of runtime.state.teams[enemyTeam].slice(0, targets)) {
+    if (!alive(attacker) || !alive(target)) continue
+    dealDamage(runtime, attacker, target, 0.75)
+  }
+  resolveDeaths(runtime)
+}
+
+function applyCollateralAfterHit(runtime: Runtime, attacker: CombatCard, target: CombatCard, dealt: number) {
+  if (dealt <= 0) return
+  const enemyTeam = OTHER_TEAM[attacker.team]
+
+  if (hasAbility(runtime, attacker, 'Railgun')) {
+    const splash = Math.ceil(dealt * 0.3)
+    for (const enemy of runtime.state.teams[enemyTeam]) {
+      if (enemy.hp > 0) enemy.hp -= Math.min(enemy.hp, splash)
+    }
+  }
+
+  if (hasAbility(runtime, attacker, 'Outshine')) {
+    const deck = runtime.state.teams[enemyTeam]
+    const index = deck.indexOf(target)
+    const next = index >= 0 ? deck[index + 1] : deck[1]
+    if (next && next.hp > 0) {
+      const before = next.hp
+      next.hp -= Math.min(next.hp, dealt)
+      if (before > 0 && next.hp <= 0) next.flags.suppressOnDeath = true
+    }
+  }
+}
+
+function processTeamTurnAbilities(runtime: Runtime, movedTeam: BattleTeam, movedCard: CombatCard) {
+  const defendingTeam = OTHER_TEAM[movedTeam]
+  const dispel = active(runtime, defendingTeam)
+  if (dispel && alive(dispel) && hasAbility(runtime, dispel, 'Dispel') && alive(movedCard)) {
+    const drained = movedCard.damage * 0.2
+    movedCard.damage = Math.max(0, movedCard.damage - drained)
+    dispel.hp = Math.min(dispel.maxHp, dispel.hp + drained)
+  }
+
+  for (const healer of runtime.state.teams[movedTeam]) {
+    if (!alive(healer) || !hasAbility(runtime, healer, 'Healing Miracle') || healer === movedCard) continue
+    healer.counters.healingMiracle = (healer.counters.healingMiracle || 0) + 1
+    if (healer.counters.healingMiracle >= 3) {
+      healer.counters.healingMiracle = 0
+      healer.hp = Math.min(healer.maxHp, healer.hp + healer.maxHp)
+    }
+  }
 }
 
 function doTurn(runtime: Runtime, attacker: CombatCard) {
@@ -1283,6 +1468,10 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
 
   beforeAttack(runtime, attacker)
 
+  if (hasAbility(runtime, attacker, 'Lotus Sutra')) doLotusSutra(runtime, attacker)
+  else if (hasAbility(runtime, attacker, 'Origin')) doOrigin(runtime, attacker)
+  else if (hasAbility(runtime, attacker, 'Laser Gun')) doLaserGun(runtime, attacker)
+
   if (hasAbility(runtime, attacker, 'Chaos Destruction') && rand(runtime, attacker.team) > 0.5) {
     const deck = runtime.state.teams[enemyTeam]
     if (deck.length > 1) {
@@ -1300,7 +1489,8 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
     for (let i = 0; i < count; i++) {
       target = active(runtime, enemyTeam)
       if (!target || !alive(attacker)) break
-      dealDamage(runtime, attacker, target)
+      const dealt = dealDamage(runtime, attacker, target)
+      applyCollateralAfterHit(runtime, attacker, target, dealt)
       resolveDeaths(runtime)
       while (attacker.flags.insatiableAttack && alive(attacker) && active(runtime, enemyTeam)) {
         attacker.flags.insatiableAttack = false
@@ -1341,6 +1531,7 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
   if (hasAbility(runtime, attacker, 'Martial Will') && alive(attacker)) attacker.damage *= 1.3
 
   statusEnd(runtime, attacker)
+  processTeamTurnAbilities(runtime, attacker.team, attacker)
   resolveDeaths(runtime)
 }
 

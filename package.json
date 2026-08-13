@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "test:engine": "tsx scripts/engine-smoke.ts",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -15,7 +16,8 @@
     "react": "latest",
     "react-dom": "latest",
     "@types/react": "latest",
-    "@types/react-dom": "latest"
+    "@types/react-dom": "latest",
+    "tsx": "latest"
   },
   "devDependencies": {}
 }

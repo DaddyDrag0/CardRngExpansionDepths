@@ -1,0 +1,45 @@
+name: Apply current simulator fixes
+
+on:
+  push:
+    paths:
+      - 'scripts/apply-current-fixes.mjs'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm install --no-audit --no-fund
+      - name: Apply source-aligned fixes
+        run: node scripts/apply-current-fixes.mjs
+      - name: Typecheck/build
+        run: npm run build
+      - name: Engine regressions
+        run: npm run test:engine
+      - name: Depths regressions
+        run: npm run test:depths
+      - name: Anubis regression
+        run: npx --no-install tsx scripts/anubis-regression.ts
+      - name: Rebuild browser worker
+        run: npx --no-install esbuild src/browser-worker.ts --bundle --format=iife --platform=browser --target=es2020 --minify --outfile=browser/depths-worker.js
+      - name: Commit generated fixes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src browser/depths-worker.js index.html scripts/anubis-regression.ts
+          if git diff --cached --quiet; then
+            echo "No generated changes to commit."
+          else
+            git commit -m "Add Depths loss debugging and source-aligned Anubis revive"
+            git push
+          fi

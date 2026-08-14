@@ -19,6 +19,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Guard A Pair copies from recursive summons
+        if: github.event_name == 'push' && github.event.head_commit.message == 'Apply pair clone recursion guard'
+        run: python -c "p='src/engine/battle-v2.ts';s=open(p).read();o='    flags: {},\n    counters: { normalDamage: source.damage * fraction },';n='    flags: { paired: true },\n    counters: { normalDamage: source.damage * fraction },';assert o in s;open(p,'w').write(s.replace(o,n,1))"
       - run: npm install
       - run: npm run build
       - run: npm run test:engine
@@ -50,15 +53,15 @@ jobs:
       - name: Bundle browser simulation worker
         if: github.event_name == 'push'
         run: npx esbuild src/browser-worker.ts --bundle --platform=browser --format=iife --target=es2020 --minify --outfile=browser/depths-worker.js
-      - name: Commit browser simulation bundle
+      - name: Commit browser simulation bundle and engine fix
         if: github.event_name == 'push'
         run: |
           git config user.name "Drago"
           git config user.email "dragoidc3@gmail.com"
-          git add browser/depths-worker.js
+          git add browser/depths-worker.js src/engine/battle-v2.ts
           if git diff --cached --quiet; then
-            echo "Browser bundle unchanged."
+            echo "Browser bundle and engine unchanged."
             exit 0
           fi
-          git commit -m "Build browser simulation bundle"
+          git commit -m "Prevent recursive A Pair of Two summons"
           git push

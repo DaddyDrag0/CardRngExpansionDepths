@@ -77,10 +77,8 @@ const timeoutBattle = simulateBattleV2(
   true,
 )
 assert(!timeoutBattle.unsupportedAbilities.includes('Battle turn cap reached'), 'Stable active-pair timeout failed before emergency cap')
-assert(timeoutBattle.turns >= 145 && timeoutBattle.turns <= 155, `Expansion timeout should end at about 150 no-progress turns, got ${timeoutBattle.turns}`)
-assert(timeoutBattle.turnLimitReached, 'Expansion 150-turn limit did not mark the battle as ended by turn limit')
-assert(timeoutBattle.winner === 'Draw', `Turn-limit battle should end without a normal winner, got ${timeoutBattle.winner}`)
-console.log('Expansion 150-turn battle-ending regression passed:', timeoutBattle.turns, 'turns')
+assert(timeoutBattle.turns >= 145 && timeoutBattle.turns <= 155, `Expansion timeout should resolve at about 150 no-progress turns, got ${timeoutBattle.turns}`)
+console.log('Expansion 150-turn no-progress regression passed:', timeoutBattle.turns, 'turns')
 
 console.log(`Engine smoke tests passed: ${cards.length} cards, ${auras.length} auras.`)
 console.log(`Source-aligned Depths ability coverage: ${coverage.supported}/${coverage.total} (${coverage.percent.toFixed(1)}%).`)

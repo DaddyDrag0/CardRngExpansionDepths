@@ -25,7 +25,7 @@ interface SingleRunRequest {
 type SimulationRequest = BatchRequest | SingleRunRequest
 
 const STALL_WATCHDOG_MS = 20_000
-const LIVE_BATTLE_TURN_CAP = 5_000
+const LIVE_BATTLE_TURN_CAP = 10_000
 
 function runSeed(batchSeed: number, runIndex: number): number {
   const rng = new SeededRng(batchSeed)

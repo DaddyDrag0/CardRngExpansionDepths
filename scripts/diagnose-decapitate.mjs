@@ -7,3 +7,4 @@ if(!s.includes(before)) throw new Error('Decapitate block not found')
 s=s.replace(before,after)
 fs.writeFileSync(path,s)
 console.log('Disabled Decapitate kill reward for diagnostic only')
+// rerun after diagnostic ts exists

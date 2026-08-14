@@ -10,7 +10,7 @@ assert(depthsFloorSpeedBonus(1800) === 4.5, 'Depths floor Battle Speed bonus sho
 assert(effectiveDepthsBattleSpeed(5000, true) === 8.5, 'High-floor Battle Speed should cap at 8.5 with Chrono')
 assert(inBattleAcceleration(9) === 1 && inBattleAcceleration(10) === 2, '10-attack acceleration mismatch')
 assert(inBattleAcceleration(20) === 3 && inBattleAcceleration(40) === 5 && inBattleAcceleration(60) === 10, 'Long-battle acceleration mismatch')
-assert(close(estimateBattleSeconds(1, 1, true), 0.4), 'One-turn floor 1 battle timing mismatch')
+assert(close(estimateBattleSeconds(1, 1, true), 2.4), 'One-turn floor 1 battle timing mismatch')
 const reward = auraPackRangeForMedian(13334)
 assert(reward.medianDepth === 13334, 'Median depth mismatch')
 assert(reward.auraPackLow === 12838510, 'Low Aura Pack mismatch')

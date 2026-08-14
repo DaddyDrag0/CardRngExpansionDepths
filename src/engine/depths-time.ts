@@ -8,9 +8,15 @@
  * BattleClient also accelerates long fights by multiplying animation speed after
  * the 10th/20th/40th/60th Attack event by 2x/3x/5x/10x respectively.
  *
+ * The Depths loop also waits on the player's `battlecd` attribute after every
+ * battle before requesting the next floor. The client does not contain the
+ * server-side duration for that attribute, so INTER_FLOOR_OVERHEAD_SECONDS is
+ * calibrated to observed live Depths pacing (~4 seconds/floor around high Depths).
+ *
  * We approximate a normal attack animation as 1.1 seconds at 1x speed from the
  * main attack path (0.1 approach + 0.3 hit pause + 0.2 return + 0.5 settle), plus
- * a 0.5-second battle-start settle. Ability-specific animations can add variance.
+ * a 0.5-second battle-start settle. Ability-specific animation waits are not yet
+ * modeled individually and can still add some variance.
  */
 export const DEPTHS_BASE_BATTLE_SPEED = 3
 export const CHRONO_SHARD_BONUS = 1
@@ -19,6 +25,7 @@ export const DEPTHS_FLOOR_SPEED_STEP_FLOORS = 100
 export const DEPTHS_FLOOR_SPEED_BONUS_CAP = 4.5
 export const BASE_ATTACK_ANIMATION_SECONDS = 1.1
 export const BASE_BATTLE_START_SECONDS = 0.5
+export const INTER_FLOOR_OVERHEAD_SECONDS = 3
 
 export function depthsFloorSpeedBonus(floor: number): number {
   const safeFloor = Math.max(1, Math.floor(Number(floor) || 1))
@@ -59,7 +66,9 @@ function attackAnimationSecondsForCount(turns: number, effectiveSpeed: number): 
 
 export function estimateBattleSeconds(floor: number, turns: number, chronoShard = true): number {
   const speed = effectiveDepthsBattleSpeed(floor, chronoShard)
-  return BASE_BATTLE_START_SECONDS / speed + attackAnimationSecondsForCount(turns, speed)
+  return INTER_FLOOR_OVERHEAD_SECONDS
+    + BASE_BATTLE_START_SECONDS / speed
+    + attackAnimationSecondsForCount(turns, speed)
 }
 
 /** Estimate a full run using the batch's observed average turns per battle. */

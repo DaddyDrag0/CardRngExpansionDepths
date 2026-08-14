@@ -96,13 +96,13 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
       }
 
       const runIndex = nextRun++
-      const exactRunSeed = runSeed(request.seed, runIndex)
       let lastFloor = 1
+      let lastForwardedAt = 0
       let watchdog: ReturnType<typeof setTimeout> | null = null
       const armWatchdog = () => {
         if (watchdog) clearTimeout(watchdog)
         watchdog = setTimeout(() => {
-          fail(new Error(`Simulation stalled on run ${runIndex + 1}/${runs} near floor ${lastFloor}. No floor progress for ${STALL_WATCHDOG_MS / 1000}s. Batch seed ${request.seed}; run seed ${exactRunSeed}.`))
+          fail(new Error(`Simulation stalled on run ${runIndex + 1}/${runs} near floor ${lastFloor}. No floor progress for ${STALL_WATCHDOG_MS / 1000}s. Batch seed ${request.seed}; run seed ${runSeed(request.seed, runIndex)}.`))
         }, STALL_WATCHDOG_MS)
       }
       armWatchdog()
@@ -110,8 +110,23 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
       worker.onmessage = (event: MessageEvent) => {
         const message = event.data
         if (message?.kind === 'progress') {
-          lastFloor = Number(message.floor) || lastFloor
-          armWatchdog()
+          const nextFloorValue = Number(message.floor) || lastFloor
+          if (nextFloorValue !== lastFloor) {
+            lastFloor = nextFloorValue
+            armWatchdog()
+          }
+          const now = performance.now()
+          if (now - lastForwardedAt >= 100) {
+            lastForwardedAt = now
+            self.postMessage({
+              kind: 'progress',
+              id: request.id,
+              completedRuns: completed,
+              totalRuns: runs,
+              runIndex,
+              floor: lastFloor,
+            })
+          }
           return
         }
 
@@ -122,6 +137,14 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
         }
         results[runIndex] = message.result
         completed += 1
+        self.postMessage({
+          kind: 'progress',
+          id: request.id,
+          completedRuns: completed,
+          totalRuns: runs,
+          runIndex,
+          floor: message.result?.deathFloor || lastFloor,
+        })
         dispatch(worker)
         finishIfDone()
       }

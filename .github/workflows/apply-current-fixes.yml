@@ -3,7 +3,7 @@ name: Apply current simulator fixes
 on:
   push:
     paths:
-      - 'scripts/apply-current-fixes-v4.mjs'
+      - 'scripts/optimize-loss-debug.mjs'
 
 permissions:
   contents: write
@@ -20,8 +20,8 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm install --no-audit --no-fund
-      - name: Apply source-aligned fixes
-        run: node scripts/apply-current-fixes-v4.mjs
+      - name: Apply debug optimization
+        run: node scripts/optimize-loss-debug.mjs
       - name: Typecheck/build
         run: npm run build
       - name: Engine regressions
@@ -36,10 +36,10 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src browser/depths-worker.js index.html scripts/engine-smoke.ts scripts/anubis-regression.ts
+          git add src browser/depths-worker.js scripts/anubis-regression.ts
           if git diff --cached --quiet; then
             echo "No generated changes to commit."
           else
-            git commit -m "Add Depths loss debugging and source-aligned Anubis revive"
+            git commit -m "Capture debug only for the losing battle"
             git push
           fi

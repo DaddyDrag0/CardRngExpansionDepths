@@ -59,7 +59,7 @@ export function simulateDepthsRun(
   let battles = 0
 
   for (let floor = startFloor; floor <= floorCap; floor++) {
-    if (onProgress && (floor === startFloor || floor % 10 === 0)) onProgress(floor)
+    onProgress?.(floor)
     const floorSeed = mixSeed(runSeed, floor)
     const enemies = generateDepthsTeam(floor, floorSeed)
     const hasTurnCap = Number.isFinite(options.battleTurnCap)

@@ -17,7 +17,7 @@ replaceOnce(
 replaceOnce(
   'src/types.ts',
   `  trusted: boolean\n  debug?: BattleDebug`,
-  `  trusted: boolean\n  turnLimitReached: boolean\n  debug?: BattleDebug`,
+  `  trusted: boolean\n  turnLimitReached?: boolean\n  debug?: BattleDebug`,
   'battle result turn-limit flag',
 )
 

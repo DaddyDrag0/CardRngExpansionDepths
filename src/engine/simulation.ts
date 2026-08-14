@@ -38,7 +38,7 @@ export interface DepthsBatchOptions extends DepthsSimulationOptions {
   runs?: number
 }
 
-export type DepthsProgressCallback = (floor: number) => void
+export type DepthsProgressCallback = (floor: number, battleTurn?: number) => void
 
 function mixSeed(runSeed: number, floor: number): number {
   let x = (runSeed ^ Math.imul(floor, 0x9e3779b1)) >>> 0
@@ -68,7 +68,10 @@ export function simulateDepthsRun(
     const enemies = generateDepthsTeam(floor, floorSeed)
     const hasTurnCap = Number.isFinite(options.battleTurnCap)
     const maxTurns = hasTurnCap ? Math.max(1, Math.floor(options.battleTurnCap as number)) : Number.POSITIVE_INFINITY
-    const battle = simulateBattleV2(loadout, enemies, floorSeed ^ 0x51ed270b, maxTurns, hasTurnCap)
+    const battle = simulateBattleV2(
+      loadout, enemies, floorSeed ^ 0x51ed270b, maxTurns, hasTurnCap, false,
+      (battleTurn) => onProgress?.(floor, battleTurn),
+    )
     battles += 1
     totalTurns += battle.turns
     for (const ability of battle.unsupportedAbilities) unsupported.add(ability)
@@ -76,7 +79,10 @@ export function simulateDepthsRun(
     if (battle.winner !== 'Allies') {
       // Re-run only the losing battle with tracing enabled. This keeps thousands of
       // winning floors fast while still making the exact loss fully inspectable.
-      const debugBattle = simulateBattleV2(loadout, enemies, floorSeed ^ 0x51ed270b, maxTurns, hasTurnCap, true)
+      const debugBattle = simulateBattleV2(
+        loadout, enemies, floorSeed ^ 0x51ed270b, maxTurns, hasTurnCap, true,
+        (battleTurn) => onProgress?.(floor, battleTurn),
+      )
       onProgress?.(floor)
       return {
         deathFloor: floor,

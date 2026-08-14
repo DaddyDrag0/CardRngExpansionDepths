@@ -54,7 +54,7 @@ function summarize(results: DepthsRunResult[]) {
   }
 }
 
-function simulateOne(request: SingleRunRequest, onProgress?: (floor: number) => void): DepthsRunResult {
+function simulateOne(request: SingleRunRequest, onProgress?: (floor: number, battleTurn?: number) => void): DepthsRunResult {
   return simulateDepthsRun(request.loadout, {
     floorCap: request.floorCap,
     seed: runSeed(request.batchSeed, request.runIndex),
@@ -97,12 +97,14 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
 
       const runIndex = nextRun++
       let lastFloor = 1
+      let lastBattleTurn = 0
       let lastForwardedAt = 0
       let watchdog: ReturnType<typeof setTimeout> | null = null
       const armWatchdog = () => {
         if (watchdog) clearTimeout(watchdog)
         watchdog = setTimeout(() => {
-          fail(new Error(`Simulation stalled on run ${runIndex + 1}/${runs} near floor ${lastFloor}. No floor progress for ${STALL_WATCHDOG_MS / 1000}s. Batch seed ${request.seed}; run seed ${runSeed(request.seed, runIndex)}.`))
+          const turnText = lastBattleTurn > 0 ? ` around battle turn ${lastBattleTurn}` : ''
+          fail(new Error(`Simulation stalled on run ${runIndex + 1}/${runs} near floor ${lastFloor}${turnText}. No simulation progress for ${STALL_WATCHDOG_MS / 1000}s. Batch seed ${request.seed}; run seed ${runSeed(request.seed, runIndex)}.`))
         }, STALL_WATCHDOG_MS)
       }
       armWatchdog()
@@ -111,8 +113,15 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
         const message = event.data
         if (message?.kind === 'progress') {
           const nextFloorValue = Number(message.floor) || lastFloor
-          if (nextFloorValue !== lastFloor) {
+          const nextBattleTurn = Math.max(0, Number(message.battleTurn) || 0)
+          const floorAdvanced = nextFloorValue !== lastFloor
+          const turnAdvanced = !floorAdvanced && nextBattleTurn > lastBattleTurn
+          if (floorAdvanced) {
             lastFloor = nextFloorValue
+            lastBattleTurn = nextBattleTurn
+            armWatchdog()
+          } else if (turnAdvanced) {
+            lastBattleTurn = nextBattleTurn
             armWatchdog()
           }
           const now = performance.now()
@@ -125,6 +134,7 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
               totalRuns: runs,
               runIndex,
               floor: lastFloor,
+              battleTurn: lastBattleTurn || undefined,
             })
           }
           return
@@ -179,12 +189,13 @@ self.onmessage = async (event: MessageEvent<SimulationRequest>) => {
   const started = performance.now()
   try {
     if (request.kind === 'single-run') {
-      const result = simulateOne(request, (floor) => {
+      const result = simulateOne(request, (floor, battleTurn) => {
         self.postMessage({
           kind: 'progress',
           id: request.id,
           runIndex: request.runIndex,
           floor,
+          battleTurn,
         })
       })
       self.postMessage({ id: request.id, ok: true, elapsedMs: performance.now() - started, result })

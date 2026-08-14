@@ -2415,6 +2415,7 @@ export function simulateBattleV2(
   maxTurns = 2_000,
   markTurnCap = false,
   captureDebug = false,
+  onProgress?: (turn: number) => void,
 ): BattleResult {
   const state = createBattleStateV2(loadout, enemies)
   const debug: BattleDebug = {
@@ -2433,6 +2434,10 @@ export function simulateBattleV2(
   let lastTarget: CombatCard | undefined
   while (state.teams.Allies.length && state.teams.Enemies.length && state.turn < maxTurns) {
     state.turn += 1
+    // Heartbeat for the outer browser watchdog. This is intentionally sparse so
+    // normal fast battles do not spam worker messages, while long battles still
+    // prove that the engine is actively advancing.
+    if (state.turn % 5 === 0) onProgress?.(state.turn)
     let attacker = active(runtime, state.moving)
     let defender = active(runtime, OTHER_TEAM[state.moving])
     if (!attacker || !defender) break
@@ -2448,14 +2453,14 @@ export function simulateBattleV2(
     turnsWithoutDeaths += 1
     if (attacker !== lastMover && attacker !== lastTarget) turnsWithoutDeaths = 0
     if (defender !== lastMover && defender !== lastTarget) turnsWithoutDeaths = 0
-    if (turnsWithoutDeaths >= 100) {
+    if (turnsWithoutDeaths >= 150) {
       debug.forcedStallResolutions += 1
       if (runtime.captureDebug) pushDebugEvent(runtime, {
         turn: state.turn,
         type: 'stall',
         team: state.moving,
         card: effectiveCardName(attacker) || attacker.definition.name,
-        detail: `OG-server 100-turn no-progress resolution vs ${effectiveCardName(defender) || defender.definition.name}: both active cards defeated`,
+        detail: `Expansion 150-turn no-progress resolution vs ${effectiveCardName(defender) || defender.definition.name}: both active cards defeated`,
         hp: attacker.hp, maxHp: attacker.maxHp, damage: attacker.damage,
       })
       attacker.hp = 0

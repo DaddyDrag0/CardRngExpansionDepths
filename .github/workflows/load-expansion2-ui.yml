@@ -1,0 +1,31 @@
+name: Load Expansion 2 cards in UI
+
+on:
+  push:
+    paths:
+      - 'scripts/load-expansion2-ui.mjs'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: node scripts/load-expansion2-ui.mjs
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          if git diff --cached --quiet; then
+            echo "No changes."
+          else
+            git commit -m "Load Expansion 2 cards in calculator UI"
+            git push
+          fi

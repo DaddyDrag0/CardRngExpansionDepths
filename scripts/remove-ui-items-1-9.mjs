@@ -32,9 +32,7 @@ replaceOnce(
   'enemy roll helper',
 )
 
-// Remove 5: normal-state run helper/diagnostic line entirely. Keep the running-state
-// technical warning because it only appears while a simulation is active and is
-// functional status/error context, not decorative copy.
+// Remove 5: normal-state run helper entirely.
 replaceOnce(
   'index.html',
   `<p class="sim-footnote">${'${'}state.running?\`Runs execute in parallel. Long battles show the exact enemy lineup; 150-turn no-progress matchups resolve using the previous behavior; any battle that reaches 10,000 total turns ends as a loss instead of hanging.\`:\`1 run is fastest. More runs give a better estimate.\`}</p>`,
@@ -42,8 +40,7 @@ replaceOnce(
   'run helper line',
 )
 
-// Remove 6+7: no TRUSTED/CHECK badge and no Verified/Simulation heading. Leave only
-// the team label in the result header.
+// Remove 6+7: result verification heading and trust badge text.
 replaceOnce(
   'index.html',
   `<div class="result-head"><div><span class="kicker">TEAM ${'${'}index+1}</span><h4>${'${'}r.trusted?'Simulation':'Simulation warning'}</h4></div></div>`,
@@ -51,8 +48,7 @@ replaceOnce(
   'result verification heading',
 )
 
-// Remove 8 from the range card. Preserve the requested median as a standalone card
-// instead of helper copy attached to the old AI-looking text.
+// Remove 8 from the range card, while keeping median as its own requested result.
 replaceOnce(
   'index.html',
   `<div class="result-metrics"><div><span>Estimated Depth range</span><b>${'${'}full(r.estimatedFloorLow)} – ${'${'}full(r.estimatedFloorHigh)}</b><small>Median: ${'${'}one(r.medianFloor)}</small></div><div title="${'${'}full(r.auraPackLow)} – ${'${'}full(r.auraPackHigh)} Aura Packs">`,
@@ -60,7 +56,7 @@ replaceOnce(
   'range helper to standalone median',
 )
 
-// Remove 9 entirely rather than rewording it.
+// Remove 9 entirely.
 replaceOnce(
   'index.html',
   `<footer><span>Card RNG Expansion Depths Calculator</span><span>Great / Mighty / Almighty excluded</span></footer>`,
@@ -68,20 +64,11 @@ replaceOnce(
   'excluded borders footer text',
 )
 
-// Remove the old CSS that only supported UI items which no longer exist.
 let html=fs.readFileSync('index.html','utf8')
 html=html.replace(/\.status-chip\{[^}]*\}/g,'')
 html=html.replace(/\.sim-note\{[^}]*\}/g,'')
 html=html.replace(/\.sim-note b\{[^}]*\}/g,'')
 html=html.replace(/\.trust\{[^}]*\}\.trust\.ok\{[^}]*\}\.trust\.warn\{[^}]*\}/g,'')
 fs.writeFileSync('index.html',html)
-
-// CI used to require the enemy-roll helper copy. Remove that text dependency.
-let ci=fs.readFileSync('.github/workflows/engine-check.yml','utf8')
-const old=`const requiredUiHooks = ["new Worker('./browser/depths-worker.js')", 'CRE1-', 'Most common losing-floor enemies', 'crypto.getRandomValues', 'Random enemies every test']`
-const next=`const requiredUiHooks = ["new Worker('./browser/depths-worker.js')", 'CRE1-', 'Most common losing-floor enemies', 'crypto.getRandomValues']`
-if(!ci.includes(old)) throw new Error('CI requiredUiHooks line not found')
-ci=ci.replace(old,next)
-fs.writeFileSync('.github/workflows/engine-check.yml',ci)
 
 console.log('Removed UI items 1-9 completely; kept #10 and standalone Median Depth result.')

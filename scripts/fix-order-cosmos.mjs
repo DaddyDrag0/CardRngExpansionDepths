@@ -10,14 +10,21 @@ function patch(path, edits) {
   fs.writeFileSync(path, text)
 }
 
-patch('src/types.ts', [[
+patch('src/types.ts', [
+[
 `  composerThreshold?: number
 }`,
 `  composerThreshold?: number
   noAbilities?: number
 }`,
 'BattleBoosts noAbilities type',
-]])
+],
+[
+`  type: 'turn' | 'death' | 'revive' | 'stall'`,
+`  type: 'turn' | 'death' | 'revive' | 'stall' | 'spawn'`,
+'BattleDebug spawn event type',
+],
+])
 
 patch('src/engine/battle-v2.ts', [
 [

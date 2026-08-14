@@ -538,6 +538,16 @@ function onEntry(runtime: Runtime, card: CombatCard) {
       if (gained !== "Pandora's Box" && !chosen.includes(gained)) chosen.push(gained)
     }
     card.bonusAbilities = chosen
+    if (runtime.captureDebug) pushDebugEvent(runtime, {
+      turn: runtime.state.turn,
+      type: 'ability',
+      team: card.team,
+      card: effectiveCardName(card) || card.definition.name,
+      detail: `Pandora's Box rolled: ${chosen.join(' + ') || 'No abilities'}`,
+      hp: card.hp,
+      maxHp: card.maxHp,
+      damage: card.damage,
+    })
     for (const gained of chosen) {
       withAbility(card, gained, () => {
         card.entered = false

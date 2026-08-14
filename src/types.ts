@@ -120,7 +120,7 @@ export interface BattleDebugCard {
 
 export interface BattleDebugEvent {
   turn: number
-  type: 'turn' | 'death' | 'revive' | 'stall' | 'spawn'
+  type: 'turn' | 'death' | 'revive' | 'stall' | 'spawn' | 'ability'
   team: BattleTeam
   card: string
   detail: string

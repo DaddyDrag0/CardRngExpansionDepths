@@ -2,6 +2,7 @@ import cards from '../data/cards'
 import { cardAge } from '../data/ages'
 import type {
   BattleBoosts,
+  BattleDebug,
   BattleResult,
   BattleState,
   BattleTeam,
@@ -107,6 +108,23 @@ const RANDOM_CARD_POOL = cards.filter((card) =>
 interface Runtime {
   state: BattleState
   rng: SeededRng
+  debug: BattleDebug
+}
+
+function debugCard(card: CombatCard) {
+  return {
+    name: effectiveCardName(card) || card.definition.name,
+    ability: ability(card),
+    hp: card.hp,
+    maxHp: card.maxHp,
+    damage: card.damage,
+    power: card.power,
+  }
+}
+
+function pushDebugEvent(runtime: Runtime, event: BattleDebug['events'][number]) {
+  if (runtime.debug.events.length >= 300) runtime.debug.events.shift()
+  runtime.debug.events.push(event)
 }
 
 function definition(name: string) {
@@ -1806,10 +1824,22 @@ function resolveDeaths(runtime: Runtime) {
         continue
       }
 
+      const canBeyondTheGrave = hasAbility(runtime, card, 'Beyond The Grave') && !card.flags.beyondGraveRevived
+
       deck.shift()
       card.hp = 0
       card.dead = true
       runtime.state.fallen[team].push(card)
+      pushDebugEvent(runtime, {
+        turn: runtime.state.turn,
+        type: 'death',
+        team,
+        card: effectiveCardName(card) || card.definition.name,
+        detail: 'Card defeated',
+        hp: 0,
+        maxHp: card.maxHp,
+        damage: card.damage,
+      })
 
       if (!card.flags.mirrorImageReturned) {
         for (let index = runtime.state.fallen[team].length - 1; index >= 0; index--) {
@@ -1828,26 +1858,39 @@ function resolveDeaths(runtime: Runtime) {
       const opponent = active(runtime, OTHER_TEAM[team])
       applyOnDeath(runtime, card, opponent)
 
-      const revenants = runtime.state.fallen[team].filter((fallen) =>
-        fallen !== card && abilityNames(fallen).includes('Beyond The Grave') && fallen.hp <= 0
-      )
-      for (const revenant of revenants) {
-        // Two Beyond The Grave cards can otherwise revive each other forever.
-        // Carry a chain counter only when one Beyond The Grave holder revives another;
-        // unrelated ally deaths reset the chain. Resolve the pathological cycle at
-        // the same 150-turn scale used by the source battle timeout.
-        const beyondGraveChain = abilityNames(card).includes('Beyond The Grave')
-          ? (card.counters.beyondGraveChain || 0) + 1
-          : 1
-        if (beyondGraveChain >= 150) continue
-        const fallenIndex = runtime.state.fallen[team].indexOf(revenant)
+      if (canBeyondTheGrave) {
+        // OG server source: the dying Anubis revives ITSELF once. A fresh card is
+        // rebuilt from Name/Border/Power, so temporary/aura stat changes do not carry over.
+        const baseMaxHp = card.power * (card.definition.hpMultiplier || 1)
+        const baseDamage = card.power / 2
+        const fallenIndex = runtime.state.fallen[team].indexOf(card)
         if (fallenIndex >= 0) runtime.state.fallen[team].splice(fallenIndex, 1)
-        revenant.dead = false
-        revenant.hp = revenant.maxHp * 0.5
-        revenant.entered = false
-        revenant.counters.beyondGraveChain = beyondGraveChain
-        // Expansion BattleClient appends Beyond The Grave revivals to the end of the team.
-        runtime.state.teams[team].push(revenant)
+        const revived: CombatCard = {
+          ...card,
+          id: `${card.id}:btg`,
+          hp: baseMaxHp / 2,
+          maxHp: baseMaxHp,
+          damage: baseDamage,
+          entered: false,
+          dead: false,
+          identityOverride: undefined,
+          abilityOverride: undefined,
+          bonusAbilities: undefined,
+          status: { stunned: 0, confused: 0, burn: 0, weakness: false, blind: false, shield: 0 },
+          flags: { beyondGraveRevived: true },
+          counters: { normalDamage: baseDamage, normalMaxHp: baseMaxHp },
+        }
+        runtime.state.teams[team].push(revived)
+        pushDebugEvent(runtime, {
+          turn: runtime.state.turn,
+          type: 'revive',
+          team,
+          card: revived.definition.name,
+          detail: 'Beyond The Grave: one self-revive at half BASE HP; battle/aura stat changes reset',
+          hp: revived.hp,
+          maxHp: revived.maxHp,
+          damage: revived.damage,
+        })
       }
       changed = true
     }
@@ -2340,8 +2383,15 @@ export function simulateBattleV2(
   markTurnCap = false,
 ): BattleResult {
   const state = createBattleStateV2(loadout, enemies)
-  const runtime: Runtime = { state, rng: new SeededRng(seed) }
+  const debug: BattleDebug = {
+    initialAllies: [], initialEnemies: [], finalAllies: [], finalEnemies: [], events: [], forcedStallResolutions: 0,
+    statAura: loadout.statAura ? { name: loadout.statAura.auraName, border: loadout.statAura.border || null, value: state.boosts.Allies.statAuraValue } : undefined,
+    abilityAura: loadout.abilityAura ? { name: loadout.abilityAura.auraName, border: loadout.abilityAura.border || null, value: state.boosts.Allies.skillAuraValue } : undefined,
+  }
+  const runtime: Runtime = { state, rng: new SeededRng(seed), debug }
   resolveConstellarArts(runtime)
+  debug.initialAllies = state.teams.Allies.map(debugCard)
+  debug.initialEnemies = state.teams.Enemies.map(debugCard)
   let turnsWithoutDeaths = 0
   let lastMover: CombatCard | undefined
   let lastTarget: CombatCard | undefined
@@ -2362,7 +2412,16 @@ export function simulateBattleV2(
     turnsWithoutDeaths += 1
     if (attacker !== lastMover && attacker !== lastTarget) turnsWithoutDeaths = 0
     if (defender !== lastMover && defender !== lastTarget) turnsWithoutDeaths = 0
-    if (turnsWithoutDeaths >= 150) {
+    if (turnsWithoutDeaths >= 100) {
+      debug.forcedStallResolutions += 1
+      pushDebugEvent(runtime, {
+        turn: state.turn,
+        type: 'stall',
+        team: state.moving,
+        card: effectiveCardName(attacker) || attacker.definition.name,
+        detail: `OG-server 100-turn no-progress resolution vs ${effectiveCardName(defender) || defender.definition.name}: both active cards defeated`,
+        hp: attacker.hp, maxHp: attacker.maxHp, damage: attacker.damage,
+      })
       attacker.hp = 0
       defender.hp = 0
       resolveDeaths(runtime)
@@ -2370,6 +2429,14 @@ export function simulateBattleV2(
     }
     lastMover = attacker
     lastTarget = defender
+    pushDebugEvent(runtime, {
+      turn: state.turn,
+      type: 'turn',
+      team: state.moving,
+      card: effectiveCardName(attacker) || attacker.definition.name,
+      detail: `vs ${effectiveCardName(defender) || defender.definition.name} | attacker ${Math.ceil(attacker.hp)}/${Math.ceil(attacker.maxHp)} HP ${Math.ceil(attacker.damage)} ATK | defender ${Math.ceil(defender.hp)}/${Math.ceil(defender.maxHp)} HP ${Math.ceil(defender.damage)} ATK`,
+      hp: attacker.hp, maxHp: attacker.maxHp, damage: attacker.damage,
+    })
 
     doTurn(runtime, attacker)
     processDivination(runtime)
@@ -2406,5 +2473,7 @@ export function simulateBattleV2(
     ? state.teams.Enemies.length ? 'Draw' : 'Allies'
     : state.teams.Enemies.length ? 'Enemies' : 'Draw'
   const unsupportedAbilities = [...state.unsupportedAbilities].sort()
-  return { winner, turns: state.turn, state, unsupportedAbilities, trusted: unsupportedAbilities.length === 0 }
+  debug.finalAllies = state.teams.Allies.map(debugCard)
+  debug.finalEnemies = state.teams.Enemies.map(debugCard)
+  return { winner, turns: state.turn, state, unsupportedAbilities, trusted: unsupportedAbilities.length === 0, debug }
 }

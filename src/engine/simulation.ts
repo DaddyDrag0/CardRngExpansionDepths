@@ -1,4 +1,4 @@
-import type { TeamLoadout } from '../types'
+import type { BattleDebug, TeamLoadout } from '../types'
 import { generateDepthsTeam } from './depths'
 import { SeededRng } from './rng'
 import { simulateBattleV2 } from './battle-v2'
@@ -11,6 +11,10 @@ export interface DepthsRunResult {
   endingEnemies: string[]
   trusted: boolean
   unsupportedAbilities: string[]
+  runSeed: number
+  floorSeed?: number
+  battleSeed?: number
+  debug?: BattleDebug
 }
 
 export interface DepthsBatchResult {
@@ -79,6 +83,10 @@ export function simulateDepthsRun(
         endingEnemies: enemies.map((enemy) => enemy.card.name),
         trusted: unsupported.size === 0,
         unsupportedAbilities: [...unsupported].sort(),
+        runSeed,
+        floorSeed,
+        battleSeed: floorSeed ^ 0x51ed270b,
+        debug: battle.debug,
       }
     }
   }
@@ -92,6 +100,7 @@ export function simulateDepthsRun(
     endingEnemies: [],
     trusted: unsupported.size === 0,
     unsupportedAbilities: [...unsupported].sort(),
+    runSeed,
   }
 }
 

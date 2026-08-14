@@ -108,10 +108,42 @@ export interface BattleState {
   unsupportedAbilities: Set<string>
 }
 
+export interface BattleDebugCard {
+  name: string
+  ability: string | null
+  hp: number
+  maxHp: number
+  damage: number
+  power: number
+}
+
+export interface BattleDebugEvent {
+  turn: number
+  type: 'turn' | 'death' | 'revive' | 'stall'
+  team: BattleTeam
+  card: string
+  detail: string
+  hp?: number
+  maxHp?: number
+  damage?: number
+}
+
+export interface BattleDebug {
+  initialAllies: BattleDebugCard[]
+  initialEnemies: BattleDebugCard[]
+  finalAllies: BattleDebugCard[]
+  finalEnemies: BattleDebugCard[]
+  events: BattleDebugEvent[]
+  forcedStallResolutions: number
+  statAura?: { name: string; border: AuraBorderName | null; value?: number }
+  abilityAura?: { name: string; border: AuraBorderName | null; value?: number }
+}
+
 export interface BattleResult {
   winner: BattleTeam | 'Draw'
   turns: number
   state: BattleState
   unsupportedAbilities: string[]
   trusted: boolean
+  debug?: BattleDebug
 }

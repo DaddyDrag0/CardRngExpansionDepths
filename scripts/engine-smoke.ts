@@ -77,8 +77,8 @@ const timeoutBattle = simulateBattleV2(
   true,
 )
 assert(!timeoutBattle.unsupportedAbilities.includes('Battle turn cap reached'), 'Stable active-pair timeout failed before emergency cap')
-assert(timeoutBattle.turns >= 145 && timeoutBattle.turns <= 155, `Source-aligned timeout should resolve at about 150 total turns, got ${timeoutBattle.turns}`)
-console.log('Source-aligned 150-turn timeout regression passed:', timeoutBattle.turns, 'turns')
+assert(timeoutBattle.turns >= 100 && timeoutBattle.turns <= 105, `Source-aligned timeout should resolve at about 100 no-progress turns, got ${timeoutBattle.turns}`)
+console.log('Source-aligned 100-turn no-progress regression passed:', timeoutBattle.turns, 'turns')
 
 console.log(`Engine smoke tests passed: ${cards.length} cards, ${auras.length} auras.`)
 console.log(`Source-aligned Depths ability coverage: ${coverage.supported}/${coverage.total} (${coverage.percent.toFixed(1)}%).`)

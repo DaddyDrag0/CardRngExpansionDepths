@@ -109,6 +109,7 @@ interface Runtime {
   state: BattleState
   rng: SeededRng
   debug: BattleDebug
+  captureDebug: boolean
 }
 
 function debugCard(card: CombatCard) {
@@ -123,6 +124,7 @@ function debugCard(card: CombatCard) {
 }
 
 function pushDebugEvent(runtime: Runtime, event: BattleDebug['events'][number]) {
+  if (!runtime.captureDebug) return
   if (runtime.debug.events.length >= 300) runtime.debug.events.shift()
   runtime.debug.events.push(event)
 }
@@ -1830,7 +1832,7 @@ function resolveDeaths(runtime: Runtime) {
       card.hp = 0
       card.dead = true
       runtime.state.fallen[team].push(card)
-      pushDebugEvent(runtime, {
+      if (runtime.captureDebug) pushDebugEvent(runtime, {
         turn: runtime.state.turn,
         type: 'death',
         team,
@@ -1881,7 +1883,7 @@ function resolveDeaths(runtime: Runtime) {
           counters: { normalDamage: baseDamage, normalMaxHp: baseMaxHp },
         }
         runtime.state.teams[team].push(revived)
-        pushDebugEvent(runtime, {
+        if (runtime.captureDebug) pushDebugEvent(runtime, {
           turn: runtime.state.turn,
           type: 'revive',
           team,
@@ -2381,6 +2383,7 @@ export function simulateBattleV2(
   seed = 1,
   maxTurns = 2_000,
   markTurnCap = false,
+  captureDebug = false,
 ): BattleResult {
   const state = createBattleStateV2(loadout, enemies)
   const debug: BattleDebug = {
@@ -2388,10 +2391,12 @@ export function simulateBattleV2(
     statAura: loadout.statAura ? { name: loadout.statAura.auraName, border: loadout.statAura.border || null, value: state.boosts.Allies.statAuraValue } : undefined,
     abilityAura: loadout.abilityAura ? { name: loadout.abilityAura.auraName, border: loadout.abilityAura.border || null, value: state.boosts.Allies.skillAuraValue } : undefined,
   }
-  const runtime: Runtime = { state, rng: new SeededRng(seed), debug }
+  const runtime: Runtime = { state, rng: new SeededRng(seed), debug, captureDebug }
   resolveConstellarArts(runtime)
-  debug.initialAllies = state.teams.Allies.map(debugCard)
-  debug.initialEnemies = state.teams.Enemies.map(debugCard)
+  if (captureDebug) {
+    debug.initialAllies = state.teams.Allies.map(debugCard)
+    debug.initialEnemies = state.teams.Enemies.map(debugCard)
+  }
   let turnsWithoutDeaths = 0
   let lastMover: CombatCard | undefined
   let lastTarget: CombatCard | undefined
@@ -2414,7 +2419,7 @@ export function simulateBattleV2(
     if (defender !== lastMover && defender !== lastTarget) turnsWithoutDeaths = 0
     if (turnsWithoutDeaths >= 100) {
       debug.forcedStallResolutions += 1
-      pushDebugEvent(runtime, {
+      if (runtime.captureDebug) pushDebugEvent(runtime, {
         turn: state.turn,
         type: 'stall',
         team: state.moving,
@@ -2429,7 +2434,7 @@ export function simulateBattleV2(
     }
     lastMover = attacker
     lastTarget = defender
-    pushDebugEvent(runtime, {
+    if (runtime.captureDebug) pushDebugEvent(runtime, {
       turn: state.turn,
       type: 'turn',
       team: state.moving,
@@ -2473,7 +2478,9 @@ export function simulateBattleV2(
     ? state.teams.Enemies.length ? 'Draw' : 'Allies'
     : state.teams.Enemies.length ? 'Enemies' : 'Draw'
   const unsupportedAbilities = [...state.unsupportedAbilities].sort()
-  debug.finalAllies = state.teams.Allies.map(debugCard)
-  debug.finalEnemies = state.teams.Enemies.map(debugCard)
-  return { winner, turns: state.turn, state, unsupportedAbilities, trusted: unsupportedAbilities.length === 0, debug }
+  if (captureDebug) {
+    debug.finalAllies = state.teams.Allies.map(debugCard)
+    debug.finalEnemies = state.teams.Enemies.map(debugCard)
+  }
+  return { winner, turns: state.turn, state, unsupportedAbilities, trusted: unsupportedAbilities.length === 0, debug: captureDebug ? debug : undefined }
 }

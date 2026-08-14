@@ -74,6 +74,9 @@ export function simulateDepthsRun(
     for (const ability of battle.unsupportedAbilities) unsupported.add(ability)
 
     if (battle.winner !== 'Allies') {
+      // Re-run only the losing battle with tracing enabled. This keeps thousands of
+      // winning floors fast while still making the exact loss fully inspectable.
+      const debugBattle = simulateBattleV2(loadout, enemies, floorSeed ^ 0x51ed270b, maxTurns, hasTurnCap, true)
       onProgress?.(floor)
       return {
         deathFloor: floor,
@@ -86,7 +89,7 @@ export function simulateDepthsRun(
         runSeed,
         floorSeed,
         battleSeed: floorSeed ^ 0x51ed270b,
-        debug: battle.debug,
+        debug: debugBattle.debug,
       }
     }
   }

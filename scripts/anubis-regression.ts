@@ -12,7 +12,7 @@ const enemies: DepthsEnemy[] = [
   { card: archer, power: enemyPower, attack: 50, health: 100 },
 ]
 const loadout: TeamLoadout = { cards: ['Behemoth','Behemoth','Behemoth','Behemoth'].map((cardName) => ({ cardName, borders: ['Galaxy'] })) }
-const battle = simulateBattleV2(loadout, enemies, 12345, 500, true)
+const battle = simulateBattleV2(loadout, enemies, 12345, 500, true, true)
 const revives = battle.debug?.events.filter((event) => event.type === 'revive' && event.card === 'Anubis') || []
 assert(revives.length === 1, `Expected exactly one Anubis revive, got ${revives.length}`)
 const revive = revives[0]

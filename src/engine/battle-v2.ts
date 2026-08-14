@@ -1846,7 +1846,8 @@ function resolveDeaths(runtime: Runtime) {
         revenant.hp = revenant.maxHp * 0.5
         revenant.entered = false
         revenant.counters.beyondGraveChain = beyondGraveChain
-        runtime.state.teams[team].unshift(revenant)
+        // Expansion BattleClient appends Beyond The Grave revivals to the end of the team.
+        runtime.state.teams[team].push(revenant)
       }
       changed = true
     }

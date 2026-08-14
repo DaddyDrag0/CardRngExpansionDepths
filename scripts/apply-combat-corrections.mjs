@@ -126,3 +126,4 @@ replaceOnce(
 
 fs.writeFileSync(path, s)
 console.log('Applied Pandora limited filter, Erosion fix, global Zombie Dragon timer, and calibrated Shuten nerf.')
+// regression file is now present; rerun workflow

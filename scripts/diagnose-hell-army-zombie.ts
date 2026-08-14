@@ -21,3 +21,5 @@ for (const [label, hp, atk] of [
   console.log('events')
   for (const e of result.debug?.events || []) console.log(`T${e.turn} [${e.type}] ${e.team} ${e.card}: ${e.detail}`)
 }
+
+// trigger diagnostic workflow

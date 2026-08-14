@@ -3,7 +3,7 @@ name: Apply current simulator fixes
 on:
   push:
     paths:
-      - 'scripts/apply-current-fixes.mjs'
+      - 'scripts/apply-current-fixes-v2.mjs'
 
 permissions:
   contents: write
@@ -21,7 +21,7 @@ jobs:
           cache: npm
       - run: npm install --no-audit --no-fund
       - name: Apply source-aligned fixes
-        run: node scripts/apply-current-fixes.mjs
+        run: node scripts/apply-current-fixes-v2.mjs
       - name: Typecheck/build
         run: npm run build
       - name: Engine regressions

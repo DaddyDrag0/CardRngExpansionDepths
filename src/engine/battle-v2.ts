@@ -1568,10 +1568,7 @@ function attackerRetro(runtime: Runtime, attacker: CombatCard, target: CombatCar
     case 'Decapitate': {
       const unholySurvives = hasAbility(runtime, target, 'Unholy Creature')
         && (!target.flags.unholyActive || (target.counters.unholyTurns || 0) > 0)
-      if (target.hp <= 0 && !unholySurvives) {
-        boostStats(attacker, 1.2)
-        attacker.flags.extraTurn = true
-      }
+      if (target.hp <= 0 && !unholySurvives) attacker.flags.extraTurn = true
       break
     }
     case 'Fury of the White Tiger': if (target.hp <= 0) { attacker.damage *= 1.35; attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.35) }; break

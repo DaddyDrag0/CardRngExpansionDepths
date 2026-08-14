@@ -27,3 +27,4 @@ for (const variant of variants) {
 }
 
 fs.writeFileSync(path, original)
+// rerun now that benchmark file exists

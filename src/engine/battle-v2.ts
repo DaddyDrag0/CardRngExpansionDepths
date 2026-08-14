@@ -16,6 +16,9 @@ import { getAttack, getHealth, getPower, rarityWithBorders } from './stats'
 import { AVIAN_CARDS, DEMON_CARDS, DRAGON_CARDS, IMP_BOOSTED_CARDS, RNG_ABILITIES, UNDEAD_CARDS } from './combat-data'
 
 const OTHER_TEAM: Record<BattleTeam, BattleTeam> = { Allies: 'Enemies', Enemies: 'Allies' }
+// Ability resolution is an extremely hot path during high-floor batches. Avoid
+// scanning the full card database every time an identity/ability is resolved.
+const CARD_BY_NAME = new Map(cards.map((card) => [card.name, card] as const))
 
 const FULLY_SUPPORTED = new Set([
   'Gathering', 'Remembrance', 'Am I Beautiful?', 'Persistent', 'Chimeric',
@@ -104,6 +107,7 @@ const PANDORA_ABILITY_POOL = [...new Set(
 const RANDOM_CARD_POOL = cards.filter((card) =>
   !card.unobtainable && card.ability !== "Pandora's Box" && card.ability !== 'Constellar'
 )
+const NUWA_CREATABLE_POOL = cards.filter((card) => !card.expires && !card.unobtainable && card.name !== 'Nüwa')
 
 interface Runtime {
   state: BattleState
@@ -130,7 +134,7 @@ function pushDebugEvent(runtime: Runtime, event: BattleDebug['events'][number]) 
 }
 
 function definition(name: string) {
-  return cards.find((card) => card.name === name)
+  return CARD_BY_NAME.get(name)
 }
 
 function effectiveCardName(card: CombatCard | undefined): string | null {
@@ -255,8 +259,7 @@ function clearSkillAura(runtime: Runtime, team: BattleTeam) {
 function randomCreatableCard(runtime: Runtime) {
   // OG server source: Nüwa can create any non-expired, obtainable card except Nüwa itself.
   // Pack and Boss are not separate exclusions here; Unobtainable/Expires are the source gates.
-  const pool = cards.filter((card) => !card.expires && !card.unobtainable && card.name !== 'Nüwa')
-  return pool[Math.floor(runtime.rng.next() * pool.length)] || cards[0]
+  return NUWA_CREATABLE_POOL[Math.floor(runtime.rng.next() * NUWA_CREATABLE_POOL.length)] || cards[0]
 }
 
 function waterShield(runtime: Runtime, team: BattleTeam, target: CombatCard): CombatCard | undefined {

@@ -64,9 +64,12 @@ function simulateOne(request: SingleRunRequest, onProgress?: (floor: number, bat
 async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[]> {
   const runs = Math.max(1, Math.floor(request.runs))
   const hardware = Math.max(1, Number(self.navigator.hardwareConcurrency) || 4)
-  const workerCount = Math.min(runs, Math.max(1, Math.min(8, hardware - 1 || 1)))
+  const workerCount = Math.min(runs, Math.max(1, Math.min(12, hardware - 1 || 1)))
   const results = new Array<DepthsRunResult>(runs)
   const workers: Worker[] = []
+  const runFloors = new Array<number>(runs).fill(1)
+  const runBattleTurns = new Array<number>(runs).fill(0)
+  const activeRuns = new Set<number>()
   let nextRun = 0
   let completed = 0
   let settled = false
@@ -96,6 +99,7 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
       }
 
       const runIndex = nextRun++
+      activeRuns.add(runIndex)
       let lastFloor = 1
       let lastBattleTurn = 0
       let lastForwardedAt = 0
@@ -124,6 +128,11 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
             lastBattleTurn = nextBattleTurn
             armWatchdog()
           }
+          runFloors[runIndex] = lastFloor
+          runBattleTurns[runIndex] = lastBattleTurn
+          const activeFloorValues = [...activeRuns].map((index) => runFloors[index])
+          const minActiveFloor = activeFloorValues.length ? Math.min(...activeFloorValues) : lastFloor
+          const maxActiveFloor = activeFloorValues.length ? Math.max(...activeFloorValues) : lastFloor
           const now = performance.now()
           if (now - lastForwardedAt >= 100) {
             lastForwardedAt = now
@@ -135,6 +144,9 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
               runIndex,
               floor: lastFloor,
               battleTurn: lastBattleTurn || undefined,
+              activeRuns: activeRuns.size,
+              minActiveFloor,
+              maxActiveFloor,
             })
           }
           return
@@ -146,7 +158,11 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
           return
         }
         results[runIndex] = message.result
+        runFloors[runIndex] = message.result?.deathFloor || lastFloor
+        runBattleTurns[runIndex] = 0
+        activeRuns.delete(runIndex)
         completed += 1
+        const remainingFloors = [...activeRuns].map((index) => runFloors[index])
         self.postMessage({
           kind: 'progress',
           id: request.id,
@@ -154,6 +170,9 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
           totalRuns: runs,
           runIndex,
           floor: message.result?.deathFloor || lastFloor,
+          activeRuns: activeRuns.size,
+          minActiveFloor: remainingFloors.length ? Math.min(...remainingFloors) : undefined,
+          maxActiveFloor: remainingFloors.length ? Math.max(...remainingFloors) : undefined,
         })
         dispatch(worker)
         finishIfDone()

@@ -3,6 +3,7 @@
 import { simulateDepthsRun, type DepthsRunResult } from './engine/simulation'
 import { SeededRng } from './engine/rng'
 import { auraPackRangeForMedian } from './engine/depths-rewards'
+import { estimateDepthClearSeconds } from './engine/depths-time'
 import type { TeamLoadout } from './types'
 
 interface BatchRequest {
@@ -46,6 +47,13 @@ function summarize(results: DepthsRunResult[]) {
   const middle = Math.floor(floors.length / 2)
   const medianFloor = floors.length % 2 ? floors[middle] : (floors[middle - 1] + floors[middle]) / 2
   const estimate = auraPackRangeForMedian(medianFloor)
+  const totalBattles = results.reduce((sum, result) => sum + result.battles, 0)
+  const totalTurns = results.reduce((sum, result) => sum + result.totalTurns, 0)
+  const averageTurnsPerBattle = totalBattles > 0 ? totalTurns / totalBattles : 0
+  const estimatedSecondsLow = estimateDepthClearSeconds(estimate.low, averageTurnsPerBattle, true)
+  const estimatedSecondsMedian = estimateDepthClearSeconds(estimate.medianDepth, averageTurnsPerBattle, true)
+  const estimatedSecondsHigh = estimateDepthClearSeconds(estimate.high, averageTurnsPerBattle, true)
+  const auraCardsPerHour = estimatedSecondsMedian > 0 ? estimate.auraPackMedian / (estimatedSecondsMedian / 3600) : 0
   return {
     runs: results,
     averageFloor: floors.reduce((sum, floor) => sum + floor, 0) / floors.length,
@@ -55,7 +63,13 @@ function summarize(results: DepthsRunResult[]) {
     estimatedFloorLow: estimate.low,
     estimatedFloorHigh: estimate.high,
     auraPackLow: estimate.auraPackLow,
+    auraPackMedian: estimate.auraPackMedian,
     auraPackHigh: estimate.auraPackHigh,
+    averageTurnsPerBattle,
+    estimatedSecondsLow,
+    estimatedSecondsMedian,
+    estimatedSecondsHigh,
+    auraCardsPerHour,
     trusted: unsupported.size === 0,
     unsupportedAbilities: [...unsupported].sort(),
   }

@@ -3,6 +3,7 @@ import { generateDepthsTeam } from './depths'
 import { SeededRng } from './rng'
 import { simulateBattleV2 } from './battle-v2'
 import { auraPackRangeForMedian } from './depths-rewards'
+import { estimateDepthClearSeconds } from './depths-time'
 
 export interface DepthsRunResult {
   deathFloor: number
@@ -30,7 +31,13 @@ export interface DepthsBatchResult {
   estimatedFloorLow: number
   estimatedFloorHigh: number
   auraPackLow: number
+  auraPackMedian: number
   auraPackHigh: number
+  averageTurnsPerBattle: number
+  estimatedSecondsLow: number
+  estimatedSecondsMedian: number
+  estimatedSecondsHigh: number
+  auraCardsPerHour: number
   trusted: boolean
   unsupportedAbilities: string[]
 }
@@ -162,6 +169,13 @@ export function simulateDepthsBatch(
     ? floors[middle]
     : (floors[middle - 1] + floors[middle]) / 2
   const estimate = auraPackRangeForMedian(medianFloor)
+  const totalBattles = results.reduce((sum, result) => sum + result.battles, 0)
+  const allTurns = results.reduce((sum, result) => sum + result.totalTurns, 0)
+  const averageTurnsPerBattle = totalBattles > 0 ? allTurns / totalBattles : 0
+  const estimatedSecondsLow = estimateDepthClearSeconds(estimate.low, averageTurnsPerBattle, true)
+  const estimatedSecondsMedian = estimateDepthClearSeconds(estimate.medianDepth, averageTurnsPerBattle, true)
+  const estimatedSecondsHigh = estimateDepthClearSeconds(estimate.high, averageTurnsPerBattle, true)
+  const auraCardsPerHour = estimatedSecondsMedian > 0 ? estimate.auraPackMedian / (estimatedSecondsMedian / 3600) : 0
 
   return {
     runs: results,
@@ -172,7 +186,13 @@ export function simulateDepthsBatch(
     estimatedFloorLow: estimate.low,
     estimatedFloorHigh: estimate.high,
     auraPackLow: estimate.auraPackLow,
+    auraPackMedian: estimate.auraPackMedian,
     auraPackHigh: estimate.auraPackHigh,
+    averageTurnsPerBattle,
+    estimatedSecondsLow,
+    estimatedSecondsMedian,
+    estimatedSecondsHigh,
+    auraCardsPerHour,
     trusted: unsupported.size === 0,
     unsupportedAbilities: [...unsupported].sort(),
   }

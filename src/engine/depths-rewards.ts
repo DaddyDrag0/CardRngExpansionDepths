@@ -38,9 +38,12 @@ export function estimatedDepthRange(medianFloor: number, margin = 0.15): { low: 
 
 export function auraPackRangeForMedian(medianFloor: number, margin = 0.15) {
   const range = estimatedDepthRange(medianFloor, margin)
+  const medianDepth = Math.max(1, Math.round(Number(medianFloor) || 1))
   return {
     ...range,
+    medianDepth,
     auraPackLow: auraPacksForDepth(range.low),
+    auraPackMedian: auraPacksForDepth(medianDepth),
     auraPackHigh: auraPacksForDepth(range.high),
   }
 }

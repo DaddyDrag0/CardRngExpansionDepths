@@ -3,7 +3,7 @@ name: Apply current simulator fixes
 on:
   push:
     paths:
-      - 'scripts/apply-current-fixes-v2.mjs'
+      - 'scripts/apply-current-fixes-v3.mjs'
 
 permissions:
   contents: write
@@ -21,7 +21,7 @@ jobs:
           cache: npm
       - run: npm install --no-audit --no-fund
       - name: Apply source-aligned fixes
-        run: node scripts/apply-current-fixes-v2.mjs
+        run: node scripts/apply-current-fixes-v3.mjs
       - name: Typecheck/build
         run: npm run build
       - name: Engine regressions
@@ -36,7 +36,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src browser/depths-worker.js index.html scripts/anubis-regression.ts
+          git add src browser/depths-worker.js index.html scripts/engine-smoke.ts scripts/anubis-regression.ts
           if git diff --cached --quiet; then
             echo "No generated changes to commit."
           else

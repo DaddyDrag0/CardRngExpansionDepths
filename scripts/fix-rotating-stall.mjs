@@ -50,9 +50,4 @@ replaceOnce(
   'remove obsolete pair state',
 )
 
-const ciPath = '.github/workflows/engine-check.yml'
-let ci = fs.readFileSync(ciPath, 'utf8')
-ci = ci.replace(`          if (!battle.includes('attacker !== lastMover && attacker !== lastTarget')) throw new Error('Source-aligned attacker timeout reset missing')\n          if (!battle.includes('defender !== lastMover && defender !== lastTarget')) throw new Error('Source-aligned target timeout reset missing')`, `          if (!battle.includes('runtime.deathEpoch !== lastDeathEpoch')) throw new Error('Actual-death timeout reset missing')\n          if (!battle.includes('runtime.deathEpoch += 1')) throw new Error('Death epoch increment missing')`)
-fs.writeFileSync(ciPath, ci)
-
 console.log('Rotating-card stalls now reset the 150-turn timer only on actual deaths.')

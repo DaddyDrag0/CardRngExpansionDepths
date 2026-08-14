@@ -32,13 +32,14 @@ export interface DepthsSimulationOptions {
   floorCap?: number
   seed?: number
   battleTurnCap?: number
+  throwOnBattleTurnCap?: boolean
 }
 
 export interface DepthsBatchOptions extends DepthsSimulationOptions {
   runs?: number
 }
 
-export type DepthsProgressCallback = (floor: number, battleTurn?: number) => void
+export type DepthsProgressCallback = (floor: number, battleTurn?: number, enemyNames?: string[]) => void
 
 function mixSeed(runSeed: number, floor: number): number {
   let x = (runSeed ^ Math.imul(floor, 0x9e3779b1)) >>> 0
@@ -63,27 +64,36 @@ export function simulateDepthsRun(
   let battles = 0
 
   for (let floor = startFloor; floor <= floorCap; floor++) {
-    onProgress?.(floor)
     const floorSeed = mixSeed(runSeed, floor)
     const enemies = generateDepthsTeam(floor, floorSeed)
+    const enemyNames = enemies.map((enemy) => enemy.card.name)
+    onProgress?.(floor, undefined, enemyNames)
     const hasTurnCap = Number.isFinite(options.battleTurnCap)
     const maxTurns = hasTurnCap ? Math.max(1, Math.floor(options.battleTurnCap as number)) : Number.POSITIVE_INFINITY
     const battle = simulateBattleV2(
       loadout, enemies, floorSeed ^ 0x51ed270b, maxTurns, hasTurnCap, false,
-      (battleTurn) => onProgress?.(floor, battleTurn),
+      (battleTurn) => onProgress?.(floor, battleTurn, enemyNames),
     )
     battles += 1
     totalTurns += battle.turns
     for (const ability of battle.unsupportedAbilities) unsupported.add(ability)
+
+    if (options.throwOnBattleTurnCap && battle.unsupportedAbilities.includes('Battle turn cap reached')) {
+      const battleSeed = floorSeed ^ 0x51ed270b
+      throw new Error(
+        `Long battle diagnostic: floor ${floor.toLocaleString('en-US')} reached ${maxTurns.toLocaleString('en-US')} turns vs ${enemyNames.join(' | ')}. ` +
+        `Run seed ${runSeed}; floor seed ${floorSeed}; battle seed ${battleSeed}.`,
+      )
+    }
 
     if (battle.winner !== 'Allies') {
       // Re-run only the losing battle with tracing enabled. This keeps thousands of
       // winning floors fast while still making the exact loss fully inspectable.
       const debugBattle = simulateBattleV2(
         loadout, enemies, floorSeed ^ 0x51ed270b, maxTurns, hasTurnCap, true,
-        (battleTurn) => onProgress?.(floor, battleTurn),
+        (battleTurn) => onProgress?.(floor, battleTurn, enemyNames),
       )
-      onProgress?.(floor)
+      onProgress?.(floor, undefined, enemyNames)
       return {
         deathFloor: floor,
         floorsCleared: floor - startFloor,

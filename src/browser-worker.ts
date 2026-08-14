@@ -25,6 +25,7 @@ interface SingleRunRequest {
 type SimulationRequest = BatchRequest | SingleRunRequest
 
 const STALL_WATCHDOG_MS = 20_000
+const LIVE_BATTLE_TURN_CAP = 5_000
 
 function runSeed(batchSeed: number, runIndex: number): number {
   const rng = new SeededRng(batchSeed)
@@ -54,10 +55,12 @@ function summarize(results: DepthsRunResult[]) {
   }
 }
 
-function simulateOne(request: SingleRunRequest, onProgress?: (floor: number, battleTurn?: number) => void): DepthsRunResult {
+function simulateOne(request: SingleRunRequest, onProgress?: (floor: number, battleTurn?: number, enemyNames?: string[]) => void): DepthsRunResult {
   return simulateDepthsRun(request.loadout, {
     floorCap: request.floorCap,
     seed: runSeed(request.batchSeed, request.runIndex),
+    battleTurnCap: LIVE_BATTLE_TURN_CAP,
+    throwOnBattleTurnCap: true,
   }, onProgress)
 }
 
@@ -102,13 +105,15 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
       activeRuns.add(runIndex)
       let lastFloor = 1
       let lastBattleTurn = 0
+      let lastEnemies: string[] = []
       let lastForwardedAt = 0
       let watchdog: ReturnType<typeof setTimeout> | null = null
       const armWatchdog = () => {
         if (watchdog) clearTimeout(watchdog)
         watchdog = setTimeout(() => {
           const turnText = lastBattleTurn > 0 ? ` around battle turn ${lastBattleTurn}` : ''
-          fail(new Error(`Simulation stalled on run ${runIndex + 1}/${runs} near floor ${lastFloor}${turnText}. No simulation progress for ${STALL_WATCHDOG_MS / 1000}s. Batch seed ${request.seed}; run seed ${runSeed(request.seed, runIndex)}.`))
+          const enemyText = lastEnemies.length ? ` vs ${lastEnemies.join(' | ')}` : ''
+          fail(new Error(`Simulation stalled on run ${runIndex + 1}/${runs} near floor ${lastFloor}${turnText}${enemyText}. No simulation progress for ${STALL_WATCHDOG_MS / 1000}s. Batch seed ${request.seed}; run seed ${runSeed(request.seed, runIndex)}.`))
         }, STALL_WATCHDOG_MS)
       }
       armWatchdog()
@@ -118,6 +123,7 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
         if (message?.kind === 'progress') {
           const nextFloorValue = Number(message.floor) || lastFloor
           const nextBattleTurn = Math.max(0, Number(message.battleTurn) || 0)
+          if (Array.isArray(message.enemies)) lastEnemies = message.enemies.map(String)
           const floorAdvanced = nextFloorValue !== lastFloor
           const turnAdvanced = !floorAdvanced && nextBattleTurn > lastBattleTurn
           if (floorAdvanced) {
@@ -147,6 +153,7 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
               activeRuns: activeRuns.size,
               minActiveFloor,
               maxActiveFloor,
+              enemies: lastEnemies,
             })
           }
           return
@@ -208,13 +215,14 @@ self.onmessage = async (event: MessageEvent<SimulationRequest>) => {
   const started = performance.now()
   try {
     if (request.kind === 'single-run') {
-      const result = simulateOne(request, (floor, battleTurn) => {
+      const result = simulateOne(request, (floor, battleTurn, enemyNames) => {
         self.postMessage({
           kind: 'progress',
           id: request.id,
           runIndex: request.runIndex,
           floor,
           battleTurn,
+          enemies: enemyNames,
         })
       })
       self.postMessage({ id: request.id, ok: true, elapsedMs: performance.now() - started, result })

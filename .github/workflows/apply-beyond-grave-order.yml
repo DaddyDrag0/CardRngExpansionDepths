@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   patch:
-    if: github.event.head_commit.message == 'Queue source-aligned Beyond The Grave order fix'
+    if: github.event.head_commit.message == 'Queue Beyond The Grave order fix without workflow edits'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,20 +35,6 @@ jobs:
           else:
               p.write_text(s.replace(old, new, 1))
               print('Changed Beyond The Grave revival from front-of-team to back-of-team.')
-
-          # Keep this source-alignment invariant covered by normal CI.
-          q = Path('.github/workflows/engine-check.yml')
-          w = q.read_text()
-          marker = "          if (battle.includes('pairTurns[')) throw new Error('Incorrect per-attacker timeout counter returned')\n"
-          addition = (
-              marker
-              + "          if (battle.includes('runtime.state.teams[team].unshift(revenant)')) throw new Error('Beyond The Grave revival incorrectly returns to the front')\n"
-              + "          if (!battle.includes('runtime.state.teams[team].push(revenant)')) throw new Error('Source-aligned Beyond The Grave back-of-team revival missing')\n"
-          )
-          if 'Source-aligned Beyond The Grave back-of-team revival missing' not in w:
-              if marker not in w:
-                  raise SystemExit('Engine-check insertion marker missing')
-              q.write_text(w.replace(marker, addition, 1))
           PY
       - run: npm install
       - run: npm run build
@@ -59,9 +45,8 @@ jobs:
         run: npx esbuild src/browser-worker.ts --bundle --platform=browser --format=iife --target=es2020 --minify --outfile=browser/depths-worker.js
       - name: Commit validated source-alignment fix
         run: |
-          rm -f .github/workflows/apply-beyond-grave-order.yml
           git config user.name "Drago"
           git config user.email "dragoidc3@gmail.com"
-          git add -A
+          git add src/engine/battle-v2.ts browser/depths-worker.js
           git commit -m "Match Beyond The Grave revival order"
           git push

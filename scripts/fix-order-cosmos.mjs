@@ -84,7 +84,7 @@ patch('src/engine/battle-v2.ts', [
         type: 'spawn',
         team: card.team,
         card: createdDefinition.name,
-        detail: \`Creation and Restoration: Nüwa created ${createdDefinition.name} at raw Power ${Math.ceil(card.power)}\`,
+        detail: 'Creation and Restoration: Nüwa created ' + createdDefinition.name + ' at raw Power ' + Math.ceil(card.power),
         hp: created.hp,
         maxHp: created.maxHp,
         damage: created.damage,

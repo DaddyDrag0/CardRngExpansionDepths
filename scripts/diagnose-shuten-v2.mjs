@@ -4,20 +4,13 @@ import { spawnSync } from 'node:child_process'
 const path = 'src/engine/battle-v2.ts'
 const original = fs.readFileSync(path, 'utf8')
 const variants = [
-  { label: '1.25x +0% kill', damage: '1.25', reward: 'none' },
-  { label: '1.25x +5% kill', damage: '1.25', reward: '1.05' },
-  { label: '1.10x +5% kill', damage: '1.1', reward: '1.05' },
-  { label: '1.00x +10% kill', damage: '1', reward: '1.1' },
+  { label: '1.15x +5% kill', damage: '1.15', reward: '1.05' },
 ]
 
 for (const variant of variants) {
   let s = original
   s = s.replace("case 'Decapitate': damage *= 1.5; break", `case 'Decapitate': damage *= ${variant.damage}; break`)
-  if (variant.reward === 'none') {
-    s = s.replace("if (target.hp <= 0 && !unholySurvives) boostStats(attacker, 1.1)", "if (target.hp <= 0 && !unholySurvives) { /* diagnostic: no stat reward */ }")
-  } else {
-    s = s.replace("if (target.hp <= 0 && !unholySurvives) boostStats(attacker, 1.1)", `if (target.hp <= 0 && !unholySurvives) boostStats(attacker, ${variant.reward})`)
-  }
+  s = s.replace("if (target.hp <= 0 && !unholySurvives) boostStats(attacker, 1.1)", `if (target.hp <= 0 && !unholySurvives) boostStats(attacker, ${variant.reward})`)
   fs.writeFileSync(path, s)
   console.log('VARIANT', variant.label)
   const run = spawnSync('npx', ['--no-install', 'tsx', 'scripts/diagnose-shuten-v2.ts'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
@@ -27,4 +20,3 @@ for (const variant of variants) {
 }
 
 fs.writeFileSync(path, original)
-// rerun now that benchmark file exists

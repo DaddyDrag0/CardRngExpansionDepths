@@ -19,46 +19,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Guard Beyond The Grave resurrection loops
-        if: github.event_name == 'push'
-        run: |
-          python <<'PY'
-          from pathlib import Path
-          p = Path('src/engine/battle-v2.ts')
-          lines = p.read_text().splitlines()
-          if any('beyondGraveChain' in line for line in lines):
-              print('Beyond The Grave loop guard already present.')
-          else:
-              start = next((i for i, line in enumerate(lines) if line.strip() == 'for (const revenant of revenants) {'), None)
-              if start is None:
-                  raise SystemExit('Beyond The Grave loop start missing')
-              end = next((i for i in range(start + 1, len(lines)) if lines[i].strip() == '}'), None)
-              if end is None or not any('runtime.state.teams[team].unshift(revenant)' in line for line in lines[start:end + 1]):
-                  raise SystemExit('Beyond The Grave loop end missing')
-              indent = lines[start][:-len(lines[start].lstrip())]
-              inner = indent + '  '
-              replacement = [
-                  indent + 'for (const revenant of revenants) {',
-                  inner + '// Two Beyond The Grave cards can otherwise revive each other forever.',
-                  inner + '// Carry a chain counter only when one Beyond The Grave holder revives another;',
-                  inner + '// unrelated ally deaths reset the chain. Resolve the pathological cycle at',
-                  inner + '// the same 150-turn scale used by the source battle timeout.',
-                  inner + "const beyondGraveChain = abilityNames(card).includes('Beyond The Grave')",
-                  inner + '  ? (card.counters.beyondGraveChain || 0) + 1',
-                  inner + '  : 1',
-                  inner + 'if (beyondGraveChain >= 150) continue',
-                  inner + 'const fallenIndex = runtime.state.fallen[team].indexOf(revenant)',
-                  inner + 'if (fallenIndex >= 0) runtime.state.fallen[team].splice(fallenIndex, 1)',
-                  inner + 'revenant.dead = false',
-                  inner + 'revenant.hp = revenant.maxHp * 0.5',
-                  inner + 'revenant.entered = false',
-                  inner + 'revenant.counters.beyondGraveChain = beyondGraveChain',
-                  inner + 'runtime.state.teams[team].unshift(revenant)',
-                  indent + '}',
-              ]
-              p.write_text('\n'.join(lines[:start] + replacement + lines[end + 1:]) + '\n')
-              print('Applied Beyond The Grave loop guard.')
-          PY
       - run: npm install
       - run: npm run build
       - run: npm run test:engine
@@ -91,15 +51,15 @@ jobs:
       - name: Bundle browser simulation worker
         if: github.event_name == 'push'
         run: npx esbuild src/browser-worker.ts --bundle --platform=browser --format=iife --target=es2020 --minify --outfile=browser/depths-worker.js
-      - name: Commit browser simulation bundle and validated engine fix
+      - name: Commit browser simulation bundle
         if: github.event_name == 'push'
         run: |
           git config user.name "Drago"
           git config user.email "dragoidc3@gmail.com"
-          git add browser/depths-worker.js src/engine/battle-v2.ts
+          git add browser/depths-worker.js
           if git diff --cached --quiet; then
-            echo "Browser bundle and engine unchanged."
+            echo "Browser bundle unchanged."
             exit 0
           fi
-          git commit -m "Prevent Beyond The Grave resurrection loops"
+          git commit -m "Build browser simulation bundle"
           git push

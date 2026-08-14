@@ -96,10 +96,9 @@ const DODGE_ABILITIES = new Set([
 ])
 
 const GENERAL_MOON_ZOO_ABILITY = cards.find((card) => card.name === 'General Moon Zoo')?.ability
-// Pandora can only roll abilities from non-limited cards. In the extracted card
-// data, limited/time-limited cards are the entries marked expires=true.
+// Pandora can gain abilities from the full card pool, including limited cards.
 const PANDORA_ABILITY_POOL = [...new Set(
-  cards.filter((card) => !card.expires).map((card) => card.ability).filter((name): name is string => Boolean(name)),
+  cards.map((card) => card.ability).filter((name): name is string => Boolean(name)),
 )].filter((name) =>
   name !== "Pandora's Box"
   && name !== GENERAL_MOON_ZOO_ABILITY
@@ -1088,9 +1087,7 @@ function offensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
     case 'Favorable Odds': damage *= Math.max(1, Math.ceil(rand(runtime, attacker.team) * 5)); break
     case 'Vainglory': if (attacker.hp / attacker.maxHp > 0.5) damage *= 1.5; break
     case 'Modesty': damage *= 0.7; break
-    // Balance correction for Expansion results: keep Decapitate as a strong
-    // normal attack modifier without letting Shuten snowball thousands of floors.
-    case 'Decapitate': damage *= 1.15; break
+    case 'Decapitate': damage *= 2; break
     case 'Martial Will': {
       const ah = attacker.counters.martialHits || 0
       const th = target.counters.martialHits || 0
@@ -1394,9 +1391,9 @@ function targetRetro(runtime: Runtime, attacker: CombatCard, target: CombatCard,
       }
       break
     case 'Steal Christmas':
-      if (damage > 0 && attacker !== target) {
-        // OG server Retroactive.Target module: steal 20% of CURRENT HP and ATK only.
-        // Max HP is never transferred, so do not use the generic stealStats helper here.
+      if (damage > 0 && attacker !== target && !target.flags.stealChristmasUsed) {
+        // Steal Christmas activates only once per Grinch.
+        target.flags.stealChristmasUsed = true
         const stolenHp = Math.max(0, attacker.hp * 0.2)
         const stolenDamage = Math.max(0, attacker.damage * 0.2)
         target.damage += stolenDamage
@@ -1569,12 +1566,12 @@ function attackerRetro(runtime: Runtime, attacker: CombatCard, target: CombatCar
     case 'Immortal Ascension': if (attacker.flags.awakened && target.hp <= 0) boostStats(attacker, 1.5); break
     case 'Doom': if (!hasAbility(runtime, target, 'Erosion') && target.hp > 0 && rand(runtime, attacker.team) > 1 - damage / target.hp) { target.hp = 0; target.flags.sealed = true }; break
     case 'Decapitate': {
-      // Expansion-calibrated version: a confirmed kill gives a smaller permanent
-      // stat reward and does not chain an immediate extra turn. This also avoids
-      // revive cards multiplying Shuten's snowball far beyond observed Depths runs.
       const unholySurvives = hasAbility(runtime, target, 'Unholy Creature')
         && (!target.flags.unholyActive || (target.counters.unholyTurns || 0) > 0)
-      if (target.hp <= 0 && !unholySurvives) boostStats(attacker, 1.05)
+      if (target.hp <= 0 && !unholySurvives) {
+        boostStats(attacker, 1.2)
+        attacker.flags.extraTurn = true
+      }
       break
     }
     case 'Fury of the White Tiger': if (target.hp <= 0) { attacker.damage *= 1.35; attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.35) }; break
@@ -2171,8 +2168,13 @@ function canNormalAttack(runtime: Runtime, attacker: CombatCard): boolean {
 
 function doLotusSutra(runtime: Runtime, attacker: CombatCard) {
   const fallen = runtime.state.fallen[attacker.team]
-  const deadAlly = [...fallen].reverse().find((card) => card !== attacker)
+  // A Lotus Sutra user can perform its revive once per battle. This prevents
+  // Buddha and Hades (after copying Lotus Sutra) from reviving each other forever.
+  const deadAlly = attacker.flags.lotusReviveUsed
+    ? undefined
+    : [...fallen].reverse().find((card) => card !== attacker)
   if (deadAlly) {
+    attacker.flags.lotusReviveUsed = true
     const index = fallen.indexOf(deadAlly)
     if (index >= 0) fallen.splice(index, 1)
     deadAlly.dead = false

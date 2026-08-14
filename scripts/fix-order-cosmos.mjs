@@ -45,6 +45,13 @@ patch('src/engine/battle-v2.ts', [
 'preserve non-aura ability lock',
 ],
 [
+`  let name = resolvedAbility(runtime, card)
+  if (!name) return`,
+`  let name = resolvedAbility(runtime, card)
+  if (!name || !hasAbility(runtime, card, name)) return`,
+'gate on-entry abilities through hasAbility',
+],
+[
 `    case 'Order of the Cosmos':
       for (const target of runtime.state.teams[enemyTeam]) target.counters.cosmosSeal = Math.max(target.counters.cosmosSeal || 0, 3)
       break`,

@@ -114,6 +114,7 @@ interface Runtime {
   rng: SeededRng
   debug: BattleDebug
   captureDebug: boolean
+  deathEpoch: number
 }
 
 function debugCard(card: CombatCard) {
@@ -1859,6 +1860,7 @@ function resolveDeaths(runtime: Runtime) {
       const canBeyondTheGrave = hasAbility(runtime, card, 'Beyond The Grave') && !card.flags.beyondGraveRevived
 
       deck.shift()
+      runtime.deathEpoch += 1
       card.hp = 0
       card.dead = true
       runtime.state.fallen[team].push(card)
@@ -2426,15 +2428,14 @@ export function simulateBattleV2(
     statAura: loadout.statAura ? { name: loadout.statAura.auraName, border: loadout.statAura.border || null, value: state.boosts.Allies.statAuraValue } : undefined,
     abilityAura: loadout.abilityAura ? { name: loadout.abilityAura.auraName, border: loadout.abilityAura.border || null, value: state.boosts.Allies.skillAuraValue } : undefined,
   }
-  const runtime: Runtime = { state, rng: new SeededRng(seed), debug, captureDebug }
+  const runtime: Runtime = { state, rng: new SeededRng(seed), debug, captureDebug, deathEpoch: 0 }
   resolveConstellarArts(runtime)
   if (captureDebug) {
     debug.initialAllies = state.teams.Allies.map(debugCard)
     debug.initialEnemies = state.teams.Enemies.map(debugCard)
   }
   let turnsWithoutDeaths = 0
-  let lastMover: CombatCard | undefined
-  let lastTarget: CombatCard | undefined
+  let lastDeathEpoch = runtime.deathEpoch
   while (state.teams.Allies.length && state.teams.Enemies.length && state.turn < maxTurns) {
     state.turn += 1
     // Heartbeat for the outer browser watchdog. This is intentionally sparse so
@@ -2453,9 +2454,11 @@ export function simulateBattleV2(
     defender = active(runtime, OTHER_TEAM[state.moving])
     if (!attacker || !defender) break
 
+    if (runtime.deathEpoch !== lastDeathEpoch) {
+      turnsWithoutDeaths = 0
+      lastDeathEpoch = runtime.deathEpoch
+    }
     turnsWithoutDeaths += 1
-    if (attacker !== lastMover && attacker !== lastTarget) turnsWithoutDeaths = 0
-    if (defender !== lastMover && defender !== lastTarget) turnsWithoutDeaths = 0
     if (turnsWithoutDeaths >= 150) {
       debug.forcedStallResolutions += 1
       if (runtime.captureDebug) pushDebugEvent(runtime, {
@@ -2471,8 +2474,6 @@ export function simulateBattleV2(
       resolveDeaths(runtime)
       continue
     }
-    lastMover = attacker
-    lastTarget = defender
     if (runtime.captureDebug) pushDebugEvent(runtime, {
       turn: state.turn,
       type: 'turn',

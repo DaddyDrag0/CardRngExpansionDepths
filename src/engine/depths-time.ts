@@ -11,7 +11,8 @@
  * The Depths loop also waits on the player's `battlecd` attribute after every
  * battle before requesting the next floor. The client does not contain the
  * server-side duration for that attribute, so INTER_FLOOR_OVERHEAD_SECONDS is
- * calibrated to observed live Depths pacing (~4 seconds/floor around high Depths).
+ * calibrated from observed live runs: ~13k floors in ~12h and ~22k in ~20h,
+ * both landing near 3.3 seconds per floor overall once combat animation is included.
  *
  * We approximate a normal attack animation as 1.1 seconds at 1x speed from the
  * main attack path (0.1 approach + 0.3 hit pause + 0.2 return + 0.5 settle), plus
@@ -25,7 +26,7 @@ export const DEPTHS_FLOOR_SPEED_STEP_FLOORS = 100
 export const DEPTHS_FLOOR_SPEED_BONUS_CAP = 4.5
 export const BASE_ATTACK_ANIMATION_SECONDS = 1.1
 export const BASE_BATTLE_START_SECONDS = 0.5
-export const INTER_FLOOR_OVERHEAD_SECONDS = 3
+export const INTER_FLOOR_OVERHEAD_SECONDS = 2
 
 export function depthsFloorSpeedBonus(floor: number): number {
   const safeFloor = Math.max(1, Math.floor(Number(floor) || 1))

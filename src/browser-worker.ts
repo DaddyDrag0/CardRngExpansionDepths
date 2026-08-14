@@ -2,6 +2,7 @@
 
 import { simulateDepthsRun, type DepthsRunResult } from './engine/simulation'
 import { SeededRng } from './engine/rng'
+import { auraPackRangeForMedian } from './engine/depths-rewards'
 import type { TeamLoadout } from './types'
 
 interface BatchRequest {
@@ -44,12 +45,17 @@ function summarize(results: DepthsRunResult[]) {
   const floors = results.map((result) => result.deathFloor).sort((a, b) => a - b)
   const middle = Math.floor(floors.length / 2)
   const medianFloor = floors.length % 2 ? floors[middle] : (floors[middle - 1] + floors[middle]) / 2
+  const estimate = auraPackRangeForMedian(medianFloor)
   return {
     runs: results,
     averageFloor: floors.reduce((sum, floor) => sum + floor, 0) / floors.length,
     medianFloor,
     minFloor: floors[0],
     maxFloor: floors[floors.length - 1],
+    estimatedFloorLow: estimate.low,
+    estimatedFloorHigh: estimate.high,
+    auraPackLow: estimate.auraPackLow,
+    auraPackHigh: estimate.auraPackHigh,
     trusted: unsupported.size === 0,
     unsupportedAbilities: [...unsupported].sort(),
   }

@@ -2,6 +2,7 @@ import type { BattleDebug, TeamLoadout } from '../types'
 import { generateDepthsTeam } from './depths'
 import { SeededRng } from './rng'
 import { simulateBattleV2 } from './battle-v2'
+import { auraPackRangeForMedian } from './depths-rewards'
 
 export interface DepthsRunResult {
   deathFloor: number
@@ -26,6 +27,10 @@ export interface DepthsBatchResult {
   medianFloor: number
   minFloor: number
   maxFloor: number
+  estimatedFloorLow: number
+  estimatedFloorHigh: number
+  auraPackLow: number
+  auraPackHigh: number
   trusted: boolean
   unsupportedAbilities: string[]
 }
@@ -156,6 +161,7 @@ export function simulateDepthsBatch(
   const medianFloor = floors.length % 2
     ? floors[middle]
     : (floors[middle - 1] + floors[middle]) / 2
+  const estimate = auraPackRangeForMedian(medianFloor)
 
   return {
     runs: results,
@@ -163,6 +169,10 @@ export function simulateDepthsBatch(
     medianFloor,
     minFloor: floors[0],
     maxFloor: floors[floors.length - 1],
+    estimatedFloorLow: estimate.low,
+    estimatedFloorHigh: estimate.high,
+    auraPackLow: estimate.auraPackLow,
+    auraPackHigh: estimate.auraPackHigh,
     trusted: unsupported.size === 0,
     unsupportedAbilities: [...unsupported].sort(),
   }

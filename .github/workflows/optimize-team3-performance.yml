@@ -1,0 +1,42 @@
+name: Optimize high-depth simulation
+
+on:
+  push:
+    paths:
+      - 'scripts/optimize-high-depth.mjs'
+
+permissions:
+  contents: write
+
+jobs:
+  optimize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install --no-audit --no-fund
+      - run: node scripts/optimize-high-depth.mjs
+      - run: npm run build
+      - run: npm run test:engine
+      - run: npm run test:depths
+      - run: npm run test:player
+      - name: Benchmark Team 3 hot path
+        run: npx --no-install tsx scripts/team3-stall-diagnostic.ts
+      - name: Bundle browser worker
+        run: npx --no-install esbuild src/browser-worker.ts --bundle --format=iife --platform=browser --target=es2020 --minify --outfile=browser/depths-worker.js
+      - name: Commit optimization
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/engine/battle-v2.ts src/browser-worker.ts index.html browser/depths-worker.js
+          if git diff --cached --quiet; then
+            echo "No changes."
+          else
+            git commit -m "Speed up high-depth simulations"
+            git push
+          fi

@@ -6,13 +6,11 @@
  * and calculateA(x, 1) = sqrt(x / 2) * 2, so StageATK simplifies to:
  *   ceil(sqrt((3000 + floor^2.7 * 40) / 2))
  *
- * The original server Depths reward handler awards Aura Packs cumulatively:
- *   numPacks += ceil(Util.StageATK(floor) / 500)
- * for every floor from 1 through the ending Depths floor.
- *
- * The Expansion save does not contain that server remote handler, but it keeps
- * the same StageATK helper used by that reward code.
+ * Aura Pack rewards are cumulative. The per-floor reward scales through floor
+ * 5,000, then stays at the floor-5,000 amount for every later floor.
  */
+export const AURA_PACK_SCALING_CAP_FLOOR = 5000
+
 export function depthsRewardStageAttack(floor: number): number {
   const safeFloor = Math.max(1, Math.floor(Number(floor) || 1))
   return Math.ceil(Math.sqrt((3000 + Math.pow(safeFloor, 2.7) * 40) / 2))
@@ -20,10 +18,19 @@ export function depthsRewardStageAttack(floor: number): number {
 
 export function auraPacksForDepth(depth: number): number {
   const endFloor = Math.max(0, Math.floor(Number(depth) || 0))
+  if (endFloor <= 0) return 0
+
+  const scalingEnd = Math.min(endFloor, AURA_PACK_SCALING_CAP_FLOOR)
   let packs = 0
-  for (let floor = 1; floor <= endFloor; floor++) {
+  for (let floor = 1; floor <= scalingEnd; floor++) {
     packs += Math.ceil(depthsRewardStageAttack(floor) / 500)
   }
+
+  if (endFloor > AURA_PACK_SCALING_CAP_FLOOR) {
+    const cappedPacksPerFloor = Math.ceil(depthsRewardStageAttack(AURA_PACK_SCALING_CAP_FLOOR) / 500)
+    packs += (endFloor - AURA_PACK_SCALING_CAP_FLOOR) * cappedPacksPerFloor
+  }
+
   return packs
 }
 

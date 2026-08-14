@@ -25,40 +25,38 @@ jobs:
           python <<'PY'
           from pathlib import Path
           p = Path('src/engine/battle-v2.ts')
-          s = p.read_text()
-          old = """      for (const revenant of revenants) {
-                const fallenIndex = runtime.state.fallen[team].indexOf(revenant)
-                if (fallenIndex >= 0) runtime.state.fallen[team].splice(fallenIndex, 1)
-                revenant.dead = false
-                revenant.hp = revenant.maxHp * 0.5
-                revenant.entered = false
-                runtime.state.teams[team].unshift(revenant)
-              }
-          """
-          new = """      for (const revenant of revenants) {
-                // Two Beyond The Grave cards can otherwise revive each other forever.
-                // Carry a chain counter only when one Beyond The Grave holder revives another;
-                // unrelated ally deaths reset the chain. Resolve the pathological cycle at
-                // the same 150-turn scale used by the source battle timeout.
-                const beyondGraveChain = abilityNames(card).includes('Beyond The Grave')
-                  ? (card.counters.beyondGraveChain || 0) + 1
-                  : 1
-                if (beyondGraveChain >= 150) continue
-                const fallenIndex = runtime.state.fallen[team].indexOf(revenant)
-                if (fallenIndex >= 0) runtime.state.fallen[team].splice(fallenIndex, 1)
-                revenant.dead = false
-                revenant.hp = revenant.maxHp * 0.5
-                revenant.entered = false
-                revenant.counters.beyondGraveChain = beyondGraveChain
-                runtime.state.teams[team].unshift(revenant)
-              }
-          """
-          if new in s:
+          lines = p.read_text().splitlines()
+          if any('beyondGraveChain' in line for line in lines):
               print('Beyond The Grave loop guard already present.')
-          elif old not in s:
-              raise SystemExit('Beyond The Grave anchor missing')
           else:
-              p.write_text(s.replace(old, new, 1))
+              start = next((i for i, line in enumerate(lines) if line.strip() == 'for (const revenant of revenants) {'), None)
+              if start is None:
+                  raise SystemExit('Beyond The Grave loop start missing')
+              end = next((i for i in range(start + 1, len(lines)) if lines[i].strip() == '}'), None)
+              if end is None or not any('runtime.state.teams[team].unshift(revenant)' in line for line in lines[start:end + 1]):
+                  raise SystemExit('Beyond The Grave loop end missing')
+              indent = lines[start][:-len(lines[start].lstrip())]
+              inner = indent + '  '
+              replacement = [
+                  indent + 'for (const revenant of revenants) {',
+                  inner + '// Two Beyond The Grave cards can otherwise revive each other forever.',
+                  inner + '// Carry a chain counter only when one Beyond The Grave holder revives another;',
+                  inner + '// unrelated ally deaths reset the chain. Resolve the pathological cycle at',
+                  inner + '// the same 150-turn scale used by the source battle timeout.',
+                  inner + "const beyondGraveChain = abilityNames(card).includes('Beyond The Grave')",
+                  inner + '  ? (card.counters.beyondGraveChain || 0) + 1',
+                  inner + '  : 1',
+                  inner + 'if (beyondGraveChain >= 150) continue',
+                  inner + 'const fallenIndex = runtime.state.fallen[team].indexOf(revenant)',
+                  inner + 'if (fallenIndex >= 0) runtime.state.fallen[team].splice(fallenIndex, 1)',
+                  inner + 'revenant.dead = false',
+                  inner + 'revenant.hp = revenant.maxHp * 0.5',
+                  inner + 'revenant.entered = false',
+                  inner + 'revenant.counters.beyondGraveChain = beyondGraveChain',
+                  inner + 'runtime.state.teams[team].unshift(revenant)',
+                  indent + '}',
+              ]
+              p.write_text('\n'.join(lines[:start] + replacement + lines[end + 1:]) + '\n')
               print('Applied Beyond The Grave loop guard.')
           PY
       - run: npm install

@@ -248,6 +248,7 @@ function clearSkillAura(runtime: Runtime, team: BattleTeam) {
     fossils: boosts.fossils || 0,
     composerCount: boosts.composerCount,
     composerThreshold: boosts.composerThreshold,
+    noAbilities: boosts.noAbilities,
   }
 }
 
@@ -357,7 +358,7 @@ function active(runtime: Runtime, team: BattleTeam) {
 }
 
 function hasAbility(runtime: Runtime, card: CombatCard | undefined, name: string): boolean {
-  if (!card || card.dead || card.flags.sealed || (card.counters.cosmosSeal || 0) > 0) return false
+  if (!card || card.dead || card.flags.sealed || (runtime.state.boosts[card.team].noAbilities || 0) > 0) return false
   const opposingCard = active(runtime, OTHER_TEAM[card.team])
   const ownName = effectiveCardName(card)
   const opposingName = effectiveCardName(opposingCard)
@@ -515,7 +516,7 @@ function onEntry(runtime: Runtime, card: CombatCard) {
   }
 
   let name = resolvedAbility(runtime, card)
-  if (!name) return
+  if (!name || !hasAbility(runtime, card, name)) return
 
   if (name === "Pandora's Box" && !card.flags.pandoraRolled) {
     card.flags.pandoraRolled = true
@@ -691,7 +692,9 @@ function onEntry(runtime: Runtime, card: CombatCard) {
       enemy.flags.noRng = true
       break
     case 'Order of the Cosmos':
-      for (const target of runtime.state.teams[enemyTeam]) target.counters.cosmosSeal = Math.max(target.counters.cosmosSeal || 0, 3)
+      // OG server source stores this as a team-wide NoAbilities counter.
+      // It lasts for three turns TAKEN by the affected team, not three turns per card.
+      runtime.state.boosts[enemyTeam].noAbilities = 3
       break
     case 'Mind Rift':
       if (card.damage > enemy.damage / 4) enemy.status.confused = 3
@@ -740,9 +743,19 @@ function onEntry(runtime: Runtime, card: CombatCard) {
         bonusAbilities: undefined,
         status: { stunned: 0, confused: 0, burn: 0, weakness: false, blind: false, shield: 0 },
         flags: {},
-        counters: { normalDamage: card.damage, normalMaxHp: card.maxHp },
+        counters: { normalDamage: Math.ceil(card.power / 2), normalMaxHp: Math.ceil(card.power) },
       }
       runtime.state.teams[card.team].push(created)
+      pushDebugEvent(runtime, {
+        turn: runtime.state.turn,
+        type: 'spawn',
+        team: card.team,
+        card: createdDefinition.name,
+        detail: 'Creation and Restoration: Nüwa created ' + createdDefinition.name + ' at raw Power ' + Math.ceil(card.power),
+        hp: created.hp,
+        maxHp: created.maxHp,
+        damage: created.damage,
+      })
       break
     }
     case 'Dispel':
@@ -1972,7 +1985,6 @@ function statusEnd(runtime: Runtime, attacker: CombatCard) {
     attacker.counters.weaknessTurns -= 1
     if (attacker.counters.weaknessTurns <= 0) attacker.status.weakness = false
   }
-  if ((attacker.counters.cosmosSeal || 0) > 0) attacker.counters.cosmosSeal -= 1
 }
 
 function prepareTurn(runtime: Runtime, attacker: CombatCard) {
@@ -2326,6 +2338,11 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
   statusEnd(runtime, attacker)
   processTeamTurnAbilities(runtime, attacker.team, attacker)
   resolveDeaths(runtime)
+
+  // Source behavior: Order of the Cosmos counts down only when the locked team
+  // completes one of its turns. This also suppresses on-entry abilities while active.
+  const lock = runtime.state.boosts[attacker.team].noAbilities || 0
+  if (lock > 0) runtime.state.boosts[attacker.team].noAbilities = lock > 1 ? lock - 1 : undefined
 }
 
 function processDivination(runtime: Runtime) {

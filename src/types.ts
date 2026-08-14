@@ -97,6 +97,7 @@ export interface BattleBoosts {
   fossils?: number
   composerCount?: number
   composerThreshold?: number
+  noAbilities?: number
 }
 
 export interface BattleState {
@@ -119,7 +120,7 @@ export interface BattleDebugCard {
 
 export interface BattleDebugEvent {
   turn: number
-  type: 'turn' | 'death' | 'revive' | 'stall'
+  type: 'turn' | 'death' | 'revive' | 'stall' | 'spawn'
   team: BattleTeam
   card: string
   detail: string

@@ -252,7 +252,9 @@ function clearSkillAura(runtime: Runtime, team: BattleTeam) {
 }
 
 function randomCreatableCard(runtime: Runtime) {
-  const pool = cards.filter((card) => !card.unobtainable && !card.boss && card.rarity > 0)
+  // OG server source: Nüwa can create any non-expired, obtainable card except Nüwa itself.
+  // Pack and Boss are not separate exclusions here; Unobtainable/Expires are the source gates.
+  const pool = cards.filter((card) => !card.expires && !card.unobtainable && card.name !== 'Nüwa')
   return pool[Math.floor(runtime.rng.next() * pool.length)] || cards[0]
 }
 
@@ -724,9 +726,12 @@ function onEntry(runtime: Runtime, card: CombatCard) {
         id: `${card.team}:created:${runtime.state.turn}:${createdDefinition.name}`,
         definition: createdDefinition,
         index: runtime.state.teams[card.team].length + 1,
-        hp: card.hp,
-        maxHp: card.maxHp,
-        damage: card.damage,
+        borders: [],
+        // OG server source rebuilds the spawned card from Nüwa's raw Power, not Nüwa's
+        // current aura/battle-modified HP/ATK and not the spawned card's HP multiplier.
+        hp: Math.ceil(card.power),
+        maxHp: Math.ceil(card.power),
+        damage: Math.ceil(card.power / 2),
         power: card.power,
         entered: false,
         dead: false,
@@ -1368,7 +1373,16 @@ function targetRetro(runtime: Runtime, attacker: CombatCard, target: CombatCard,
       }
       break
     case 'Steal Christmas':
-      if (damage > 0 && attacker !== target) stealStats(attacker, target, 0.2)
+      if (damage > 0 && attacker !== target) {
+        // OG server Retroactive.Target module: steal 20% of CURRENT HP and ATK only.
+        // Max HP is never transferred, so do not use the generic stealStats helper here.
+        const stolenHp = Math.max(0, attacker.hp * 0.2)
+        const stolenDamage = Math.max(0, attacker.damage * 0.2)
+        target.damage += stolenDamage
+        target.hp += stolenHp
+        attacker.hp = Math.max(0, attacker.hp - stolenHp)
+        attacker.damage = Math.max(0, attacker.damage - stolenDamage)
+      }
       break
     case 'Shelter Obsession':
       if (damage > 0 && target.flags.awakened) {

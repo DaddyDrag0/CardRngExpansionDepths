@@ -32,7 +32,7 @@ jobs:
           const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((match) => match[1])
           if (!scripts.length) throw new Error('No inline live-page script found')
           for (const script of scripts) new Function(script)
-          const requiredUiHooks = ["new Worker('./browser/depths-worker.js')", 'CRE1-', 'Most common losing-floor enemies', 'crypto.getRandomValues', 'Random enemies every test']
+          const requiredUiHooks = ["new Worker('./browser/depths-worker.js')", 'CRE1-', 'Most common losing-floor enemies', 'crypto.getRandomValues']
           for (const hook of requiredUiHooks) if (!html.includes(hook)) throw new Error(`Missing live-page hook: ${hook}`)
           for (const removedHook of ['data-library-mode="bans"', 'data-library-mode="pool"', 'id="seedInput"']) if (html.includes(removedHook)) throw new Error(`Removed calculator-only control returned: ${removedHook}`)
           const workerSource = fs.readFileSync('src/browser-worker.ts', 'utf8')

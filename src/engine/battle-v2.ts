@@ -1090,7 +1090,7 @@ function offensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
     case 'Modesty': damage *= 0.7; break
     // Balance correction for Expansion results: keep Decapitate as a strong
     // normal attack modifier without letting Shuten snowball thousands of floors.
-    case 'Decapitate': damage *= 1.5; break
+    case 'Decapitate': damage *= 1.15; break
     case 'Martial Will': {
       const ah = attacker.counters.martialHits || 0
       const th = target.counters.martialHits || 0
@@ -1574,7 +1574,7 @@ function attackerRetro(runtime: Runtime, attacker: CombatCard, target: CombatCar
       // revive cards multiplying Shuten's snowball far beyond observed Depths runs.
       const unholySurvives = hasAbility(runtime, target, 'Unholy Creature')
         && (!target.flags.unholyActive || (target.counters.unholyTurns || 0) > 0)
-      if (target.hp <= 0 && !unholySurvives) boostStats(attacker, 1.1)
+      if (target.hp <= 0 && !unholySurvives) boostStats(attacker, 1.05)
       break
     }
     case 'Fury of the White Tiger': if (target.hp <= 0) { attacker.damage *= 1.35; attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.35) }; break

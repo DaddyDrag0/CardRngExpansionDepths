@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "python scripts/apply-beyond-grave-loop-fix.py",
     "build": "tsc --noEmit && vite build",
     "test:engine": "tsx scripts/engine-smoke.ts && tsx scripts/debug-stall-seed.ts",
     "test:depths": "tsx scripts/depths-regression.ts",

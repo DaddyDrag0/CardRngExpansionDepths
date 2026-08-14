@@ -136,6 +136,7 @@ export interface BattleDebug {
   finalEnemies: BattleDebugCard[]
   events: BattleDebugEvent[]
   forcedStallResolutions: number
+  turnLimit?: { turn: number; ally: string; enemy: string }
   statAura?: { name: string; border: AuraBorderName | null; value?: number }
   abilityAura?: { name: string; border: AuraBorderName | null; value?: number }
 }
@@ -146,5 +147,6 @@ export interface BattleResult {
   state: BattleState
   unsupportedAbilities: string[]
   trusted: boolean
+  turnLimitReached?: boolean
   debug?: BattleDebug
 }

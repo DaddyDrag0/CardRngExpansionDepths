@@ -2436,6 +2436,7 @@ export function simulateBattleV2(
   }
   let turnsWithoutDeaths = 0
   let lastDeathEpoch = runtime.deathEpoch
+  let turnLimitReached = false
   while (state.teams.Allies.length && state.teams.Enemies.length && state.turn < maxTurns) {
     state.turn += 1
     // Heartbeat for the outer browser watchdog. This is intentionally sparse so
@@ -2461,18 +2462,21 @@ export function simulateBattleV2(
     turnsWithoutDeaths += 1
     if (turnsWithoutDeaths >= 150) {
       debug.forcedStallResolutions += 1
+      turnLimitReached = true
+      const allyCard = attacker.team === 'Allies' ? attacker : defender
+      const enemyCard = attacker.team === 'Enemies' ? attacker : defender
+      const allyName = effectiveCardName(allyCard) || allyCard.definition.name
+      const enemyName = effectiveCardName(enemyCard) || enemyCard.definition.name
+      debug.turnLimit = { turn: state.turn, ally: allyName, enemy: enemyName }
       if (runtime.captureDebug) pushDebugEvent(runtime, {
         turn: state.turn,
         type: 'stall',
         team: state.moving,
         card: effectiveCardName(attacker) || attacker.definition.name,
-        detail: `Expansion 150-turn no-progress resolution vs ${effectiveCardName(defender) || defender.definition.name}: both active cards defeated`,
+        detail: `Expansion 150-turn battle limit reached: battle ends with ${allyName} vs ${enemyName}`,
         hp: attacker.hp, maxHp: attacker.maxHp, damage: attacker.damage,
       })
-      attacker.hp = 0
-      defender.hp = 0
-      resolveDeaths(runtime)
-      continue
+      break
     }
     if (runtime.captureDebug) pushDebugEvent(runtime, {
       turn: state.turn,
@@ -2514,13 +2518,15 @@ export function simulateBattleV2(
     state.unsupportedAbilities.add('Battle turn cap reached')
   }
 
-  const winner: BattleResult['winner'] = state.teams.Allies.length
-    ? state.teams.Enemies.length ? 'Draw' : 'Allies'
-    : state.teams.Enemies.length ? 'Enemies' : 'Draw'
+  const winner: BattleResult['winner'] = turnLimitReached
+    ? 'Draw'
+    : state.teams.Allies.length
+      ? state.teams.Enemies.length ? 'Draw' : 'Allies'
+      : state.teams.Enemies.length ? 'Enemies' : 'Draw'
   const unsupportedAbilities = [...state.unsupportedAbilities].sort()
   if (captureDebug) {
     debug.finalAllies = state.teams.Allies.map(debugCard)
     debug.finalEnemies = state.teams.Enemies.map(debugCard)
   }
-  return { winner, turns: state.turn, state, unsupportedAbilities, trusted: unsupportedAbilities.length === 0, debug: captureDebug ? debug : undefined }
+  return { winner, turns: state.turn, state, unsupportedAbilities, trusted: unsupportedAbilities.length === 0, turnLimitReached, debug: captureDebug ? debug : undefined }
 }

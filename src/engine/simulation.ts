@@ -14,6 +14,9 @@ export interface DepthsRunResult {
   runSeed: number
   floorSeed?: number
   battleSeed?: number
+  turnLimitReached?: boolean
+  turnLimitEnemy?: string
+  turnLimitAlly?: string
   debug?: BattleDebug
 }
 
@@ -105,6 +108,9 @@ export function simulateDepthsRun(
         runSeed,
         floorSeed,
         battleSeed: floorSeed ^ 0x51ed270b,
+        turnLimitReached: debugBattle.turnLimitReached,
+        turnLimitEnemy: debugBattle.debug?.turnLimit?.enemy,
+        turnLimitAlly: debugBattle.debug?.turnLimit?.ally,
         debug: debugBattle.debug,
       }
     }

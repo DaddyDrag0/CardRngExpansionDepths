@@ -60,7 +60,7 @@ function simulateOne(request: SingleRunRequest, onProgress?: (floor: number, bat
     floorCap: request.floorCap,
     seed: runSeed(request.batchSeed, request.runIndex),
     battleTurnCap: LIVE_BATTLE_TURN_CAP,
-    throwOnBattleTurnCap: true,
+    throwOnBattleTurnCap: false,
   }, onProgress)
 }
 

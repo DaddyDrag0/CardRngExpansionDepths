@@ -6,3 +6,4 @@ s=s.replace(`    if (runtime.deathEpoch !== lastDeathEpoch) {\n      turnsWithou
 s=s.replace(`      continue\n    }\n    if (runtime.captureDebug) pushDebugEvent(runtime, {`,`      continue\n    }\n    lastMover = attacker\n    lastTarget = defender\n    if (runtime.captureDebug) pushDebugEvent(runtime, {`)
 fs.writeFileSync(path,s)
 console.log('Patched battle-v2 in runner to old server active-pair reset + 100-turn matchup resolver')
+// diagnostic rerun

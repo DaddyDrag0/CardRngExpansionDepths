@@ -319,7 +319,7 @@ function cloneAtFraction(source: CombatCard, fraction: number, serial: number): 
     dead: false,
     identityOverride: undefined,
     status: { stunned: 0, confused: 0, burn: 0, weakness: false, blind: false, shield: 0 },
-    flags: {},
+    flags: { paired: true },
     counters: { normalDamage: source.damage * fraction },
   }
 }

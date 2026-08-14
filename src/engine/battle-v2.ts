@@ -79,6 +79,7 @@ const FULLY_SUPPORTED = new Set([
   'Mirror Image', 'Long Reach', 'Whooping', 'Shapeshifter', 'Heroes',
   'God of Trickery', 'Draconian', 'Safeguarding', 'Mother of Dragons', 'Reveal',
   'Jealousy', 'Nightmare Melody', 'Sap',
+  'Bind Fate', 'Luminescent Veil', 'Ouroboros',
 ])
 
 const BENCH_AFFECTING_UNSUPPORTED = new Set<string>()
@@ -244,6 +245,10 @@ function stealStats(from: CombatCard, to: CombatCard, fraction: number) {
 
 function statusProtected(runtime: Runtime, team: BattleTeam): boolean {
   return runtime.state.teams[team].some((card) => hasAbility(runtime, card, 'Protection of Gods'))
+}
+
+function luminescentVeilHolder(runtime: Runtime, team: BattleTeam): CombatCard | undefined {
+  return runtime.state.teams[team].find((card) => alive(card) && hasAbility(runtime, card, 'Luminescent Veil'))
 }
 
 function clearSkillAura(runtime: Runtime, team: BattleTeam) {
@@ -585,6 +590,45 @@ function onEntry(runtime: Runtime, card: CombatCard) {
   }
 
   switch (name) {
+    case 'Bind Fate': {
+      const firstTwo = runtime.state.teams[enemyTeam].filter(alive).slice(0, 2)
+      if (firstTwo.length === 2) {
+        const pair = runtime.state.turn * 1000 + Math.max(1, card.index)
+        firstTwo[0].counters.bindFatePair = pair
+        firstTwo[1].counters.bindFatePair = pair
+      }
+      break
+    }
+    case 'Ouroboros': {
+      if (!card.flags.ouroborosActive) {
+        let stolenDamage = 0
+        let stolenMaxHp = 0
+        let stolenHp = 0
+        for (const teamName of ['Allies', 'Enemies'] as BattleTeam[]) {
+          for (const other of runtime.state.teams[teamName]) {
+            if (other === card || !alive(other)) continue
+            const oldDamage = other.damage
+            const oldMaxHp = other.maxHp
+            const oldHp = other.hp
+            other.damage = Math.max(0, oldDamage * 0.95)
+            other.maxHp = Math.max(1, oldMaxHp * 0.95)
+            other.hp = Math.max(0, Math.min(other.maxHp, oldHp * 0.95))
+            stolenDamage += oldDamage - other.damage
+            stolenMaxHp += oldMaxHp - other.maxHp
+            stolenHp += oldHp - other.hp
+          }
+        }
+        card.damage += stolenDamage
+        card.maxHp += stolenMaxHp
+        card.hp += stolenHp
+        card.counters.ouroborosBonusDamage = stolenDamage
+        card.counters.ouroborosBonusMaxHp = stolenMaxHp
+        card.counters.ouroborosBonusHp = stolenHp
+        card.counters.ouroborosTurns = 3
+        card.flags.ouroborosActive = true
+      }
+      break
+    }
     case 'Perseverance':
       if (!card.flags.perseveranceBoosted) {
         card.flags.perseveranceBoosted = true
@@ -1633,7 +1677,26 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   const beforeDefense = damage
   if (!bypass && target.flags.eternalDevotion) { target.flags.eternalDevotion = false; damage = 0 }
   else if (!bypass && target.flags.dodgeLethal) { target.flags.dodgeLethal = false; damage = 0 }
-  else if (!bypass) damage = defensive(runtime, attacker, target, damage)
+  else if (!bypass) {
+    const veilHolder = luminescentVeilHolder(runtime, target.team)
+    const successfulEvades = target.counters.luminescentEvades || 0
+    if (veilHolder && successfulEvades < 2) {
+      const chance = Math.max(0.2, 0.4 - successfulEvades * 0.1)
+      if (rand(runtime, target.team) < chance) {
+        target.counters.luminescentEvades = successfulEvades + 1
+        target.flags.evadedThisHit = true
+        const baseDamage = veilHolder.counters.normalDamage || veilHolder.damage
+        const currentGain = veilHolder.counters.luminescentVeilGain || 0
+        const room = Math.max(0, baseDamage * 2 - currentGain)
+        const gain = Math.min(room, Math.max(0, beforeDefense) * 0.1)
+        if (gain > 0) {
+          veilHolder.damage += gain
+          veilHolder.counters.luminescentVeilGain = currentGain + gain
+        }
+        damage = 0
+      } else damage = defensive(runtime, attacker, target, damage)
+    } else damage = defensive(runtime, attacker, target, damage)
+  }
   if (!bypass && target.flags.evadedThisHit && hasAbility(runtime, attacker, 'ConstellarSagittarius')) damage = beforeDefense * 2
 
   const shielder = runtime.state.boosts[target.team].shielder
@@ -1666,7 +1729,15 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   const targetDeck = runtime.state.teams[target.team]
   const longReachTarget = hasAbility(runtime, attacker, 'Long Reach') && targetDeck[0] === target ? targetDeck[1] : undefined
   const hpTarget = longReachTarget || target
-  hpTarget.hp -= Math.min(hpTarget.hp, damage)
+  const appliedHpDamage = Math.min(hpTarget.hp, damage)
+  hpTarget.hp -= appliedHpDamage
+  if (appliedHpDamage > 0 && (hpTarget.counters.bindFatePair || 0) > 0) {
+    const pair = hpTarget.counters.bindFatePair
+    const partner = runtime.state.teams[hpTarget.team].find((candidate) =>
+      candidate !== hpTarget && alive(candidate) && candidate.counters.bindFatePair === pair
+    )
+    if (partner) partner.hp -= Math.min(partner.hp, appliedHpDamage)
+  }
   if (longReachTarget && longReachTarget.hp <= 0) {
     const index = targetDeck.indexOf(longReachTarget)
     if (index > 0) {
@@ -1975,7 +2046,24 @@ function tickGlobalUnholyCreature(runtime: Runtime) {
   }
 }
 
+function tickOuroborosDecay(attacker: CombatCard) {
+  if (!attacker.flags.ouroborosActive) return
+  attacker.counters.ouroborosTurns = Math.max(0, (attacker.counters.ouroborosTurns || 0) - 1)
+  if ((attacker.counters.ouroborosTurns || 0) > 0) return
+  const damageBonus = attacker.counters.ouroborosBonusDamage || 0
+  const maxHpBonus = attacker.counters.ouroborosBonusMaxHp || 0
+  const hpBonus = attacker.counters.ouroborosBonusHp || 0
+  attacker.damage = Math.max(0, attacker.damage - damageBonus)
+  attacker.maxHp = Math.max(1, attacker.maxHp - maxHpBonus)
+  attacker.hp = Math.max(0, Math.min(attacker.maxHp, attacker.hp - hpBonus))
+  attacker.counters.ouroborosBonusDamage = 0
+  attacker.counters.ouroborosBonusMaxHp = 0
+  attacker.counters.ouroborosBonusHp = 0
+  attacker.flags.ouroborosActive = false
+}
+
 function statusEnd(runtime: Runtime, attacker: CombatCard) {
+  tickOuroborosDecay(attacker)
   if (statusProtected(runtime, attacker.team)) {
     clearStatuses(attacker)
     // Protection of Gods grants immunity to Status Effects; it must not freeze

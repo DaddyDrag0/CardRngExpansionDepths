@@ -101,6 +101,71 @@ assert(zombieSerketBattle.winner === 'Allies', `Shuten should beat low-stat Zomb
 assert(zombieSerketBattle.turns < 50, `Zombie Dragon + Serket interaction took too long: ${zombieSerketBattle.turns} turns`)
 console.log('Zombie Dragon + Serket + Decapitate regression passed:', zombieSerketBattle.turns, 'turns')
 
+// Expansion 2 event cards from the latest uploaded game file.
+for (const name of ['Fate Seamstress', 'Eclipseborn Luminant', 'Eonus']) {
+  assert(cards.some((card) => card.name === name), `New Expansion card missing: ${name}`)
+}
+assert(cards.length >= 288, `Expected at least 288 cards after Expansion 2 update, got ${cards.length}`)
+
+// Bind Fate permanently links the first two enemies; a hit to one mirrors the same
+// HP loss to its linked partner.
+const bindEnemies: DepthsEnemy[] = [
+  { card: { ...dummy, name: '__Bind A__' }, power: 1e9, attack: 0, health: 1e9 },
+  { card: { ...dummy, name: '__Bind B__' }, power: 1e9, attack: 0, health: 1e9 },
+]
+const bindBattle = simulateBattleV2({ cards: [{ cardName: 'Fate Seamstress', borders: [] }] }, bindEnemies, 9911, 1)
+const bindA = bindBattle.state.teams.Enemies.find((card) => card.definition.name === '__Bind A__')
+const bindB = bindBattle.state.teams.Enemies.find((card) => card.definition.name === '__Bind B__')
+assert(bindA && bindB, 'Bind Fate test enemies missing')
+const bindLossA = 1e9 - bindA.hp
+const bindLossB = 1e9 - bindB.hp
+assert(bindLossA > 0 && Math.abs(bindLossA - bindLossB) < 1e-6, `Bind Fate did not share damage equally: ${bindLossA} vs ${bindLossB}`)
+
+// Ouroboros steals 5% from all other living cards on entry, then its stolen bonus
+// decays after three turns taken by the holder.
+const ouroEnemy: DepthsEnemy[] = [{ card: { ...dummy, name: '__Ouroboros Enemy__' }, power: 1e12, attack: 0, health: 1e12 }]
+const ouroEntry = simulateBattleV2({ cards: [{ cardName: 'Eonus', borders: [] }, { cardName: 'Mastermind', borders: [] }] }, ouroEnemy, 9922, 1)
+const ouroEntryCard = ouroEntry.state.teams.Allies.find((card) => card.definition.name === 'Eonus')
+const ouroAlly = ouroEntry.state.teams.Allies.find((card) => card.definition.name === 'Mastermind')
+assert(ouroEntryCard && ouroAlly, 'Ouroboros entry test cards missing')
+assert((ouroEntryCard.counters.ouroborosBonusDamage || 0) > 0, 'Ouroboros did not gain stolen ATK')
+assert(ouroAlly.damage < (ouroAlly.counters.normalDamage || ouroAlly.damage), 'Ouroboros did not steal allied ATK')
+const ouroDecay = simulateBattleV2({ cards: [{ cardName: 'Eonus', borders: [] }, { cardName: 'Mastermind', borders: [] }] }, ouroEnemy, 9922, 5)
+const ouroDecayCard = ouroDecay.state.teams.Allies.find((card) => card.definition.name === 'Eonus')
+assert(ouroDecayCard, 'Ouroboros decay holder missing')
+assert(!ouroDecayCard.flags.ouroborosActive, 'Ouroboros stolen stats did not decay after three holder turns')
+close(ouroDecayCard.damage, ouroDecayCard.counters.normalDamage || ouroDecayCard.damage, 1e-6)
+
+// Luminescent Veil must be able to evade an incoming hit and feed 10% of the
+// prevented damage into its holder's ATK. Search a small deterministic seed set.
+let veilWorked = false
+for (let seed = 1; seed <= 100 && !veilWorked; seed++) {
+  const veilBattle = simulateBattleV2(
+    { cards: [{ cardName: 'Eclipseborn Luminant', borders: [] }] },
+    [{ card: { ...dummy, name: '__Veil Enemy__' }, power: 1e12, attack: 100, health: 1e12 }],
+    seed, 2,
+  )
+  const luminant = veilBattle.state.teams.Allies.find((card) => card.definition.name === 'Eclipseborn Luminant')
+  if (luminant && (luminant.counters.luminescentEvades || 0) > 0) {
+    assert(luminant.damage > (luminant.counters.normalDamage || 0), 'Luminescent Veil evade did not increase holder ATK')
+    veilWorked = true
+  }
+}
+assert(veilWorked, 'Luminescent Veil never evaded in deterministic seed search')
+
+// The Discord-reported Zombie Dragon -> Hades sequence is explicitly guarded:
+// The Underworld does copy Unholy Creature and Hades receives its survival state.
+const hadesCopyBattle = simulateBattleV2(
+  { cards: [{ cardName: 'Zombie Dragon', borders: [] }, { cardName: 'Hades', borders: [] }] },
+  [{ card: { ...dummy, name: '__Hades Copy Enemy__' }, power: 1e12, attack: 1_000_000, health: 1e12 }],
+  9933, 20, true, true,
+)
+const fallenHades = hadesCopyBattle.state.fallen.Allies.find((card) => card.definition.name === 'Hades')
+assert(fallenHades, 'Hades copy regression did not reach Hades')
+assert(fallenHades.abilityOverride === 'Unholy Creature', `Hades copied the wrong ability: ${fallenHades.abilityOverride}`)
+assert(Boolean(fallenHades.flags.unholyActive), 'Copied Unholy Creature never activated on Hades')
+console.log('Expansion 2 card regressions passed: Bind Fate, Luminescent Veil, Ouroboros, Zombie Dragon -> Hades copy.')
+
 console.log(`Engine smoke tests passed: ${cards.length} cards, ${auras.length} auras.`)
 console.log(`Source-aligned Depths ability coverage: ${coverage.supported}/${coverage.total} (${coverage.percent.toFixed(1)}%).`)
 console.log(`Remaining unsupported Depths abilities (${coverage.unsupported}): ${coverage.unsupportedAbilities.join(' | ')}`)

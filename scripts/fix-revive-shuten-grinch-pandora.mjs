@@ -117,3 +117,4 @@ replaceOnce(
 
 fs.writeFileSync(path, s)
 console.log('Restored Shuten and Pandora; limited Grinch and Lotus Sutra revives.')
+// rerun with regression file present

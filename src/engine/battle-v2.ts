@@ -1574,14 +1574,24 @@ function attackerRetro(runtime: Runtime, attacker: CombatCard, target: CombatCar
       const stolen = Math.min(target.damage, damage); attacker.damage += stolen; target.damage -= stolen; break
     }
     case 'Unholy Creature': if (!statusProtected(runtime, target.team)) target.counters.poisonPercent = -0.15; break
-    case 'Insatiable':
-      if (target.hp <= 0 && target !== attacker) {
+    case 'Insatiable': {
+      // Insatiable only chains after an actual defeat. Reaching 0 HP is not a
+      // defeat while a lethal-prevention ability is still keeping the card alive.
+      // Without this guard, Wendigo can repeatedly "kill" an Unholy Creature at
+      // 1 HP inside the same turn, so the global Unholy timer never advances.
+      const unholySurvives = hasAbility(runtime, target, 'Unholy Creature')
+        && (!target.flags.unholyActive || (target.counters.unholyTurns || 0) > 0)
+      const undyingSurvives = hasAbility(runtime, target, 'Undying')
+        && (!target.flags.undyingActive || (target.counters.undyingTurns || 0) > 0)
+      const paradoxSurvives = hasAbility(runtime, target, 'Paradox') && !target.flags.paradox
+      if (target.hp <= 0 && target !== attacker && !unholySurvives && !undyingSurvives && !paradoxSurvives) {
         attacker.damage += target.damage * 0.3
         attacker.maxHp += target.maxHp * 0.3
         attacker.hp += target.maxHp * 0.3
         attacker.flags.insatiableAttack = true
       }
       break
+    }
     case 'Devilish':
       if (target.hp <= 0 && target !== attacker) {
         const converted: CombatCard = {
@@ -2416,7 +2426,20 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
       const dealt = dealDamage(runtime, attacker, target)
       applyCollateralAfterHit(runtime, attacker, target, dealt)
       resolveDeaths(runtime)
+      let insatiableChainCount = 0
       while (attacker.flags.insatiableAttack && alive(attacker) && active(runtime, enemyTeam)) {
+        // A confirmed-kill chain should be finite. Keep a hard same-turn guard so
+        // a future revive/death-prevention interaction can never freeze the worker.
+        if (++insatiableChainCount > 64) {
+          attacker.flags.insatiableAttack = false
+          if (runtime.captureDebug) pushDebugEvent(runtime, {
+            turn: runtime.state.turn, type: 'stall', team: attacker.team,
+            card: effectiveCardName(attacker) || attacker.definition.name,
+            detail: 'Insatiable same-turn chain stopped at safety limit',
+            hp: attacker.hp, maxHp: attacker.maxHp, damage: attacker.damage,
+          })
+          break
+        }
         attacker.flags.insatiableAttack = false
         dealDamage(runtime, attacker, active(runtime, enemyTeam)!)
         resolveDeaths(runtime)

@@ -1564,7 +1564,18 @@ function attackerRetro(runtime: Runtime, attacker: CombatCard, target: CombatCar
       break
     case 'Immortal Ascension': if (attacker.flags.awakened && target.hp <= 0) boostStats(attacker, 1.5); break
     case 'Doom': if (!hasAbility(runtime, target, 'Erosion') && target.hp > 0 && rand(runtime, attacker.team) > 1 - damage / target.hp) { target.hp = 0; target.flags.sealed = true }; break
-    case 'Decapitate': if (target.hp <= 0) { boostStats(attacker, 1.2); attacker.flags.extraTurn = true }; break
+    case 'Decapitate': {
+      // "When defeating an enemy" means the target must actually be allowed to die.
+      // Unholy Creature reaching 0 HP starts its two-turn survival window instead,
+      // so it must not grant Shuten-dōji a fake kill, +20% stats, or another turn.
+      const unholySurvives = hasAbility(runtime, target, 'Unholy Creature')
+        && (!target.flags.unholyActive || (target.counters.unholyTurns || 0) > 0)
+      if (target.hp <= 0 && !unholySurvives) {
+        boostStats(attacker, 1.2)
+        attacker.flags.extraTurn = true
+      }
+      break
+    }
     case 'Fury of the White Tiger': if (target.hp <= 0) { attacker.damage *= 1.35; attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.35) }; break
     case 'Feeder': if (target.hp <= 0) attacker.hp = attacker.maxHp; break
     case 'Defraud': attacker.hp -= attacker.maxHp / 4; break
@@ -1952,6 +1963,21 @@ function statusStart(runtime: Runtime, attacker: CombatCard, target: CombatCard)
 function statusEnd(runtime: Runtime, attacker: CombatCard) {
   if (statusProtected(runtime, attacker.team)) {
     clearStatuses(attacker)
+    // Protection of Gods grants immunity to Status Effects; it must not freeze
+    // the card's own ability lifespans. Final Tail, Unholy Creature and Undying
+    // still consume their turns while Serket is alive.
+    if (hasAbility(runtime, attacker, 'Final Tail')) {
+      attacker.counters.finalTail = (attacker.counters.finalTail || 0) + 1
+      if (attacker.counters.finalTail >= 3) attacker.hp = 0
+    }
+    if (attacker.flags.unholyActive) {
+      attacker.counters.unholyTurns = Math.max(0, (attacker.counters.unholyTurns || 0) - 1)
+      if ((attacker.counters.unholyTurns || 0) <= 0) attacker.hp = 0
+    }
+    if (attacker.flags.undyingActive) {
+      attacker.counters.undyingTurns = Math.max(0, (attacker.counters.undyingTurns || 0) - 1)
+      if ((attacker.counters.undyingTurns || 0) <= 0) attacker.hp = 0
+    }
     return
   }
   if (attacker.status.burn > 0) {

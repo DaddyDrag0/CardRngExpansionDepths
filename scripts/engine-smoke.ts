@@ -80,6 +80,27 @@ assert(!timeoutBattle.unsupportedAbilities.includes('Battle turn cap reached'), 
 assert(timeoutBattle.turns >= 145 && timeoutBattle.turns <= 155, `Expansion timeout should resolve at about 150 no-progress turns, got ${timeoutBattle.turns}`)
 console.log('Expansion 150-turn no-progress regression passed:', timeoutBattle.turns, 'turns')
 
+// Regression for the floor-388 failure: Serket must not make Zombie Dragon's
+// Unholy Creature lifespan permanent, and Decapitate must not chain fake kills
+// while Zombie Dragon is surviving at 1 HP.
+const zombieDragon = cards.find((card) => card.name === 'Zombie Dragon')
+const serket = cards.find((card) => card.name === 'Serket')
+assert(zombieDragon && serket, 'Zombie Dragon/Serket regression cards missing')
+const zombieSerketEnemies: DepthsEnemy[] = [
+  { card: zombieDragon, power: 100, attack: 50, health: 100 },
+  { card: serket, power: 100, attack: 50, health: 100 },
+]
+const zombieSerketBattle = simulateBattleV2(
+  { cards: [{ cardName: 'Shuten-dōji', borders: ['Galaxy'] }] },
+  zombieSerketEnemies,
+  388388,
+  10_000,
+  true,
+)
+assert(zombieSerketBattle.winner === 'Allies', `Shuten should beat low-stat Zombie Dragon + Serket, got ${zombieSerketBattle.winner}`)
+assert(zombieSerketBattle.turns < 50, `Zombie Dragon + Serket interaction took too long: ${zombieSerketBattle.turns} turns`)
+console.log('Zombie Dragon + Serket + Decapitate regression passed:', zombieSerketBattle.turns, 'turns')
+
 console.log(`Engine smoke tests passed: ${cards.length} cards, ${auras.length} auras.`)
 console.log(`Source-aligned Depths ability coverage: ${coverage.supported}/${coverage.total} (${coverage.percent.toFixed(1)}%).`)
 console.log(`Remaining unsupported Depths abilities (${coverage.unsupported}): ${coverage.unsupportedAbilities.join(' | ')}`)

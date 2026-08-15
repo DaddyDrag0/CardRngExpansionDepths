@@ -62,6 +62,7 @@
   const TOWER_FIXED_VARIANTS={65:['Virgo','Scorpio','Taurus','Gemini']};
   const TOWER_FORCE_END_TIMES=new Set(['Honor','Order of the Cosmos','Unbothered','Nothing','God of Trickery','Erosion']);
   const TOWER_PREEMPTIVE_BLOCKERS=new Set(['Northern Winds','Stardust Driver','Quick Strike','First Blood','Azure Dragon Wrath','Deadly Ambush','Fight Dirty','Heart Hunter','Stampede','Behavioral Therapy','Blinding Flash','Perish','Mind Rift','Snowscape','Red-Nosed Reindeer','Pop-Up Impression','Am I Beautiful?','Ice Age']);
+  const TOWER_EXTRA_TURN_THREATS=new Set(['Haste','The World','Accelerate','First Progenitor','Melancholy']);
   const TOWER_WEIRD_ABILITIES=new Set(['Revive','Eternity','Frozen Ashes','Flames of Rebirth','Beyond The Grave','Unholy Creature','Undying','Persistent',"Unpaid 'Interns'",'Better Days','Lotus Sutra','Gehenna','Mirror Image',"Pandora's Box",'Mutate','Shared Power','Heroes','Graveyard','Shapeshifter','Dance of Discord','Eternal Voyage']);
   function towerAbilityText(card){return `${card?.ability||''} ${state.abilities[card?.ability]||''}`.toLowerCase()}
   function towerThreat(card,index,enemies){
@@ -69,7 +70,7 @@
     let forceEndTimes=TOWER_FORCE_END_TIMES.has(ability)||/(cancel all abilities|can't use abilities|cannot use abilities|immune to other cards'? abilities|randomize enemy'?s ability|cannot be killed by abilities)/i.test(text);
     let block=/(dodge attacks|dodge every other attack|dodge first lethal|evade attacks|evade lethal|evade first attack|chance to dodge|block first attack|block the first attack|nullify every other attack|invincible for|cannot take damage|damage can['’]?t exceed|damage cannot exceed|immune to damage from lower rarity|rng abilities always fail|making rng abilities fail|skip opponent['’]?s turn|enemy loses every other turn|survives lethal attack with 1 hp|stunned? on entry|blind target on entry)/i.test(text);
     if(ability==='Unlucky'||ability==='Hex'||ability==='Limitless'||ability==='Danger Sense'||ability==='Final Tail'||ability==='The Loser'||ability==='Divine Barrier'||ability==='Transcend Time'||ability==='Invisibility'||ability==='Blinding Flash'||ability==='Stalwart'||ability==='Shelter Obsession'||ability==='Heavenly Ruler'||ability==='Indestructible')block=true;
-    if(TOWER_PREEMPTIVE_BLOCKERS.has(ability))block=true;
+    if(TOWER_PREEMPTIVE_BLOCKERS.has(ability)||TOWER_EXTRA_TURN_THREATS.has(ability))block=true;
     if(Number(state.towerFloor)===65&&index===0)block=true;
     if(index>0&&['Destiny Sight','Eternal Devotion','Final Stand'].includes(enemies[index-1]?.ability))block=true;
     if(index<enemies.length-1&&enemies[index+1]?.ability==='Aura Farm')block=true;

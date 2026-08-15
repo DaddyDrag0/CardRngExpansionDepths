@@ -36,7 +36,7 @@ replaceOrThrow(
   pushAbilityDebug(
     runtime,
     piccolo,
-    `Aura Farm protected ${protectedName} from a lethal hit. Piccolo moved to the front, blocked the attack, and gained ${fatherhood ? '3× stats (Aura Farm + Mr. Piccolo)' : '2× stats'}.`,
+    'Aura Farm protected ' + protectedName + ' from a lethal hit. Piccolo moved to the front, blocked the attack, and gained ' + (fatherhood ? '3× stats (Aura Farm + Mr. Piccolo)' : '2× stats') + '.',
   )
   return { target: piccolo, damage: 0 }
 }`,
@@ -66,7 +66,7 @@ replaceOrThrow(
       pushAbilityDebug(
         runtime,
         attacker,
-        `Chaos Destruction swapped the enemy current card from ${effectiveCardName(previousFront) || previousFront.definition.name} to ${effectiveCardName(swappedIn) || swappedIn.definition.name}. The next attack deals 3× damage.`,
+        'Chaos Destruction swapped the enemy current card from ' + (effectiveCardName(previousFront) || previousFront.definition.name) + ' to ' + (effectiveCardName(swappedIn) || swappedIn.definition.name) + '. The next attack deals 3× damage.',
       )
       onEntry(runtime, target)
       resolveDeaths(runtime)
@@ -80,5 +80,3 @@ replaceOrThrow(
 
 fs.writeFileSync(path, source)
 console.log('Patched ability trace ordering details.')
-
-// Trigger the patch workflow after the workflow file exists.

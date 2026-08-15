@@ -64,7 +64,7 @@
   function towerAbilityText(card){return `${card?.ability||''} ${state.abilities[card?.ability]||''}`.toLowerCase()}
   function towerThreat(card,index,enemies){
     const text=towerAbilityText(card),ability=card?.ability||'';
-    let forceEndTimes=TOWER_FORCE_END_TIMES.has(ability)||/(cancel all abilities|can't use abilities|cannot use abilities|immune to other cards'? abilities|randomize enemy'?s ability|remove their ability on entry|cannot be killed by abilities)/i.test(text);
+    let forceEndTimes=TOWER_FORCE_END_TIMES.has(ability)||/(cancel all abilities|can't use abilities|cannot use abilities|immune to other cards'? abilities|randomize enemy'?s ability|cannot be killed by abilities)/i.test(text);
     let block=/(dodge attacks|dodge every other attack|dodge first lethal|evade attacks|evade lethal|evade first attack|chance to dodge|block first attack|block the first attack|nullify every other attack|invincible for|cannot take damage|damage can['’]?t exceed|damage cannot exceed|immune to damage from lower rarity|rng abilities always fail|making rng abilities fail|skip opponent['’]?s turn|enemy loses every other turn|survives lethal attack with 1 hp|stunned? on entry|blind target on entry)/i.test(text);
     if(ability==='Unlucky'||ability==='Hex'||ability==='Limitless'||ability==='Danger Sense'||ability==='Final Tail'||ability==='The Loser'||ability==='Divine Barrier'||ability==='Transcend Time'||ability==='Invisibility'||ability==='Blinding Flash'||ability==='Stalwart'||ability==='Shelter Obsession'||ability==='Heavenly Ruler'||ability==='Indestructible')block=true;
     if(TOWER_PREEMPTIVE_BLOCKERS.has(ability))block=true;

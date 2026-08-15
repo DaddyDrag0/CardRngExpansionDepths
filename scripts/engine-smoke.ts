@@ -197,6 +197,23 @@ assert((hellIntern.counters.interns || 0) === 0, `Hell's Curse failed to suppres
 assert(hellSealBattle.state.fallen.Enemies.some((card) => card.definition.name === 'Noveau Riche'), "Noveau Riche survived after Hell's Curse removed its ability")
 console.log("Ability-disable revive regression passed: Fuxi and Hell's Curse suppress Unpaid Interns.")
 
+// Buddha regression: Lotus Sutra is a turn action, not an entry effect. Meteosaurus
+// dies on its own first turn; the zero-ATK enemy then acts; Buddha receives the next
+// allied turn and must revive Meteosaurus at 50% HP.
+const buddhaEnemy: DepthsEnemy[] = [{
+  card: { ...dummy, name: '__Buddha Turn Enemy__' }, power: 1e20, attack: 0, health: 1e20,
+}]
+const buddhaBattle = simulateBattleV2(
+  { cards: [{ cardName: 'Meteosaurus', borders: [] }, { cardName: 'Buddha', borders: [] }] },
+  buddhaEnemy,
+  9966, 3, false, true,
+)
+const revivedMeteosaurus = buddhaBattle.state.teams.Allies.find((card) => card.definition.name === 'Meteosaurus')
+assert(revivedMeteosaurus, 'Buddha failed to revive Meteosaurus when Lotus Sutra received a turn')
+close(revivedMeteosaurus.hp, revivedMeteosaurus.maxHp * 0.5, 1e-6)
+assert(buddhaBattle.debug?.events.some((event) => event.type === 'ability' && event.detail.includes('Lotus Sutra revived Meteosaurus')), 'Lotus Sutra revive interaction missing from debug events')
+console.log('Buddha Lotus Sutra turn regression passed.')
+
 console.log(`Engine smoke tests passed: ${cards.length} cards, ${auras.length} auras.`)
 console.log(`Source-aligned Depths ability coverage: ${coverage.supported}/${coverage.total} (${coverage.percent.toFixed(1)}%).`)
 console.log(`Remaining unsupported Depths abilities (${coverage.unsupported}): ${coverage.unsupportedAbilities.join(' | ')}`)

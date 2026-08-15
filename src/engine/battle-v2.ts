@@ -136,6 +136,19 @@ function pushDebugEvent(runtime: Runtime, event: BattleDebug['events'][number]) 
   runtime.debug.events.push(event)
 }
 
+function pushAbilityDebug(runtime: Runtime, card: CombatCard, detail: string) {
+  pushDebugEvent(runtime, {
+    turn: runtime.state.turn,
+    type: 'ability',
+    team: card.team,
+    card: effectiveCardName(card) || card.definition.name,
+    detail,
+    hp: card.hp,
+    maxHp: card.maxHp,
+    damage: card.damage,
+  })
+}
+
 function definition(name: string) {
   return CARD_BY_NAME.get(name)
 }
@@ -383,7 +396,10 @@ function hasAbility(runtime: Runtime, card: CombatCard | undefined, name: string
   )
   if (honorActive && name !== 'Honor') return false
   const enemy = runtime.state.boosts[OTHER_TEAM[card.team]]
-  if (enemy.endTimes && runtime.rng.next() < enemy.endTimes / 100) return false
+  if (enemy.endTimes && runtime.rng.next() < enemy.endTimes / 100) {
+    pushAbilityDebug(runtime, card, `End Times made ${name} fail.`)
+    return false
+  }
   return true
 }
 
@@ -754,6 +770,7 @@ function onEntry(runtime: Runtime, card: CombatCard) {
       // OG server source stores this as a team-wide NoAbilities counter.
       // It lasts for three turns TAKEN by the affected team, not three turns per card.
       runtime.state.boosts[enemyTeam].noAbilities = 3
+      pushAbilityDebug(runtime, card, `Order of the Cosmos disabled ${enemyTeam === 'Enemies' ? 'enemy' : 'player'} abilities for their next 3 turns.`)
       break
     case 'Mind Rift':
       if (card.damage > enemy.damage / 4) enemy.status.confused = 3
@@ -955,6 +972,7 @@ function onEntry(runtime: Runtime, card: CombatCard) {
     case "Hell's Curse":
       enemy.flags.sealed = true
       enemy.hp /= 2
+      pushAbilityDebug(runtime, card, `Hell's Curse sealed ${effectiveCardName(enemy) || enemy.definition.name} and cut its current HP in half.`)
       break
     case 'Northern Winds': {
       dealDamage(runtime, card, enemy)
@@ -1124,7 +1142,12 @@ function offensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
       if (attacker.counters.maelstrom === 1) damage *= 2
       break
     case 'Judgment': damage += (attacker.maxHp - attacker.hp) * 0.7; break
-    case 'Armageddon': if (rand(runtime, attacker.team) > 0.5) damage = Number.POSITIVE_INFINITY; break
+    case 'Armageddon': {
+      const success = rand(runtime, attacker.team) > 0.5
+      if (success) damage = Number.POSITIVE_INFINITY
+      pushAbilityDebug(runtime, attacker, `Armageddon ${success ? 'succeeded — this hit became lethal' : 'failed — normal attack damage only'}.`)
+      break
+    }
     case 'Draconic Heart':
       damage *= 3
       attacker.damage *= 0.9
@@ -1268,7 +1291,11 @@ function defensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
       break
     case 'Invisibility': if (rand(runtime, target.team) > 0.4) damage = 0; break
     case 'Limitless':
-      if (!target.flags.limitless) { damage = 0; target.flags.limitless = true }
+      if (!target.flags.limitless) {
+        damage = 0
+        target.flags.limitless = true
+        pushAbilityDebug(runtime, target, `Limitless evaded the first attack from ${effectiveCardName(attacker) || attacker.definition.name}.`)
+      }
       break
     case 'Heavenly Ruler':
       target.counters.heavenly = ((target.counters.heavenly || 0) + 1) % 2
@@ -1366,21 +1393,45 @@ function tryRevive(runtime: Runtime, attacker: CombatCard, target: CombatCard): 
   const name = resolvedAbility(runtime, target)
   // Revive-style abilities are still abilities. Respect Fuxi's Order of the Cosmos,
   // Hell's Curse/Eclipse seals, Honor, End Times, and any other ability-disable path.
-  if (!name || !hasAbility(runtime, target, name)) return false
+  if (!name) return false
+  if (!hasAbility(runtime, target, name)) {
+    if (['Revive', 'Eternity', 'Frozen Ashes', "Unpaid 'Interns'", 'Flames of Rebirth'].includes(name)) {
+      pushAbilityDebug(runtime, target, `${name} could not activate because the ability was blocked or disabled.`)
+    }
+    return false
+  }
   if (name === 'Revive' && !target.flags.revived && rand(runtime, target.team) > 0.5) {
-    target.flags.revived = true; target.hp = target.maxHp * 0.5; return true
+    target.flags.revived = true
+    target.hp = target.maxHp * 0.5
+    pushAbilityDebug(runtime, target, 'Revive succeeded — returned at 50% HP.')
+    return true
   }
   if (name === 'Eternity' && !target.flags.revived && rand(runtime, target.team) > 0.5) {
-    target.flags.revived = true; target.hp = target.maxHp; return true
+    target.flags.revived = true
+    target.hp = target.maxHp
+    pushAbilityDebug(runtime, target, 'Eternity succeeded — returned at full HP.')
+    return true
   }
   if (name === 'Frozen Ashes' && !target.flags.revived && rand(runtime, target.team) > 0.5) {
-    target.flags.revived = true; target.hp = target.maxHp; attacker.status.stunned = Math.max(1, attacker.status.stunned); return true
+    target.flags.revived = true
+    target.hp = target.maxHp
+    attacker.status.stunned = Math.max(1, attacker.status.stunned)
+    pushAbilityDebug(runtime, target, `Frozen Ashes revived at full HP and froze ${effectiveCardName(attacker) || attacker.definition.name}.`)
+    return true
   }
   if (name === "Unpaid 'Interns'" && (target.counters.interns || 0) < 2) {
-    target.counters.interns = (target.counters.interns || 0) + 1; target.hp = target.maxHp; return true
+    target.counters.interns = (target.counters.interns || 0) + 1
+    target.hp = target.maxHp
+    pushAbilityDebug(runtime, target, `Unpaid Interns activated — extra life ${target.counters.interns}/2 used; returned at full HP.`)
+    return true
   }
   if (name === 'Flames of Rebirth' && !target.flags.revived) {
-    target.flags.revived = true; target.hp = target.maxHp * 0.5; target.damage *= 2; attacker.status.burn = 2; return true
+    target.flags.revived = true
+    target.hp = target.maxHp * 0.5
+    target.damage *= 2
+    attacker.status.burn = 2
+    pushAbilityDebug(runtime, target, `Flames of Rebirth activated — returned at 50% HP with doubled ATK and burned ${effectiveCardName(attacker) || attacker.definition.name}.`)
+    return true
   }
   return false
 }
@@ -1621,7 +1672,13 @@ function attackerRetro(runtime: Runtime, attacker: CombatCard, target: CombatCar
         runtime.state.teams[attacker.team].push(converted)
       }
       break
-    case 'Eclipse': if (damage > 0) target.flags.sealed = true; break
+    case 'Eclipse':
+      if (damage > 0) {
+        const wasSealed = target.flags.sealed
+        target.flags.sealed = true
+        if (!wasSealed) pushAbilityDebug(runtime, attacker, `Eclipse disabled ${effectiveCardName(target) || target.definition.name}'s ability after dealing damage.`)
+      }
+      break
     case 'Dark Qi Manipulation':
       if (attacker.flags.awakened) {
         attacker.hp = Math.min(attacker.maxHp, attacker.hp + damage * 0.3)
@@ -1697,8 +1754,16 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
 
   target.flags.evadedThisHit = false
   const beforeDefense = damage
-  if (!bypass && target.flags.eternalDevotion) { target.flags.eternalDevotion = false; damage = 0 }
-  else if (!bypass && target.flags.dodgeLethal) { target.flags.dodgeLethal = false; damage = 0 }
+  if (!bypass && target.flags.eternalDevotion) {
+    target.flags.eternalDevotion = false
+    damage = 0
+    pushAbilityDebug(runtime, target, `Eternal Devotion blocked the incoming attack from ${effectiveCardName(attacker) || attacker.definition.name}.`)
+  }
+  else if (!bypass && target.flags.dodgeLethal) {
+    target.flags.dodgeLethal = false
+    damage = 0
+    pushAbilityDebug(runtime, target, `Destiny Sight dodged the incoming lethal attack from ${effectiveCardName(attacker) || attacker.definition.name}.`)
+  }
   else if (!bypass) {
     const veilHolder = luminescentVeilHolder(runtime, target.team)
     const successfulEvades = target.counters.luminescentEvades || 0
@@ -1899,9 +1964,15 @@ function applyOnDeath(runtime: Runtime, dead: CombatCard, opponent: CombatCard |
     next.maxHp += dead.maxHp * 0.5
     next.hp += dead.maxHp * 0.5
   }
-  if (name === 'Destiny Sight') next.flags.dodgeLethal = true
+  if (name === 'Destiny Sight') {
+    next.flags.dodgeLethal = true
+    pushAbilityDebug(runtime, dead, `Destiny Sight passed a lethal dodge to ${effectiveCardName(next) || next.definition.name}.`)
+  }
   if (name === "Housewife's Blessing") { boostStats(next, 2); next.status.stunned = 2 }
-  if (name === 'Eternal Devotion') next.flags.eternalDevotion = true
+  if (name === 'Eternal Devotion') {
+    next.flags.eternalDevotion = true
+    pushAbilityDebug(runtime, dead, `Eternal Devotion gave ${effectiveCardName(next) || next.definition.name} a one-attack shield after death.`)
+  }
   if (name === 'Final Stand') {
     next.damage += dead.damage * 0.25
     next.maxHp += dead.maxHp * 0.25
@@ -1956,6 +2027,7 @@ function resolveDeaths(runtime: Runtime) {
         card.hp = 1
         const opp = active(runtime, OTHER_TEAM[team])
         if (opp) opp.hp = 0
+        pushAbilityDebug(runtime, card, `Paradox activated — survived at 1 HP and defeated ${opp ? effectiveCardName(opp) || opp.definition.name : 'the opposing card'}. This Paradox is now consumed.`)
         changed = true
         continue
       }
@@ -2288,21 +2360,30 @@ function doLotusSutra(runtime: Runtime, attacker: CombatCard) {
     deadAlly.hp = deadAlly.maxHp * 0.5
     deadAlly.entered = false
     runtime.state.teams[attacker.team].push(deadAlly)
+    pushAbilityDebug(runtime, attacker, `Lotus Sutra revived ${effectiveCardName(deadAlly) || deadAlly.definition.name} at 50% HP and placed it at the back of the team.`)
     return
   }
 
   const allies = runtime.state.teams[attacker.team].filter((card) => card !== attacker && alive(card))
   const target = allies.sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0]
-  if (!target) return
+  if (!target) {
+    pushAbilityDebug(runtime, attacker, 'Lotus Sutra had no fallen or living ally to target, so nothing happened this turn.')
+    return
+  }
+  const before = target.hp
   target.hp = Math.min(target.maxHp, target.hp + target.maxHp * 0.5)
+  const healed = target.hp - before
+  let moved = false
   if (target.hp >= target.maxHp) {
     const deck = runtime.state.teams[attacker.team]
     const index = deck.indexOf(attacker)
     if (index >= 0 && deck.length > 1) {
       deck.splice(index, 1)
       deck.push(attacker)
+      moved = true
     }
   }
+  pushAbilityDebug(runtime, attacker, `Lotus Sutra healed ${effectiveCardName(target) || target.definition.name} for ${Math.ceil(healed)} HP${moved ? ' and moved the Lotus Sutra user to the back of the team' : ''}.`)
 }
 
 function doOrigin(runtime: Runtime, attacker: CombatCard) {

@@ -353,32 +353,52 @@ function decodeTeam(code){
   function showRunDebug(teamIndex,runIndex){
     const run=state.teams[teamIndex]?.result?.runs?.[runIndex],d=run?.debug;if(!run)return;
     const fmt=n=>Number.isFinite(Number(n))?Math.round(Number(n)).toLocaleString('en-US'):'?';
-    const cardLine=c=>`${c.name} [${c.ability||'No ability'}] HP ${fmt(c.hp)}/${fmt(c.maxHp)} | ATK ${fmt(c.damage)} | Power ${fmt(c.power)}`;
-    const lines=[];
-    lines.push(`Team ${teamIndex+1} | Run ${runIndex+1} | Death floor ${fmt(run.deathFloor)}`);
-    lines.push(`Run seed ${run.runSeed} | Floor seed ${run.floorSeed??'?'} | Battle seed ${run.battleSeed??'?'}`);
-    lines.push(`Stat Aura: ${d?.statAura?`${d.statAura.name} ${d.statAura.border||'Base'} value=${d.statAura.value??'?'}`:'none'}`);
-    lines.push(`Ability Aura: ${d?.abilityAura?`${d.abilityAura.name} ${d.abilityAura.border||'Base'} value=${d.abilityAura.value??'?'}`:'none'}`);
-    lines.push(`150-turn matchup resolutions: ${d?.forcedStallResolutions??0}`);
-    lines.push('', 'PLAYER BATTLE-START STATS');
-    for(const c of d?.initialAllies||[])lines.push(cardLine(c));
-    lines.push('', 'ENEMY BATTLE-START STATS');
-    for(const c of d?.initialEnemies||[])lines.push(cardLine(c));
-    lines.push('', 'FINAL PLAYER SURVIVORS');
-    for(const c of d?.finalAllies||[])lines.push(cardLine(c));
-    lines.push('', 'FINAL ENEMY SURVIVORS');
-    for(const c of d?.finalEnemies||[])lines.push(cardLine(c));
-    lines.push('', 'TRACE (last 300 important/turn events)');
-    for(const e of d?.events||[])lines.push(`T${e.turn} [${e.type.toUpperCase()}] ${e.team} ${e.card}: ${e.detail}`);
-    const text=lines.join('\n');
-    const dialog=document.createElement('dialog');dialog.style.cssText='width:min(900px,94vw);max-height:88vh;background:#080d14;color:#c7d1dc;border:1px solid #334255;border-radius:12px;padding:14px';
-    const bar=document.createElement('div');bar.style.cssText='display:flex;gap:8px;justify-content:flex-end;margin-bottom:8px';
-    const copy=document.createElement('button');copy.textContent='Copy debug';const close=document.createElement('button');close.textContent='Close';
-    for(const b of [copy,close])b.style.cssText='background:#111925;color:#c7d1dc;border:1px solid #2a394a;border-radius:8px;padding:7px 10px;cursor:pointer';
-    const pre=document.createElement('pre');pre.textContent=text;pre.style.cssText='white-space:pre-wrap;font:11px/1.5 ui-monospace,Consolas,monospace;margin:0';
-    bar.append(copy,close);dialog.append(bar,pre);document.body.appendChild(dialog);dialog.showModal();
+    const compactDbg=n=>Number.isFinite(Number(n))?Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:2}).format(Number(n)):'?';
+    const side=t=>t==='Allies'?'PLAYER':'ENEMY';
+    let showAbilities=localStorage.getItem('cre-debug-ability-details')!=='0';
+    const cardsHtml=(cards,empty)=>cards?.length?cards.map(c=>`<div class="dbg-card"><div><b>${esc(c.name)}</b><small>${esc(c.ability||'No ability')}</small></div><div class="dbg-card-stats"><span><i>HP</i>${compactDbg(c.hp)} / ${compactDbg(c.maxHp)}</span><span><i>ATK</i>${compactDbg(c.damage)}</span><span><i>POWER</i>${compactDbg(c.power)}</span></div></div>`).join(''):`<div class="dbg-empty">${empty}</div>`;
+    const turnParts=e=>{const m=String(e.detail||'').match(/^vs (.*?) \| attacker (.*?) \| defender (.*)$/);return m?{target:m[1],attacker:m[2],defender:m[3]}:null};
+    const visibleEvents=()=>d?.events?.filter(e=>showAbilities||e.type!=='ability')||[];
+    const eventHtml=e=>{
+      const parts=e.type==='turn'?turnParts(e):null;
+      if(parts)return `<div class="dbg-event turn"><div class="dbg-event-top"><span class="dbg-type">TURN</span><span>${side(e.team)}</span></div><div class="dbg-event-title"><b>${esc(e.card)}</b><span>→</span><b>${esc(parts.target)}</b></div><div class="dbg-turn-stats"><span><i>${esc(e.card)}</i>${esc(parts.attacker)}</span><span><i>${esc(parts.target)}</i>${esc(parts.defender)}</span></div></div>`;
+      return `<div class="dbg-event ${esc(e.type)}"><div class="dbg-event-top"><span class="dbg-type">${esc(e.type.toUpperCase())}</span><span>${side(e.team)}</span></div><div class="dbg-event-title"><b>${esc(e.card)}</b></div><div class="dbg-event-detail">${esc(e.detail||'')}</div></div>`;
+    };
+    const traceHtml=()=>{let last=null,out='';for(const e of visibleEvents()){if(e.turn!==last){last=e.turn;out+=`<div class="dbg-turn-label">Turn ${e.turn}</div>`}out+=eventHtml(e)}return out||'<div class="dbg-empty">No trace events captured.</div>'};
+    const plainText=()=>{
+      const lines=[];
+      lines.push(`TEAM ${teamIndex+1} · RUN ${runIndex+1} · DEATH FLOOR ${fmt(run.deathFloor)}`);
+      lines.push(`Run seed: ${run.runSeed}`);
+      lines.push(`Floor seed: ${run.floorSeed??'?'}`);
+      lines.push(`Battle seed: ${run.battleSeed??'?'}`);
+      lines.push(`Stat Aura: ${d?.statAura?`${d.statAura.name} · ${d.statAura.border||'Base'} · value ${d.statAura.value??'?'}`:'None'}`);
+      lines.push(`Ability Aura: ${d?.abilityAura?`${d.abilityAura.name} · ${d.abilityAura.border||'Base'} · value ${d.abilityAura.value??'?'}`:'None'}`);
+      lines.push(`150-turn resolutions: ${d?.forcedStallResolutions??0}`);
+      const addCards=(title,cards)=>{lines.push('',title);if(!cards?.length)lines.push('  None');else for(const c of cards)lines.push(`  ${c.name} [${c.ability||'No ability'}]`, `    HP ${fmt(c.hp)} / ${fmt(c.maxHp)} · ATK ${fmt(c.damage)} · Power ${fmt(c.power)}`)};
+      addCards('PLAYER START',d?.initialAllies);addCards('ENEMY START',d?.initialEnemies);addCards('FINAL PLAYER SURVIVORS',d?.finalAllies);addCards('FINAL ENEMY SURVIVORS',d?.finalEnemies);
+      lines.push('',`BATTLE TRACE${showAbilities?' · ABILITY INTERACTIONS ON':' · ABILITY INTERACTIONS OFF'}`);
+      let last=null;
+      for(const e of visibleEvents()){
+        if(e.turn!==last){last=e.turn;lines.push('',`TURN ${e.turn}`)}
+        const parts=e.type==='turn'?turnParts(e):null;
+        if(parts){lines.push(`  [TURN] ${side(e.team)} · ${e.card} → ${parts.target}`);lines.push(`    ${e.card}: ${parts.attacker}`);lines.push(`    ${parts.target}: ${parts.defender}`)}
+        else lines.push(`  [${e.type.toUpperCase()}] ${side(e.team)} · ${e.card}`,`    ${e.detail}`);
+      }
+      return lines.join('\n');
+    };
+    const dialog=document.createElement('dialog');dialog.className='dbg-dialog';
+    dialog.innerHTML=`<style>
+      .dbg-dialog{width:min(1050px,95vw);height:min(850px,92vh);padding:0;background:#080d14;color:#c7d1dc;border:1px solid #334255;border-radius:16px;box-shadow:0 28px 90px rgba(0,0,0,.65)}.dbg-dialog::backdrop{background:rgba(0,0,0,.72)}
+      .dbg-shell{height:100%;display:flex;flex-direction:column}.dbg-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding:16px 18px;border-bottom:1px solid #202b3a;background:#0b1119}.dbg-head h3{margin:4px 0 0;font-size:18px;color:#e5ebf2}.dbg-kicker{font-size:8px;letter-spacing:.11em;color:#70cfc0;font-weight:800}.dbg-sub{margin-top:5px;color:#708095;font-size:9px}.dbg-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.dbg-actions button{background:#111925;color:#b9c5d2;border:1px solid #2a394a;border-radius:8px;padding:7px 10px;font-size:9px;cursor:pointer}.dbg-actions button.on{border-color:#477b76;color:#d7f2ed;background:#122521}.dbg-scroll{overflow:auto;padding:14px 16px 22px}.dbg-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-bottom:13px}.dbg-summary>div{border:1px solid #202b3a;background:#0b1119;border-radius:10px;padding:9px}.dbg-summary span{display:block;color:#647286;font-size:7px;text-transform:uppercase;letter-spacing:.08em}.dbg-summary b{display:block;margin-top:4px;font-size:10px;color:#cbd5df;overflow-wrap:anywhere}.dbg-section{margin-top:14px}.dbg-section>h4{margin:0 0 7px;color:#7c8999;font-size:8px;letter-spacing:.1em;text-transform:uppercase}.dbg-card-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.dbg-card{display:flex;justify-content:space-between;gap:12px;border:1px solid #202b3a;background:#0a0f16;border-radius:10px;padding:9px}.dbg-card b{display:block;font-size:10px;color:#dce4ed}.dbg-card small{display:block;margin-top:3px;color:#718094;font-size:8px}.dbg-card-stats{display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end}.dbg-card-stats span{font-size:8px;color:#aab6c4;white-space:nowrap}.dbg-card-stats i{display:block;font-style:normal;color:#526174;font-size:6px}.dbg-empty{border:1px dashed #243141;border-radius:9px;padding:10px;color:#58677a;font-size:9px}.dbg-trace{margin-top:6px}.dbg-turn-label{position:sticky;top:-14px;z-index:2;margin:13px 0 6px;padding:5px 8px;background:#0d151f;border:1px solid #223040;border-radius:8px;color:#7890a8;font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}.dbg-event{border:1px solid #202b3a;background:#0a0f16;border-radius:10px;padding:9px 10px;margin:5px 0;border-left-width:3px}.dbg-event.turn{border-left-color:#3f6575}.dbg-event.death{border-left-color:#86505a;background:#110c10}.dbg-event.revive{border-left-color:#4c7e6d;background:#0c1412}.dbg-event.ability{border-left-color:#765ca6;background:#100d17}.dbg-event.stall{border-left-color:#846b3e}.dbg-event.spawn{border-left-color:#466f73}.dbg-event-top{display:flex;justify-content:space-between;gap:8px;color:#526174;font-size:7px}.dbg-type{font-weight:850;letter-spacing:.08em}.dbg-event-title{display:flex;align-items:center;gap:7px;margin-top:4px;color:#d7e0e9;font-size:10px}.dbg-event-detail{margin-top:4px;color:#94a2b2;font-size:9px;line-height:1.45}.dbg-turn-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}.dbg-turn-stats span{background:#0d141d;border:1px solid #1b2735;border-radius:7px;padding:6px;color:#8795a5;font-size:8px;line-height:1.4}.dbg-turn-stats i{display:block;color:#c5d0db;font-style:normal;font-weight:750;margin-bottom:2px}.dbg-note{margin-top:7px;color:#66778b;font-size:8px;line-height:1.5}
+      @media(max-width:760px){.dbg-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.dbg-card-grid,.dbg-turn-stats{grid-template-columns:1fr}.dbg-head{flex-direction:column}.dbg-actions{justify-content:flex-start}}
+    </style><div class="dbg-shell"><div class="dbg-head"><div><span class="dbg-kicker">BATTLE DEBUG</span><h3>Team ${teamIndex+1} · Run ${runIndex+1}</h3><div class="dbg-sub">Death floor ${fmt(run.deathFloor)} · click ability interactions on/off to simplify the trace</div></div><div class="dbg-actions"><button data-dbg-abilities></button><button data-dbg-copy>Copy debug</button><button data-dbg-close>Close</button></div></div><div class="dbg-scroll"><div class="dbg-summary"><div><span>Run seed</span><b>${esc(run.runSeed)}</b></div><div><span>Floor seed</span><b>${esc(run.floorSeed??'?')}</b></div><div><span>Battle seed</span><b>${esc(run.battleSeed??'?')}</b></div><div><span>150-turn resolutions</span><b>${d?.forcedStallResolutions??0}</b></div><div><span>Stat Aura</span><b>${d?.statAura?`${esc(d.statAura.name)} · ${esc(d.statAura.border||'Base')} · ${esc(d.statAura.value??'?')}`:'None'}</b></div><div><span>Ability Aura</span><b>${d?.abilityAura?`${esc(d.abilityAura.name)} · ${esc(d.abilityAura.border||'Base')} · ${esc(d.abilityAura.value??'?')}`:'None'}</b></div></div><div class="dbg-section"><h4>Player battle-start stats</h4><div class="dbg-card-grid">${cardsHtml(d?.initialAllies,'No player cards captured.')}</div></div><div class="dbg-section"><h4>Enemy battle-start stats</h4><div class="dbg-card-grid">${cardsHtml(d?.initialEnemies,'No enemy cards captured.')}</div></div><div class="dbg-section"><h4>Final survivors</h4><div class="dbg-card-grid">${cardsHtml(d?.finalAllies,'No player survivors.')}${cardsHtml(d?.finalEnemies,'No enemy survivors.')}</div></div><div class="dbg-section"><h4>Battle trace · last 300 important events</h4><div class="dbg-note">Ability interactions show why things happened: revives, ability locks, Paradox, End Times failures, shields, Armageddon rolls, and similar effects.</div><div class="dbg-trace" data-dbg-trace></div></div></div></div>`;
+    document.body.appendChild(dialog);
+    const trace=dialog.querySelector('[data-dbg-trace]'),toggle=dialog.querySelector('[data-dbg-abilities]'),copy=dialog.querySelector('[data-dbg-copy]'),close=dialog.querySelector('[data-dbg-close]');
+    const repaint=()=>{toggle.textContent=`Ability interactions: ${showAbilities?'ON':'OFF'}`;toggle.classList.toggle('on',showAbilities);trace.innerHTML=traceHtml()};
+    repaint();dialog.showModal();
+    toggle.addEventListener('click',()=>{showAbilities=!showAbilities;localStorage.setItem('cre-debug-ability-details',showAbilities?'1':'0');repaint()});
     close.addEventListener('click',()=>{dialog.close();dialog.remove()});
-    copy.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(text);copy.textContent='Copied!'}catch(_){}});
+    copy.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(plainText());copy.textContent='Copied!';setTimeout(()=>{if(copy.isConnected)copy.textContent='Copy debug'},900)}catch(_){}});
   }
   function persist(){try{localStorage.setItem(STORAGE,JSON.stringify({teams:state.teams.map(t=>({cards:t.cards,statAura:t.statAura,statAuraBorder:t.statAuraBorder,abilityAura:t.abilityAura,abilityAuraBorder:t.abilityAuraBorder})),activeTeam:state.activeTeam,runs:state.runs,cap:state.cap,seed:state.seed}))}catch(_){}}
   function restore(){try{const s=JSON.parse(localStorage.getItem(STORAGE)||'null');if(!s)return;if(Array.isArray(s.teams))state.teams=Array.from({length:5},(_,i)=>{const src=s.teams[i],t=blankTeam();if(!src)return t;t.cards=Array.from({length:4},(_,j)=>({cardName:src.cards?.[j]?.cardName||'',borders:Array.isArray(src.cards?.[j]?.borders)?src.cards[j].borders.filter(b=>CARD_BORDERS.includes(b)):[]}));t.statAura=src.statAura||'';t.statAuraBorder=AURA_BORDERS.includes(src.statAuraBorder)?src.statAuraBorder:'';t.abilityAura=src.abilityAura||'';t.abilityAuraBorder=AURA_BORDERS.includes(src.abilityAuraBorder)?src.abilityAuraBorder:'';return t});state.activeTeam=Math.min(4,Math.max(0,Number(s.activeTeam)||0));state.runs=[1,3,8,15,30,50].includes(Number(s.runs))?Number(s.runs):15;state.cap=Math.min(50000,Math.max(1,Number(s.cap)||50000));state.seed=Number(s.seed)||1000}catch(_){}}

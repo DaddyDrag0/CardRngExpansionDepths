@@ -166,6 +166,37 @@ assert(fallenHades.abilityOverride === 'Unholy Creature', `Hades copied the wron
 assert(Boolean(fallenHades.flags.unholyActive), 'Copied Unholy Creature never activated on Hades')
 console.log('Expansion 2 card regressions passed: Bind Fate, Luminescent Veil, Ouroboros, Zombie Dragon -> Hades copy.')
 
+// Ability-disable regression: revive/lethal-reset abilities must not bypass Fuxi's
+// Order of the Cosmos or Hell's Curse. Noveau Riche's Unpaid 'Interns' previously
+// revived from the shared tryRevive() path even while the card was locked/sealed.
+const noveauRiche = cards.find((card) => card.name === 'Noveau Riche')
+assert(noveauRiche, 'Noveau Riche regression card missing')
+const internEnemy = (): DepthsEnemy[] => [{ card: noveauRiche, power: 10, attack: 0, health: 10 }]
+
+const fuxiLockBattle = simulateBattleV2(
+  { cards: [{ cardName: 'Fuxi', borders: ['Galaxy'] }] },
+  internEnemy(),
+  9944, 1, false, true,
+)
+const fuxiIntern = [...fuxiLockBattle.state.teams.Enemies, ...fuxiLockBattle.state.fallen.Enemies]
+  .find((card) => card.definition.name === 'Noveau Riche')
+assert(fuxiIntern, 'Fuxi/Noveau regression target missing')
+assert((fuxiIntern.counters.interns || 0) === 0, `Order of the Cosmos failed to suppress Unpaid Interns: ${fuxiIntern.counters.interns}`)
+assert(fuxiLockBattle.state.fallen.Enemies.some((card) => card.definition.name === 'Noveau Riche'), 'Noveau Riche survived while Order of the Cosmos was active')
+
+const hellSealBattle = simulateBattleV2(
+  { cards: [{ cardName: "Hell's Army", borders: ['Galaxy'] }] },
+  internEnemy(),
+  9955, 1, false, true,
+)
+const hellIntern = [...hellSealBattle.state.teams.Enemies, ...hellSealBattle.state.fallen.Enemies]
+  .find((card) => card.definition.name === 'Noveau Riche')
+assert(hellIntern, "Hell's Army/Noveau regression target missing")
+assert(Boolean(hellIntern.flags.sealed), "Hell's Curse did not seal Noveau Riche")
+assert((hellIntern.counters.interns || 0) === 0, `Hell's Curse failed to suppress Unpaid Interns: ${hellIntern.counters.interns}`)
+assert(hellSealBattle.state.fallen.Enemies.some((card) => card.definition.name === 'Noveau Riche'), "Noveau Riche survived after Hell's Curse removed its ability")
+console.log("Ability-disable revive regression passed: Fuxi and Hell's Curse suppress Unpaid Interns.")
+
 console.log(`Engine smoke tests passed: ${cards.length} cards, ${auras.length} auras.`)
 console.log(`Source-aligned Depths ability coverage: ${coverage.supported}/${coverage.total} (${coverage.percent.toFixed(1)}%).`)
 console.log(`Remaining unsupported Depths abilities (${coverage.unsupported}): ${coverage.unsupportedAbilities.join(' | ')}`)

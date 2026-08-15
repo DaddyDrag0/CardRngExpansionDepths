@@ -1364,7 +1364,9 @@ function tryRevive(runtime: Runtime, attacker: CombatCard, target: CombatCard): 
     return false
   }
   const name = resolvedAbility(runtime, target)
-  if (!name) return false
+  // Revive-style abilities are still abilities. Respect Fuxi's Order of the Cosmos,
+  // Hell's Curse/Eclipse seals, Honor, End Times, and any other ability-disable path.
+  if (!name || !hasAbility(runtime, target, name)) return false
   if (name === 'Revive' && !target.flags.revived && rand(runtime, target.team) > 0.5) {
     target.flags.revived = true; target.hp = target.maxHp * 0.5; return true
   }

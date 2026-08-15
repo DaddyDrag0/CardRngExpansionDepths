@@ -80,3 +80,5 @@ replaceOrThrow(
 
 fs.writeFileSync(path, source)
 console.log('Patched ability trace ordering details.')
+
+// Trigger the patch workflow after the workflow file exists.

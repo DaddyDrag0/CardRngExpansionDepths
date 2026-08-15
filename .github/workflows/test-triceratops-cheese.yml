@@ -1,0 +1,21 @@
+name: Test Triceratops cheese
+
+on:
+  push:
+    paths:
+      - '.github/workflows/test-triceratops-cheese.yml'
+      - 'scripts/test-triceratops-cheese.ts'
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npx tsx scripts/test-triceratops-cheese.ts

@@ -3,7 +3,7 @@ name: Comprehensive ability trace
 on:
   push:
     paths:
-      - 'scripts/comprehensive-ability-trace.mjs'
+      - 'scripts/comprehensive-ability-trace.py'
       - '.github/workflows/comprehensive-ability-trace.yml'
 
 permissions:
@@ -22,7 +22,7 @@ jobs:
           cache: npm
       - run: npm install --no-audit --no-fund
       - name: Apply tracing patch
-        run: node scripts/comprehensive-ability-trace.mjs
+        run: python3 scripts/comprehensive-ability-trace.py
       - name: Typecheck/build
         run: npm run build
       - name: Engine regressions

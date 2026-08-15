@@ -1,0 +1,43 @@
+name: Patch battle debug UI
+
+on:
+  push:
+    paths:
+      - 'scripts/patch-battle-debug-ui.mjs'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm install --no-audit --no-fund
+      - name: Apply battle debug changes
+        run: node scripts/patch-battle-debug-ui.mjs
+      - name: Typecheck/build
+        run: npm run build
+      - name: Engine regressions
+        run: npm run test:engine
+      - name: Depths regressions
+        run: npm run test:depths
+      - name: Rebuild browser worker
+        run: npx --no-install esbuild src/browser-worker.ts --bundle --format=iife --platform=browser --target=es2020 --minify --outfile=browser/depths-worker.js
+      - name: Commit battle debug changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html src/engine/battle-v2.ts browser/depths-worker.js
+          if git diff --cached --quiet; then
+            echo "No generated changes to commit."
+          else
+            git commit -m "Improve battle debug matchup and ability logs"
+            git push
+          fi

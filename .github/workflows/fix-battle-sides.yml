@@ -1,0 +1,58 @@
+name: Fix battle log sides
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-battle-sides.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Put player on the left and enemy on the right
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('index.html')
+          source = path.read_text(encoding='utf-8')
+
+          old_player = """            ?`<div class=\"dbg-fight player-attack\">${fightCard(parsed.target,parsed.dHp,parsed.dMax,parsed.dAtk,'enemy')}<div class=\"dbg-vs\"><i>←</i></div>${fightCard(turnEvent.card,parsed.aHp,parsed.aMax,parsed.aAtk,'player')}</div>`"""
+          new_player = """            ?`<div class=\"dbg-fight player-attack\">${fightCard(turnEvent.card,parsed.aHp,parsed.aMax,parsed.aAtk,'player')}<div class=\"dbg-vs\"><i>→</i></div>${fightCard(parsed.target,parsed.dHp,parsed.dMax,parsed.dAtk,'enemy')}</div>`"""
+
+          old_enemy = """            :`<div class=\"dbg-fight enemy-attack\">${fightCard(turnEvent.card,parsed.aHp,parsed.aMax,parsed.aAtk,'enemy')}<div class=\"dbg-vs\"><i>→</i></div>${fightCard(parsed.target,parsed.dHp,parsed.dMax,parsed.dAtk,'player')}</div>`;"""
+          new_enemy = """            :`<div class=\"dbg-fight enemy-attack\">${fightCard(parsed.target,parsed.dHp,parsed.dMax,parsed.dAtk,'player')}<div class=\"dbg-vs\"><i>←</i></div>${fightCard(turnEvent.card,parsed.aHp,parsed.aMax,parsed.aAtk,'enemy')}</div>`;"""
+
+          old_matchup = """<div class=\"dbg-scroll\"><div class=\"dbg-matchup\">${matchTeam(d?.initialEnemies,'ENEMY TEAM','enemy')}<div class=\"dbg-match-vs\">VS</div>${matchTeam(d?.initialAllies,'YOUR TEAM','player')}</div>${auraLine()}<div data-dbg-timeline></div></div>"""
+          new_matchup = """<div class=\"dbg-scroll\"><div class=\"dbg-matchup\">${matchTeam(d?.initialAllies,'YOUR TEAM','player')}<div class=\"dbg-match-vs\">VS</div>${matchTeam(d?.initialEnemies,'ENEMY TEAM','enemy')}</div>${auraLine()}<div data-dbg-timeline></div></div>"""
+
+          for old, new, label in [
+              (old_player, new_player, 'player attack row'),
+              (old_enemy, new_enemy, 'enemy attack row'),
+              (old_matchup, new_matchup, 'initial matchup'),
+          ]:
+              if old not in source:
+                  raise SystemExit(f'Missing expected {label}')
+              source = source.replace(old, new, 1)
+
+          path.write_text(source, encoding='utf-8')
+          PY
+      - name: Verify fixed orientation
+        run: |
+          grep -F "player-attack\">\${fightCard(turnEvent.card" index.html
+          grep -F "enemy-attack\">\${fightCard(parsed.target" index.html
+          grep -F "initialAllies,'YOUR TEAM','player'" index.html
+      - name: Remove temporary workflow and commit
+        run: |
+          git rm .github/workflows/fix-battle-sides.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Show player team on left in battle logs"
+          git push

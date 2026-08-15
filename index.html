@@ -213,8 +213,8 @@
       box.querySelector('[data-aura-none]')?.addEventListener('mousedown',e=>{e.preventDefault();chooseNone()});
       box.querySelectorAll('[data-aura-index]').forEach(btn=>btn.addEventListener('mousedown',e=>{e.preventDefault();choose(Number(btn.dataset.auraIndex))}));
     };
-    const choose=i=>{const aura=current[i];if(!aura)return;state.towerAbilityAura=aura.name;state.towerAbilityAuraBorder='';state.towerSim=null;render()};
-    const chooseNone=()=>{state.towerAbilityAura='';state.towerAbilityAuraBorder='';state.towerSim=null;render()};
+    const choose=i=>{const aura=current[i];if(!aura)return;input.value=aura.name;state.towerAbilityAura=aura.name;state.towerAbilityAuraBorder='';state.towerSim=null;render()};
+    const chooseNone=()=>{input.value='';state.towerAbilityAura='';state.towerAbilityAuraBorder='';state.towerSim=null;render()};
     input.addEventListener('focus',()=>{active=-1;paint()});
     input.addEventListener('input',()=>{active=-1;if(!input.value){state.towerAbilityAura='';state.towerAbilityAuraBorder='';state.towerSim=null}paint()});
     input.addEventListener('keydown',e=>{
@@ -224,6 +224,7 @@
       else if(e.key==='Escape')box.classList.remove('open');
     });
     input.addEventListener('blur',()=>setTimeout(()=>{
+      if(!input.isConnected)return;
       box.classList.remove('open');
       const exact=state.auras.find(a=>!a.unobtainable&&a.type==='Skill'&&a.name.toLowerCase()===input.value.trim().toLowerCase());
       const next=exact?exact.name:'';

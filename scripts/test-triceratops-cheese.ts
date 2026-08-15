@@ -12,17 +12,18 @@ function team(names:string[]):TeamLoadout {
 
 const cases=[
   ['jd_jd_jd_para',team(['Judgment Day','Judgment Day','Judgment Day','Parallax'])],
-  ['jd_jd_jd_jd',team(['Judgment Day','Judgment Day','Judgment Day','Judgment Day'])],
-  ['jd_jd_jd_pandora',team(['Judgment Day','Judgment Day','Judgment Day','Pandora'])],
-  ['jd_jd_jd_kuchisake',team(['Judgment Day','Judgment Day','Judgment Day','Kuchisake-onna'])],
-  ['jd_jd_jd_sleep',team(['Judgment Day','Judgment Day','Judgment Day','Sleep Paralysis'])],
-  ['jd_jd_kuchisake_para',team(['Judgment Day','Judgment Day','Kuchisake-onna','Parallax'])],
-  ['jd_jd_pandora_para',team(['Judgment Day','Judgment Day','Pandora','Parallax'])],
-  ['jd_jd_sleep_para',team(['Judgment Day','Judgment Day','Sleep Paralysis','Parallax'])],
+  ['jd_jd_para_para',team(['Judgment Day','Judgment Day','Parallax','Parallax'])],
+  ['jd_para_jd_para',team(['Judgment Day','Parallax','Judgment Day','Parallax'])],
+  ['para_jd_jd_para',team(['Parallax','Judgment Day','Judgment Day','Parallax'])],
+  ['jd_para_para_jd',team(['Judgment Day','Parallax','Parallax','Judgment Day'])],
+  ['jd_jd_trueprophet_para',team(['Judgment Day','Judgment Day','True Prophet','Parallax'])],
+  ['jd_jd_hathor_para',team(['Judgment Day','Judgment Day','Hathor','Parallax'])],
+  ['jd_jd_loveland_para',team(['Judgment Day','Judgment Day','Loveland Frog','Parallax'])],
+  ['jd_jd_heavens_para',team(['Judgment Day','Judgment Day',"Heaven's Armor",'Parallax'])],
 ] as const
 
 for(let i=0;i<cases.length;i++){
   const [name,loadout]=cases[i]
-  const result=simulateTowerBatch(loadout,enemies,floor,difficulty,runs,94000+i)
+  const result=simulateTowerBatch(loadout,enemies,floor,difficulty,runs,95000+i)
   console.log(JSON.stringify({name,...result}))
 }

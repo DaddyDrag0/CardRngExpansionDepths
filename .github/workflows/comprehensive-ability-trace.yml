@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'scripts/comprehensive-ability-trace.mjs'
+      - '.github/workflows/comprehensive-ability-trace.yml'
 
 permissions:
   contents: write

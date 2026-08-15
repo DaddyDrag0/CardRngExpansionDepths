@@ -22,6 +22,8 @@
     .tower-custom-card{width:100%;border:1px solid #2a3544;background:#0b1119;color:#aeb9c7;border-radius:8px;padding:7px 8px;font-size:8px;outline:none}.tower-custom-card:focus{border-color:#477b76}.tower-custom-label{display:block;margin:7px 0 4px 1px;color:#66768a;font-size:7px;text-transform:uppercase;letter-spacing:.06em}.tower-autocomplete{position:relative;width:100%}.tower-autocomplete input{box-sizing:border-box}.tower-suggestions{display:none;position:absolute;z-index:1200;left:0;right:0;top:calc(100% + 5px);max-height:260px;overflow-y:auto;border:1px solid #2a394a;border-radius:10px;background:#0a1018;box-shadow:0 18px 45px rgba(0,0,0,.48);padding:5px}.tower-suggestions.open{display:block}.tower-suggestions button{display:block;width:100%;border:0;border-radius:7px;background:transparent;color:#b7c4d2;padding:8px 9px;text-align:left;font-size:9px;cursor:pointer}.tower-suggestions button:hover,.tower-suggestions button.active{background:#14202d;color:#e4edf5}.tower-suggestions button b{display:block;font-size:9px;color:inherit}.tower-suggestions button small{display:block;margin-top:2px;color:#65758a;font-size:7px}.tower-suggestions::-webkit-scrollbar{width:8px}.tower-suggestions::-webkit-scrollbar-track{background:#0a1018}.tower-suggestions::-webkit-scrollbar-thumb{background:#334154;border-radius:999px;border:2px solid #0a1018}.tower-enemy-field>.tower-autocomplete>input{width:100%;border:1px solid #263142;border-radius:10px;background:#0a0f16;color:#dce5ee;padding:10px 11px;outline:none}.tower-enemy-field>.tower-autocomplete>input:focus{border-color:#477b76}
     .tower-controls{grid-template-columns:170px 190px minmax(0,1fr)}.tower-floor select{width:100%;border:1px solid #263142;border-radius:10px;background:#0a0f16;color:#dce5ee;padding:10px 11px;outline:none}.tower-floor select:focus{border-color:#477b76}.tower-sim-panel{margin-top:12px;border:1px solid #263345;border-radius:13px;background:#0a1018;padding:12px}.tower-sim-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.tower-sim-head b{display:block;font-size:11px}.tower-sim-head small{display:block;color:#728197;font-size:8px;margin-top:3px}.tower-sim-button{border:1px solid #477b76;background:#17302d;color:#d6f1ec;border-radius:9px;padding:9px 12px;font-size:9px;font-weight:750;cursor:pointer;white-space:nowrap}.tower-sim-button:disabled{opacity:.55;cursor:default}.tower-sim-results{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-top:10px}.tower-sim-results>div{border:1px solid #1f2a38;border-radius:10px;background:#090e15;padding:9px}.tower-sim-results span{display:block;color:#66768a;font-size:7px;text-transform:uppercase;letter-spacing:.06em}.tower-sim-results b{display:block;margin-top:4px;font-size:13px;color:#dce5ee}.tower-winbar{height:5px;border-radius:999px;background:#151f2a;overflow:hidden;margin-top:10px}.tower-winbar i{display:block;height:100%;background:#477b76}.tower-sim-note{margin-top:8px;color:#718095;font-size:8px;line-height:1.45}.tower-sim-error{margin-top:9px;border:1px solid #523039;background:#160e11;color:#d7a7b0;border-radius:9px;padding:8px 10px;font-size:9px}@media(max-width:640px){.tower-controls{grid-template-columns:1fr}.tower-sim-head{align-items:flex-start;flex-direction:column}.tower-sim-results{grid-template-columns:repeat(2,minmax(0,1fr))}}
     .tower-reroll-warning{margin-top:10px;border:1px solid #6c5530;background:#17130c;color:#e4c27e;border-radius:9px;padding:9px 11px;font-size:9px;line-height:1.45}.tower-reroll-warning b{color:#f0d59a}
+
+    .tower-aura-picker{margin-top:10px;border:1px solid #2b3747;background:#0a1018;border-radius:12px;padding:11px}.tower-aura-picker.recommended{border-color:#574729;background:#141108}.tower-aura-picker-head{display:flex;align-items:center;gap:9px}.tower-aura-picker-head .mini-portrait{flex:0 0 auto}.tower-aura-picker-head b{display:block;font-size:10px;color:#dce5ee}.tower-aura-picker.recommended .tower-aura-picker-head b{color:#e4c27e}.tower-aura-picker-head small{display:block;color:#738196;font-size:8px;margin-top:3px}.tower-aura-picker.recommended .tower-aura-picker-head small{color:#9c8a68}.tower-aura-picker .tower-custom-label{margin-top:10px}.tower-aura-picker .tower-autocomplete>input{width:100%;box-sizing:border-box;border:1px solid #2a3544;background:#0b1119;color:#c5d0dc;border-radius:9px;padding:9px 10px;font-size:9px;outline:none}.tower-aura-picker .tower-autocomplete>input:focus{border-color:#477b76}.tower-aura-picker .aura-border-pills{margin-top:8px}.tower-aura-description{margin-top:8px;border-top:1px solid #222d3b;padding-top:8px;color:#91a0b1;font-size:8px;line-height:1.5}.tower-aura-description b{display:block;color:#c5d0dc;font-size:9px;margin-bottom:3px}.tower-aura-picker.recommended .tower-aura-description{border-top-color:#40361f}.tower-aura-picker.recommended .tower-aura-description b{color:#e4c27e}
   </style>
 </head>
 <body>
@@ -37,7 +39,7 @@
   const AURA_WEATHER={Elohim:'Rapture',Yggdrasil:'Armageddon',Satan:'Blood Rain','Eclipse Chaser':'Eclipse',Kala:'Time Storm',Stormcaller:'Storm',Iris:'Aurora',Niflheim:'Shroud',Khione:'Snow',Astrologist:'Meteor Shower',Disease:'Virus'};
   const STORAGE='card-rng-expansion-depths-v2';
   const blankTeam=()=>({cards:Array.from({length:4},()=>({cardName:'',borders:[]})),statAura:'',statAuraBorder:'',abilityAura:'',abilityAuraBorder:'',result:null,elapsedMs:0,lastError:''});
-  const state={cards:[],auras:[],abilities:{},thumbs:{},teams:Array.from({length:5},blankTeam),activeTeam:0,activeSlot:0,query:'',runs:15,cap:50000,seed:1000,running:false,runningLabel:'',workerReady:false,lastProgressRender:0,view:'depths',towerFloor:105,towerEnemies:['','','',''],towerResult:null,towerDifficulty:'Impossible',towerRuns:10000,towerSim:null,towerSimRunning:false,towerSimLabel:'',towerOverrides:['','','','']};
+  const state={cards:[],auras:[],abilities:{},thumbs:{},teams:Array.from({length:5},blankTeam),activeTeam:0,activeSlot:0,query:'',runs:15,cap:50000,seed:1000,running:false,runningLabel:'',workerReady:false,lastProgressRender:0,view:'depths',towerFloor:105,towerEnemies:['','','',''],towerResult:null,towerDifficulty:'Impossible',towerRuns:10000,towerSim:null,towerSimRunning:false,towerSimLabel:'',towerOverrides:['','','',''],towerAbilityAura:'',towerAbilityAuraBorder:''};
 
   const TOWER_FIXED={
     5:['Good Boy','Good Boy','Good Boy','Shining Armor'],
@@ -167,14 +169,15 @@
     if(result?.error)resultHtml=`<div class="tower-error">${esc(result.error)}</div>`;
     else if(result){
       const lineup=result.picks.map((pick,i)=>{const override=state.towerOverrides[i]||'',enemy=cardByName(pick.enemy),chosen=override||pick.pick,answer=cardByName(chosen),canSwap=pick.pick!=='Pandora',reason=override?(chosen==='Pandora'&&pick.pick!=='Pandora'?`Manual Pandora swap. Original recommendation: ${esc(pick.pick)}.`:`Manual test swap to ${esc(chosen)}. Original recommendation: ${esc(pick.pick)}.`):esc(pick.reason);return `<div class="tower-pick"><div class="tower-pick-head">${portrait(enemy)}<span><b>${i+1}. ${esc(pick.enemy)}</b><small>${esc(pick.enemyAbility)}</small></span></div><div class="tower-arrow">USE</div><div class="tower-answer">${portrait(answer)}<span><b>${esc(chosen)}</b><small>${answer?esc(answer.ability||'No ability'):''}</small></span></div><div class="tower-reason">${reason}</div>${canSwap?`<button class="tower-pandora-toggle ${chosen==='Pandora'?'on':''}" data-tower-pandora="${i}">${chosen==='Pandora'?`Restore ${esc(pick.pick)}`:'Use Pandora'}</button>`:`<button class="tower-pandora-toggle on" disabled>Pandora recommended</button>`}<span class="tower-custom-label">Try any card</span><div class="tower-autocomplete"><input class="tower-custom-card" data-tower-custom="${i}" value="${esc(override)}" placeholder="Search any card..." autocomplete="off"><div class="tower-suggestions" data-tower-suggestions="custom-${i}"></div></div></div>`}).join('');
-      const endAura=auraByName('End Times');
-      resultHtml=`<div class="tower-result-top"><h3>Cheese team</h3><div class="tower-end-times ${result.endTimesNeeded?'needed':''}">End Times: <b>${result.endTimesNeeded?'NEEDED':'NOT NEEDED'}</b></div></div><div class="tower-lineup">${lineup}</div>${result.endTimesNeeded?`<div class="tower-aura-callout">${portrait(endAura)}<span><b>Ability Aura: End Times</b><small>${endAura?esc(endAura.description):'Use End Times so additional dodge/block abilities can fail after Parallax has covered one.'}</small></span></div>`:''}`;
+      const selectedTowerAura=auraByName(state.towerAbilityAura),towerAuraBorder=state.towerAbilityAuraBorder||'';
+      const towerAuraHtml=`<div class="tower-aura-picker ${result.endTimesNeeded?'recommended':''}"><div class="tower-aura-picker-head">${portrait(selectedTowerAura)}<span><b>Ability Aura${result.endTimesNeeded?' · End Times recommended':''}</b><small>${result.endTimesNeeded?'End Times is recommended for this lineup, but you can test any Ability Aura.':'Optional — choose any Ability Aura to test with this team.'}</small></span></div><span class="tower-custom-label">Choose ability aura</span><div class="tower-autocomplete"><input data-tower-ability-aura value="${esc(state.towerAbilityAura)}" placeholder="Search ability aura..." autocomplete="off"><div class="tower-suggestions" data-tower-suggestions="ability-aura"></div></div>${selectedTowerAura?`<div class="aura-border-pills"><button data-tower-aura-border="" class="${!towerAuraBorder?'on':''}">Base</button>${AURA_BORDERS.map(b=>`<button data-tower-aura-border="${b}" class="${towerAuraBorder===b?'on':''}">${b}</button>`).join('')}</div><div class="tower-aura-description"><b>${esc(selectedTowerAura.skillName||selectedTowerAura.name)}</b>${auraSummary(selectedTowerAura,towerAuraBorder)}</div>`:''}</div>`;
+      resultHtml=`<div class="tower-result-top"><h3>Cheese team</h3><div class="tower-end-times ${result.endTimesNeeded?'needed':''}">End Times: <b>${result.endTimesNeeded?'NEEDED':'NOT NEEDED'}</b></div></div><div class="tower-lineup">${lineup}</div>${towerAuraHtml}`;
     }
     if(result&&!result.error){
       const sim=state.towerSim;
       const rerollWarning=sim&&!fixed&&sim.runs===10000&&sim.wins<50?`<div class="tower-reroll-warning"><b>Very low success rate.</b> You might want to reroll this Tower team.</div>`:'';
       const simBody=sim?.error?`<div class="tower-sim-error">${esc(sim.error)}</div>`:sim?`<div class="tower-sim-results"><div><span>Wins</span><b>${full(sim.wins)} / ${full(sim.runs)}</b></div><div><span>Win rate</span><b>${(sim.winRate*100).toFixed(2)}%</b></div><div><span>Losses</span><b>${full(sim.losses)}</b></div><div><span>Avg turns</span><b>${one(sim.averageTurns)}</b></div></div><div class="tower-winbar"><i style="width:${Math.max(0,Math.min(100,sim.winRate*100))}%"></i></div><div class="tower-sim-note">${sim.draws?`${full(sim.draws)} draws · `:''}${sim.elapsedMs<1000?`${Math.round(sim.elapsedMs)} ms`:`${(sim.elapsedMs/1000).toFixed(2)} s`} compute${sim.unsupportedAbilities?.length?` · Unsupported: ${esc(sim.unsupportedAbilities.join(', '))}`:''}</div>${rerollWarning}`:'';
-      resultHtml+=`<div class="tower-sim-panel"><div class="tower-sim-head"><div><b>Test this cheese team</b><small>${esc(state.towerDifficulty)} Tower · ${full(state.towerRuns)} battles · base cheese cards${result.endTimesNeeded?' + Base End Times aura':''}</small></div><button class="tower-sim-button" data-sim-tower ${state.towerSimRunning?'disabled':''}>${state.towerSimRunning?esc(state.towerSimLabel||'Simulating…'):`Simulate ${full(state.towerRuns)}`}</button></div>${simBody}</div>`;
+      resultHtml+=`<div class="tower-sim-panel"><div class="tower-sim-head"><div><b>Test this cheese team</b><small>${esc(state.towerDifficulty)} Tower · ${full(state.towerRuns)} battles · base cheese cards${state.towerAbilityAura?` + ${esc(state.towerAbilityAura)} ${esc(state.towerAbilityAuraBorder||'Base')} aura`:''}</small></div><button class="tower-sim-button" data-sim-tower ${state.towerSimRunning?'disabled':''}>${state.towerSimRunning?esc(state.towerSimLabel||'Simulating…'):`Simulate ${full(state.towerRuns)}`}</button></div>${simBody}</div>`;
     }
     root.innerHTML=`<main class="shell"><header class="topbar"><div><p class="kicker">CARD RNG EXPANSION</p><h1>Tower Cheese Maker</h1></div></header><div class="team-tabs">${towerTabs()}</div><section class="tower-cheese-page"><article class="tower-cheese-card"><div class="tower-cheese-head"><div><span class="kicker">TOWER</span><h2>Build a cheese team</h2></div><small>Fixed stages auto-load every 5 floors.</small></div><div class="tower-controls"><label class="tower-floor"><span>Floor</span><input id="towerFloor" type="number" min="1" max="105" value="${state.towerFloor}"></label><label class="tower-floor"><span>Difficulty</span><select id="towerDifficulty">${['Normal','Hard','Extreme','Hell','Impossible'].map(d=>`<option value="${d}" ${state.towerDifficulty===d?'selected':''}>${d}</option>`).join('')}</select></label><div class="tower-preset-note">${fixed?`<b>Fixed Stage ${state.towerFloor}</b><br>The four enemy cards are loaded automatically.`:`<b>Stage ${state.towerFloor}</b><br>This is not a fixed stage. Enter the four enemy cards in their battle order.`}</div></div><div class="tower-enemies">${previews}</div><div class="tower-build-row"><button class="tower-make" data-make-tower-team>Make Team</button></div><div class="tower-result">${resultHtml}</div></article></section><footer><span>Card RNG Expansion Tower Cheese Maker</span></footer></main>`;
     bindTowerEvents();bindTooltips();
@@ -189,6 +192,43 @@
       return a.name.localeCompare(b.name);
     });
     return matches.slice(0,45);
+  }
+  function towerAutocompleteAuras(query){
+    const q=String(query||'').trim().toLowerCase();
+    const matches=state.auras.filter(a=>!a.unobtainable&&a.type==='Skill'&&(!q||a.name.toLowerCase().includes(q)||(a.skillName||'').toLowerCase().includes(q)));
+    matches.sort((a,b)=>{
+      const an=a.name.toLowerCase(),bn=b.name.toLowerCase(),as=q&&an.startsWith(q),bs=q&&bn.startsWith(q);
+      if(as!==bs)return as?-1:1;
+      return a.name.localeCompare(b.name);
+    });
+    return matches.slice(0,45);
+  }
+  function bindTowerAuraAutocomplete(input){
+    const box=input.parentElement?.querySelector('.tower-suggestions');if(!box)return;
+    let active=-1,current=[];
+    const paint=()=>{
+      current=towerAutocompleteAuras(input.value);
+      box.innerHTML=`<button type="button" data-aura-none><b>No Ability Aura</b><small>Simulate without an Ability Aura</small></button>`+(current.length?current.map((a,i)=>`<button type="button" data-aura-index="${i}" class="${i===active?'active':''}"><b>${esc(a.name)}</b><small>${esc(a.skillName||'Ability Aura')}</small></button>`).join(''):'');
+      box.classList.add('open');
+      box.querySelector('[data-aura-none]')?.addEventListener('mousedown',e=>{e.preventDefault();chooseNone()});
+      box.querySelectorAll('[data-aura-index]').forEach(btn=>btn.addEventListener('mousedown',e=>{e.preventDefault();choose(Number(btn.dataset.auraIndex))}));
+    };
+    const choose=i=>{const aura=current[i];if(!aura)return;state.towerAbilityAura=aura.name;state.towerAbilityAuraBorder='';state.towerSim=null;render()};
+    const chooseNone=()=>{state.towerAbilityAura='';state.towerAbilityAuraBorder='';state.towerSim=null;render()};
+    input.addEventListener('focus',()=>{active=-1;paint()});
+    input.addEventListener('input',()=>{active=-1;if(!input.value){state.towerAbilityAura='';state.towerAbilityAuraBorder='';state.towerSim=null}paint()});
+    input.addEventListener('keydown',e=>{
+      if(e.key==='ArrowDown'){e.preventDefault();active=Math.min(current.length-1,active+1);paint()}
+      else if(e.key==='ArrowUp'){e.preventDefault();active=Math.max(0,active-1);paint()}
+      else if(e.key==='Enter'){e.preventDefault();if(current.length)choose(active>=0?active:0);else chooseNone()}
+      else if(e.key==='Escape')box.classList.remove('open');
+    });
+    input.addEventListener('blur',()=>setTimeout(()=>{
+      box.classList.remove('open');
+      const exact=state.auras.find(a=>!a.unobtainable&&a.type==='Skill'&&a.name.toLowerCase()===input.value.trim().toLowerCase());
+      const next=exact?exact.name:'';
+      if(state.towerAbilityAura!==next){state.towerAbilityAura=next;state.towerAbilityAuraBorder='';state.towerSim=null;render()}
+    },100));
   }
   function bindTowerAutocomplete(input,kind,index){
     const box=input.parentElement?.querySelector('.tower-suggestions');
@@ -205,7 +245,7 @@
       input.value=card.name;
       box.classList.remove('open');
       if(kind==='enemy'){
-        state.towerEnemies[index]=card.name;state.towerResult=null;state.towerSim=null;state.towerOverrides=['','','',''];render();
+        state.towerEnemies[index]=card.name;state.towerResult=null;state.towerSim=null;state.towerOverrides=['','','',''];state.towerAbilityAura='';state.towerAbilityAuraBorder='';render();
       }else{
         state.towerOverrides[index]=card.name;state.towerSim=null;render();
       }
@@ -213,7 +253,7 @@
     input.addEventListener('focus',()=>{active=-1;paint()});
     input.addEventListener('input',()=>{
       active=-1;
-      if(kind==='enemy'){state.towerEnemies[index]=input.value;state.towerResult=null;state.towerSim=null;state.towerOverrides=['','','','']}
+      if(kind==='enemy'){state.towerEnemies[index]=input.value;state.towerResult=null;state.towerSim=null;state.towerOverrides=['','','',''];state.towerAbilityAura='';state.towerAbilityAuraBorder=''}
       else if(!input.value){state.towerOverrides[index]='';state.towerSim=null}
       paint();
     });
@@ -234,12 +274,14 @@
   }
   function bindTowerEvents(){
     root.querySelectorAll('[data-tower-back-team]').forEach(el=>el.addEventListener('click',()=>{state.view='depths';state.activeTeam=Number(el.dataset.towerBackTeam);state.activeSlot=0;render()}));
-    root.querySelector('#towerFloor')?.addEventListener('change',e=>{state.towerFloor=Math.min(105,Math.max(1,Number(e.target.value)||1));const fixed=fixedTowerTeam(state.towerFloor);state.towerEnemies=fixed||['','','',''];state.towerResult=null;state.towerSim=null;state.towerOverrides=['','','',''];render()});
+    root.querySelector('#towerFloor')?.addEventListener('change',e=>{state.towerFloor=Math.min(105,Math.max(1,Number(e.target.value)||1));const fixed=fixedTowerTeam(state.towerFloor);state.towerEnemies=fixed||['','','',''];state.towerResult=null;state.towerSim=null;state.towerOverrides=['','','',''];state.towerAbilityAura='';state.towerAbilityAuraBorder='';render()});
     root.querySelectorAll('[data-tower-enemy]').forEach(el=>bindTowerAutocomplete(el,'enemy',Number(el.dataset.towerEnemy)));
-    root.querySelector('[data-make-tower-team]')?.addEventListener('click',()=>{const inputs=[...root.querySelectorAll('[data-tower-enemy]')];state.towerEnemies=inputs.map(el=>el.value.trim());const missing=state.towerEnemies.find(name=>!cardByName(name));if(missing!==undefined){state.towerResult={error:missing?`Unknown card: ${missing}. Choose a card from the list.`:'All four enemy cards are required.'};state.towerSim=null;render();return}state.towerResult=makeTowerCheese(state.towerEnemies);state.towerSim=null;state.towerOverrides=['','','',''];render()});
+    root.querySelector('[data-make-tower-team]')?.addEventListener('click',()=>{const inputs=[...root.querySelectorAll('[data-tower-enemy]')];state.towerEnemies=inputs.map(el=>el.value.trim());const missing=state.towerEnemies.find(name=>!cardByName(name));if(missing!==undefined){state.towerResult={error:missing?`Unknown card: ${missing}. Choose a card from the list.`:'All four enemy cards are required.'};state.towerSim=null;render();return}state.towerResult=makeTowerCheese(state.towerEnemies);state.towerSim=null;state.towerOverrides=['','','',''];state.towerAbilityAura=state.towerResult.endTimesNeeded?'End Times':'';state.towerAbilityAuraBorder='';render()});
     root.querySelector('#towerDifficulty')?.addEventListener('change',e=>{state.towerDifficulty=e.target.value;state.towerSim=null;render()});
     root.querySelectorAll('[data-tower-pandora]').forEach(el=>el.addEventListener('click',()=>{const i=Number(el.dataset.towerPandora),recommended=state.towerResult?.picks?.[i]?.pick||'';if(!recommended||recommended==='Pandora')return;state.towerOverrides[i]=state.towerOverrides[i]==='Pandora'?'':'Pandora';state.towerSim=null;render()}));
     root.querySelectorAll('[data-tower-custom]').forEach(el=>bindTowerAutocomplete(el,'custom',Number(el.dataset.towerCustom)));
+    root.querySelector('[data-tower-ability-aura]')&&bindTowerAuraAutocomplete(root.querySelector('[data-tower-ability-aura]'));
+    root.querySelectorAll('[data-tower-aura-border]').forEach(el=>el.addEventListener('click',()=>{state.towerAbilityAuraBorder=el.dataset.towerAuraBorder||'';state.towerSim=null;render()}));
     root.querySelector('[data-sim-tower]')?.addEventListener('click',runTowerSimulation);
   }
   const esc=(v='')=>String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
@@ -363,7 +405,7 @@ function bindTooltips(){const show=el=>{const card=cardByName(el.dataset.tooltip
   }
   function towerLoadout(){
     const result=state.towerResult;if(!result?.picks)return null;
-    return {cards:result.picks.map((p,i)=>({cardName:state.towerOverrides[i]||p.pick,borders:[]})),statAura:null,abilityAura:result.endTimesNeeded?{auraName:'End Times',border:null}:null};
+    return {cards:result.picks.map((p,i)=>({cardName:state.towerOverrides[i]||p.pick,borders:[]})),statAura:null,abilityAura:state.towerAbilityAura?{auraName:state.towerAbilityAura,border:state.towerAbilityAuraBorder||null}:null};
   }
   function runTowerSimulation(){
     if(state.towerSimRunning||!state.towerResult?.picks)return;

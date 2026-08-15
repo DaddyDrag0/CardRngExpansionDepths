@@ -353,16 +353,17 @@ function decodeTeam(code){
   function showRunDebug(teamIndex,runIndex){
     const run=state.teams[teamIndex]?.result?.runs?.[runIndex],d=run?.debug;if(!run)return;
     const fmt=n=>Number.isFinite(Number(n))?Math.round(Number(n)).toLocaleString('en-US'):'?';
-    const compactDbg=n=>Number.isFinite(Number(n))?Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:2}).format(Number(n)):'?';
+    const compactDbg=n=>Number.isFinite(Number(n))?Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:2}).format(Number(n)).replace(/\s/g,'').toLowerCase():'?';
+    const compactText=value=>String(value??'').replace(/-?\b\d{4,}(?:\.\d+)?\b/g,raw=>compactDbg(Number(raw)));
     const side=t=>t==='Allies'?'PLAYER':'ENEMY';
     let showAbilities=localStorage.getItem('cre-debug-ability-details')!=='0';
     const cardsHtml=(cards,empty)=>cards?.length?cards.map(c=>`<div class="dbg-card"><div><b>${esc(c.name)}</b><small>${esc(c.ability||'No ability')}</small></div><div class="dbg-card-stats"><span><i>HP</i>${compactDbg(c.hp)} / ${compactDbg(c.maxHp)}</span><span><i>ATK</i>${compactDbg(c.damage)}</span><span><i>POWER</i>${compactDbg(c.power)}</span></div></div>`).join(''):`<div class="dbg-empty">${empty}</div>`;
-    const turnParts=e=>{const m=String(e.detail||'').match(/^vs (.*?) \| attacker (.*?) \| defender (.*)$/);return m?{target:m[1],attacker:m[2],defender:m[3]}:null};
+    const turnParts=e=>{const m=String(e.detail||'').match(/^vs (.*?) \| attacker (.*?) \| defender (.*)$/);return m?{target:m[1],attacker:compactText(m[2]),defender:compactText(m[3])}:null};
     const visibleEvents=()=>d?.events?.filter(e=>showAbilities||e.type!=='ability')||[];
     const eventHtml=e=>{
       const parts=e.type==='turn'?turnParts(e):null;
       if(parts)return `<div class="dbg-event turn"><div class="dbg-event-top"><span class="dbg-type">TURN</span><span>${side(e.team)}</span></div><div class="dbg-event-title"><b>${esc(e.card)}</b><span>→</span><b>${esc(parts.target)}</b></div><div class="dbg-turn-stats"><span><i>${esc(e.card)}</i>${esc(parts.attacker)}</span><span><i>${esc(parts.target)}</i>${esc(parts.defender)}</span></div></div>`;
-      return `<div class="dbg-event ${esc(e.type)}"><div class="dbg-event-top"><span class="dbg-type">${esc(e.type.toUpperCase())}</span><span>${side(e.team)}</span></div><div class="dbg-event-title"><b>${esc(e.card)}</b></div><div class="dbg-event-detail">${esc(e.detail||'')}</div></div>`;
+      return `<div class="dbg-event ${esc(e.type)}"><div class="dbg-event-top"><span class="dbg-type">${esc(e.type.toUpperCase())}</span><span>${side(e.team)}</span></div><div class="dbg-event-title"><b>${esc(e.card)}</b></div><div class="dbg-event-detail">${esc(compactText(e.detail||''))}</div></div>`;
     };
     const traceHtml=()=>{let last=null,out='';for(const e of visibleEvents()){if(e.turn!==last){last=e.turn;out+=`<div class="dbg-turn-label">Turn ${e.turn}</div>`}out+=eventHtml(e)}return out||'<div class="dbg-empty">No trace events captured.</div>'};
     const plainText=()=>{
@@ -374,7 +375,7 @@ function decodeTeam(code){
       lines.push(`Stat Aura: ${d?.statAura?`${d.statAura.name} · ${d.statAura.border||'Base'} · value ${d.statAura.value??'?'}`:'None'}`);
       lines.push(`Ability Aura: ${d?.abilityAura?`${d.abilityAura.name} · ${d.abilityAura.border||'Base'} · value ${d.abilityAura.value??'?'}`:'None'}`);
       lines.push(`150-turn resolutions: ${d?.forcedStallResolutions??0}`);
-      const addCards=(title,cards)=>{lines.push('',title);if(!cards?.length)lines.push('  None');else for(const c of cards)lines.push(`  ${c.name} [${c.ability||'No ability'}]`, `    HP ${fmt(c.hp)} / ${fmt(c.maxHp)} · ATK ${fmt(c.damage)} · Power ${fmt(c.power)}`)};
+      const addCards=(title,cards)=>{lines.push('',title);if(!cards?.length)lines.push('  None');else for(const c of cards)lines.push(`  ${c.name} [${c.ability||'No ability'}]`, `    HP ${compactDbg(c.hp)} / ${compactDbg(c.maxHp)} · ATK ${compactDbg(c.damage)} · Power ${compactDbg(c.power)}`)};
       addCards('PLAYER START',d?.initialAllies);addCards('ENEMY START',d?.initialEnemies);addCards('FINAL PLAYER SURVIVORS',d?.finalAllies);addCards('FINAL ENEMY SURVIVORS',d?.finalEnemies);
       lines.push('',`BATTLE TRACE${showAbilities?' · ABILITY INTERACTIONS ON':' · ABILITY INTERACTIONS OFF'}`);
       let last=null;
@@ -382,7 +383,7 @@ function decodeTeam(code){
         if(e.turn!==last){last=e.turn;lines.push('',`TURN ${e.turn}`)}
         const parts=e.type==='turn'?turnParts(e):null;
         if(parts){lines.push(`  [TURN] ${side(e.team)} · ${e.card} → ${parts.target}`);lines.push(`    ${e.card}: ${parts.attacker}`);lines.push(`    ${parts.target}: ${parts.defender}`)}
-        else lines.push(`  [${e.type.toUpperCase()}] ${side(e.team)} · ${e.card}`,`    ${e.detail}`);
+        else lines.push(`  [${e.type.toUpperCase()}] ${side(e.team)} · ${e.card}`,`    ${compactText(e.detail)}`);
       }
       return lines.join('\n');
     };

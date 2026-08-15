@@ -1,0 +1,41 @@
+name: Fix Expansion 2 thumbnails
+
+on:
+  push:
+    paths:
+      - 'scripts/fix-expansion2-thumbnails.mjs'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/fix-expansion2-thumbnails.mjs
+      - name: Verify thumbnail URLs
+        run: |
+          node - <<'NODE'
+          const t=require('./src/data/thumbnails.json');
+          for (const id of ['81556098422773','91389584710674','139426020484277']) {
+            if (!String(t[id]||'').startsWith('https://tr.rbxcdn.com/')) throw new Error(id+' is not using CDN thumbnail');
+          }
+          console.log('Expansion 2 thumbnails use Roblox CDN URLs.');
+          NODE
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/data/thumbnails.json
+          if git diff --cached --quiet; then
+            echo "No changes."
+          else
+            git commit -m "Fix Expansion 2 card thumbnails"
+            git push
+          fi

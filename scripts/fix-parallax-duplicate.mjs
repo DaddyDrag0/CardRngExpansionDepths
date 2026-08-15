@@ -63,3 +63,5 @@ replaceOrThrow(
 
 fs.writeFileSync(path, source)
 console.log('Removed duplicate Parallax recommendations.')
+
+// workflow trigger

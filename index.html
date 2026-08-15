@@ -67,6 +67,7 @@
   const TOWER_PREEMPTIVE_BLOCKERS=new Set(['Northern Winds','Stardust Driver','Quick Strike','First Blood','Azure Dragon Wrath','Deadly Ambush','Fight Dirty','Heart Hunter','Stampede','Behavioral Therapy','Blinding Flash','Perish','Snowscape','Red-Nosed Reindeer','Pop-Up Impression','Am I Beautiful?','Ice Age']);
   const TOWER_EXTRA_TURN_THREATS=new Set(['Haste','The World','Accelerate','First Progenitor','Melancholy']);
   const TOWER_TRUE_PROPHET_BRIDGES=new Set(['Limitless']);
+  const TOWER_KUCHISAKE_THREATS=new Set(['The Fall']);
   const TOWER_WEIRD_ABILITIES=new Set(['Revive','Eternity','Frozen Ashes','Flames of Rebirth','Beyond The Grave','Unholy Creature','Undying','Persistent',"Unpaid 'Interns'",'Better Days','Lotus Sutra','Gehenna','Mirror Image',"Pandora's Box",'Mutate','Shared Power','Heroes','Graveyard','Shapeshifter','Dance of Discord','Eternal Voyage']);
   function towerAbilityText(card){return `${card?.ability||''} ${state.abilities[card?.ability]||''}`.toLowerCase()}
   function towerThreat(card,index,enemies){
@@ -93,7 +94,7 @@
     // True Prophet bridge: if a single-use first-hit blocker (currently proven for Limitless) appears before
     // a later extra-turn threat, use True Prophet to burn that blocker and pass Destiny Sight to the next JD.
     // This preserves Parallax for the later extra-turn enemy, where Paradox prevents a lethal turn-chain.
-    let prophetIndex=-1,prophetFollowupIndex=-1,parallaxIndex=-1;
+    let prophetIndex=-1,prophetFollowupIndex=-1,parallaxIndex=-1,kuchisakeIndex=-1;
     for(const i of blockerIndices){
       if(!TOWER_TRUE_PROPHET_BRIDGES.has(enemies[i]?.ability||''))continue;
       if(i>=enemies.length-1)continue;
@@ -103,12 +104,22 @@
       if(nextIsClean&&laterExtra!==undefined){prophetIndex=i;prophetFollowupIndex=next;parallaxIndex=laterExtra;break}
     }
 
+    // The Fall punishes direct damage by reflecting the damage back onto the attacker. Treat it as a
+    // separate trade threat rather than an End Times blocker. One copy gets Parallax. With 2+ copies,
+    // Kuchisake-onna handles the first through persistent confusion and Parallax is saved for the last.
+    // Only use this pattern when no harder blocker already needs the dedicated Parallax plan.
+    const fallIndices=enemies.map((enemy,i)=>TOWER_KUCHISAKE_THREATS.has(enemy?.ability||'')&&!specialCounter[i]&&!threats[i].weird?i:-1).filter(i=>i>=0);
+    if(parallaxIndex<0&&prophetIndex<0&&blockerIndices.length===0&&fallIndices.length){
+      if(fallIndices.length>=2)kuchisakeIndex=fallIndices[0];
+      parallaxIndex=fallIndices[fallIndices.length-1];
+    }
+
     if(parallaxIndex<0){
       const candidate=blockerIndices.find(i=>i!==prophetIndex&&!threats[i].forceEndTimes);
       if(candidate!==undefined)parallaxIndex=candidate;
     }
     if(parallaxIndex<0){
-      parallaxIndex=enemies.findIndex((enemy,i)=>i!==prophetIndex&&i!==prophetFollowupIndex&&!specialCounter[i]&&!threats[i].weird&&!threats[i].forceEndTimes);
+      parallaxIndex=enemies.findIndex((enemy,i)=>i!==prophetIndex&&i!==prophetFollowupIndex&&i!==kuchisakeIndex&&!specialCounter[i]&&!threats[i].weird&&!threats[i].forceEndTimes);
     }
 
     const unresolvedBlockers=blockerIndices.filter(i=>i!==prophetIndex&&i!==parallaxIndex);
@@ -118,14 +129,15 @@
     const picks=enemies.map((enemy,index)=>{
       const threat=threats[index];let pick='Judgment Day',reason='Use JD for the one-shot attempt.';
       if(specialCounter[index]){pick=specialCounter[index];reason=enemy.name==='Inari'?"Noveau Riche hard-counters Final Tail, so save Parallax for another enemy.":'Jealousy redirects enemy abilities, so use Robin Hood here instead of feeding Sable a JD/Parallax ability.'}
+      else if(index===kuchisakeIndex){pick='Kuchisake-onna';reason=`${enemy.ability||'The Fall'} punishes direct damage. Kuchisake-onna uses persistent confusion so this high-stat enemy can damage itself, preserving Parallax for the last matching threat.`}
       else if(index===prophetIndex){pick='True Prophet';reason=`${enemy.ability||'This ability'} has a one-time first-hit defense. True Prophet burns it and gives the next JD Destiny Sight, saving Parallax for the later extra-turn threat.`}
       else if(index===prophetFollowupIndex){pick='Judgment Day';reason='This JD follows True Prophet: the enemy first-hit defense is already spent, and Destiny Sight can dodge one lethal answer to buy another Armageddon attempt.'}
       else if(threat.weird){pick='Pandora';reason=`${enemy.ability||'This ability'} can survive, revive, change, or otherwise extend past a clean one-shot, so use Pandora as the fallback cheese.`}
-      else if(index===parallaxIndex){pick='Parallax';reason=TOWER_EXTRA_TURN_THREATS.has(enemy.ability||'')?`${enemy.ability||'Extra turns'} can chain through your next card after a kill. Save Parallax here so Paradox kills this enemy when it kills Parallax.`:(threat.block?`${enemy.ability||'This ability'} can stop a direct kill, so reserve Parallax's one Paradox use for this card.`:'No blocker needs Parallax later, so use its one Paradox trade here instead of spending another JD.')}
+      else if(index===parallaxIndex){pick='Parallax';reason=TOWER_KUCHISAKE_THREATS.has(enemy.ability||'')?`${enemy.ability||'The Fall'} punishes attackers for dealing damage. Save Parallax here so this enemy killing Parallax triggers Paradox instead.`:(TOWER_EXTRA_TURN_THREATS.has(enemy.ability||'')?`${enemy.ability||'Extra turns'} can chain through your next card after a kill. Save Parallax here so Paradox kills this enemy when it kills Parallax.`:(threat.block?`${enemy.ability||'This ability'} can stop a direct kill, so reserve Parallax's one Paradox use for this card.`:'No blocker needs Parallax later, so use its one Paradox trade here instead of spending another JD.'))}
       else if(threat.block){pick='Judgment Day';reason=endTimesNeeded?`${enemy.ability||'This ability'} can stop the direct kill. The dedicated counters are already used, so End Times is needed for the remaining blocker(s).`:'This card can interfere with the direct kill.'}
       return {enemy:enemy.name,enemyAbility:enemy.ability||'No ability',pick,reason,threat};
     });
-    return {picks,endTimesNeeded,blockers,prophetIndex,parallaxIndex};
+    return {picks,endTimesNeeded,blockers,prophetIndex,parallaxIndex,kuchisakeIndex};
   }
   function fixedTowerTeam(floor){const team=TOWER_FIXED[Number(floor)];return team?[...team]:null}
   function syncTowerPreset(){const fixed=fixedTowerTeam(state.towerFloor);if(fixed)state.towerEnemies=fixed}

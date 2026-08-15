@@ -1,0 +1,41 @@
+name: Fix Parallax duplicate recommendation
+
+on:
+  push:
+    paths:
+      - 'scripts/fix-parallax-duplicate.mjs'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm install --no-audit --no-fund
+      - name: Apply duplicate fix
+        run: node scripts/fix-parallax-duplicate.mjs
+      - name: Typecheck/build
+        run: npm run build
+      - name: Engine regressions
+        run: npm run test:engine
+      - name: Depths regressions
+        run: npm run test:depths
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          if git diff --cached --quiet; then
+            echo "No generated changes to commit."
+          else
+            git commit -m "Prevent duplicate Parallax cheese picks"
+            git push
+          fi

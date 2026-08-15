@@ -79,7 +79,7 @@
   }
   function makeTowerCheese(enemyNames){
     const enemies=enemyNames.map(cardByName),threats=enemies.map((card,i)=>towerThreat(card,i,enemies));
-    const specialCounter=enemies.map(enemy=>enemy?.ability==='Jealousy'?'Robin Hood':'');
+    const specialCounter=enemies.map(enemy=>enemy?.name==='Inari'?'Noveau Riche':enemy?.ability==='Jealousy'?'Robin Hood':'');
     const blockerIndices=threats.map((t,i)=>t.block&&!specialCounter[i]&&!t.weird?i:-1).filter(i=>i>=0);
     const blockers=blockerIndices.length,forced=threats.some((t,i)=>t.forceEndTimes&&!specialCounter[i]),endTimesNeeded=blockers>=2||forced;
     let parallaxIndex=blockerIndices.find(i=>!threats[i].forceEndTimes);
@@ -89,7 +89,7 @@
     }
     const picks=enemies.map((enemy,index)=>{
       const threat=threats[index];let pick='Judgment Day',reason='Use JD for the one-shot attempt.';
-      if(specialCounter[index]){pick=specialCounter[index];reason='Jealousy redirects enemy abilities, so use Robin Hood here instead of feeding Sable a JD/Parallax ability.'}
+      if(specialCounter[index]){pick=specialCounter[index];reason=enemy.name==='Inari'?"Noveau Riche hard-counters Final Tail, so save Parallax for another enemy.":'Jealousy redirects enemy abilities, so use Robin Hood here instead of feeding Sable a JD/Parallax ability.'}
       else if(threat.weird){pick='Pandora';reason=`${enemy.ability||'This ability'} can survive, revive, change, or otherwise extend past a clean one-shot, so use Pandora as the fallback cheese.`}
       else if(index===parallaxIndex){pick='Parallax';reason=threat.block?`${enemy.ability||'This ability'} can stop a direct kill, so reserve Parallax's one Paradox use for this card.`:'No blocker needs Parallax later, so use its one Paradox trade here instead of spending another JD.'}
       else if(threat.block){pick='Judgment Day';reason=endTimesNeeded?`${enemy.ability||'This ability'} can stop the direct kill. Parallax only covers one blocker, so End Times is needed for the remaining blocker(s).`:'This card can interfere with the direct kill.'}

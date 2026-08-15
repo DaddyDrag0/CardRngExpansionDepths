@@ -1,0 +1,39 @@
+name: Fix disabled revive abilities
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-disabled-revives.yml'
+      - 'scripts/fix_disabled_revives.py'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: python scripts/fix_disabled_revives.py
+      - run: npm install
+      - run: npm run build
+      - run: npm run test:engine
+      - name: Commit fix and regression
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/engine/battle-v2.ts scripts/engine-smoke.ts
+          if git diff --cached --quiet; then
+            echo "No changes."
+          else
+            git commit -m "Respect ability disables for revive effects"
+            git push
+          fi

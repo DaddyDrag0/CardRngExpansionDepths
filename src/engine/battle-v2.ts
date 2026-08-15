@@ -132,7 +132,7 @@ function debugCard(card: CombatCard) {
 
 function pushDebugEvent(runtime: Runtime, event: BattleDebug['events'][number]) {
   if (!runtime.captureDebug) return
-  if (runtime.debug.events.length >= 300) runtime.debug.events.shift()
+  if (runtime.debug.events.length >= 1200) runtime.debug.events.shift()
   runtime.debug.events.push(event)
 }
 
@@ -615,6 +615,13 @@ function onEntry(runtime: Runtime, card: CombatCard) {
     }
   }
 
+  const entryDebugBefore = runtime.captureDebug ? {
+    cardHp: card.hp, cardMaxHp: card.maxHp, cardDamage: card.damage,
+    enemyHp: enemy.hp, enemyMaxHp: enemy.maxHp, enemyDamage: enemy.damage,
+    enemyStunned: enemy.status.stunned, enemyConfused: enemy.status.confused, enemyBurn: enemy.status.burn,
+    enemyBlind: enemy.status.blind, enemyWeakness: enemy.status.weakness, enemySealed: Boolean(enemy.flags.sealed),
+  } : null
+
   switch (name) {
     case 'Bind Fate': {
       const firstTwo = runtime.state.teams[enemyTeam].filter(alive).slice(0, 2)
@@ -1082,6 +1089,24 @@ function onEntry(runtime: Runtime, card: CombatCard) {
       performEntryAttack(runtime, card, 2.5)
       break
   }
+  if (entryDebugBefore) {
+    const changes: string[] = []
+    const n = (value: number) => Number.isFinite(value) ? String(Math.round(value)) : 'lethal'
+    const changed = (before: number, after: number) => Math.abs(before - after) > Math.max(0.001, Math.abs(before) * 1e-9)
+    if (changed(entryDebugBefore.cardDamage, card.damage)) changes.push('own ATK ' + n(entryDebugBefore.cardDamage) + ' → ' + n(card.damage))
+    if (changed(entryDebugBefore.cardMaxHp, card.maxHp)) changes.push('own max HP ' + n(entryDebugBefore.cardMaxHp) + ' → ' + n(card.maxHp))
+    if (changed(entryDebugBefore.cardHp, card.hp)) changes.push('own HP ' + n(entryDebugBefore.cardHp) + ' → ' + n(card.hp))
+    if (changed(entryDebugBefore.enemyDamage, enemy.damage)) changes.push('enemy ATK ' + n(entryDebugBefore.enemyDamage) + ' → ' + n(enemy.damage))
+    if (changed(entryDebugBefore.enemyMaxHp, enemy.maxHp)) changes.push('enemy max HP ' + n(entryDebugBefore.enemyMaxHp) + ' → ' + n(enemy.maxHp))
+    if (changed(entryDebugBefore.enemyHp, enemy.hp)) changes.push('enemy HP ' + n(entryDebugBefore.enemyHp) + ' → ' + n(enemy.hp))
+    if (entryDebugBefore.enemyStunned !== enemy.status.stunned) changes.push('enemy stun ' + entryDebugBefore.enemyStunned + ' → ' + enemy.status.stunned + ' turns')
+    if (entryDebugBefore.enemyConfused !== enemy.status.confused) changes.push('enemy confusion ' + entryDebugBefore.enemyConfused + ' → ' + enemy.status.confused + ' turns')
+    if (entryDebugBefore.enemyBurn !== enemy.status.burn) changes.push('enemy burn ' + entryDebugBefore.enemyBurn + ' → ' + enemy.status.burn + ' turns')
+    if (entryDebugBefore.enemyBlind !== enemy.status.blind) changes.push(enemy.status.blind ? 'enemy blinded' : 'enemy blind removed')
+    if (entryDebugBefore.enemyWeakness !== enemy.status.weakness) changes.push(enemy.status.weakness ? 'enemy weakened' : 'enemy weakness removed')
+    if (entryDebugBefore.enemySealed !== Boolean(enemy.flags.sealed)) changes.push(enemy.flags.sealed ? 'enemy ability sealed' : 'enemy ability unsealed')
+    if (changes.length && name !== "Hell's Curse" && name !== 'Order of the Cosmos') pushAbilityDebug(runtime, card, name + ': ' + changes.join('; ') + '.')
+  }
 }
 
 function offensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, initial: number): { damage: number; bypass: boolean; special: boolean } {
@@ -1099,6 +1124,11 @@ function offensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
   let bypass = false
   if (!name || !hasAbility(runtime, attacker, name)) return { damage, bypass, special: false }
   let special = false
+  const offensiveDebugBefore = runtime.captureDebug ? {
+    attackerHp: attacker.hp, attackerMaxHp: attacker.maxHp, attackerDamage: attacker.damage,
+    targetBleed: target.counters.bleed || 0, targetPoisonPercent: target.counters.poisonPercent || 0,
+    targetFrostbite: target.counters.frostbite || 0, targetWeakness: target.status.weakness,
+  } : null
 
   if ([
     'True Strike','Maelstrom','Judgment','Armageddon','Draconic Heart','Explosion','Telekinesis',
@@ -1220,6 +1250,21 @@ function offensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
   if (name === 'Dominate' && borderTier(attacker) > borderTier(target)) damage *= 2
   if (name === 'Lightning Slash') { damage *= 1.5; bypass = true }
   if (name === 'Limitless' || name === 'True Fang') bypass = true
+  if (offensiveDebugBefore && name !== 'Armageddon') {
+    const changes: string[] = []
+    const n = (value: number) => Number.isFinite(value) ? String(Math.round(value)) : 'lethal'
+    const changed = (before: number, after: number) => Math.abs(before - after) > Math.max(0.001, Math.abs(before) * 1e-9)
+    if (changed(initial, damage)) changes.push('attack damage ' + n(initial) + ' → ' + n(damage))
+    if (bypass) changes.push('bypasses defense')
+    if (changed(offensiveDebugBefore.attackerDamage, attacker.damage)) changes.push('own ATK ' + n(offensiveDebugBefore.attackerDamage) + ' → ' + n(attacker.damage))
+    if (changed(offensiveDebugBefore.attackerMaxHp, attacker.maxHp)) changes.push('own max HP ' + n(offensiveDebugBefore.attackerMaxHp) + ' → ' + n(attacker.maxHp))
+    if (changed(offensiveDebugBefore.attackerHp, attacker.hp)) changes.push('own HP ' + n(offensiveDebugBefore.attackerHp) + ' → ' + n(attacker.hp))
+    if (offensiveDebugBefore.targetBleed !== (target.counters.bleed || 0)) changes.push('applied/changed bleed')
+    if (offensiveDebugBefore.targetPoisonPercent !== (target.counters.poisonPercent || 0)) changes.push('applied/changed poison')
+    if (offensiveDebugBefore.targetFrostbite !== (target.counters.frostbite || 0)) changes.push('applied/changed frostbite')
+    if (offensiveDebugBefore.targetWeakness !== target.status.weakness) changes.push(target.status.weakness ? 'applied weakness' : 'removed weakness')
+    if (changes.length) pushAbilityDebug(runtime, attacker, name + ': ' + changes.join('; ') + '.')
+  }
   return { damage, bypass, special }
 }
 
@@ -1235,6 +1280,7 @@ function defensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
   const name = resolvedAbility(runtime, target)
   let damage = initial
   if (!name || !hasAbility(runtime, target, name)) return damage
+  const defensiveDebugBefore = runtime.captureDebug ? { attackerHp: attacker.hp, attackerDamage: attacker.damage, targetHp: target.hp, targetDamage: target.damage } : null
 
   switch (name) {
     case 'ConstellarTaurus': damage /= constellarTaurusFactor(target); break
@@ -1378,6 +1424,17 @@ function defensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
 
   if (name === 'Dominate' && borderTier(target) > borderTier(attacker)) damage /= 2
   if (initial > 0 && damage === 0 && DODGE_ABILITIES.has(name)) target.flags.evadedThisHit = true
+  if (defensiveDebugBefore && name !== 'Limitless') {
+    const changes: string[] = []
+    const n = (value: number) => Number.isFinite(value) ? String(Math.round(value)) : 'lethal'
+    const changed = (before: number, after: number) => Math.abs(before - after) > Math.max(0.001, Math.abs(before) * 1e-9)
+    if (changed(initial, damage)) changes.push(damage === 0 ? 'blocked ' + n(initial) + ' incoming damage' : 'incoming damage ' + n(initial) + ' → ' + n(damage))
+    if (changed(defensiveDebugBefore.attackerHp, attacker.hp)) changes.push('attacker HP ' + n(defensiveDebugBefore.attackerHp) + ' → ' + n(attacker.hp))
+    if (changed(defensiveDebugBefore.attackerDamage, attacker.damage)) changes.push('attacker ATK ' + n(defensiveDebugBefore.attackerDamage) + ' → ' + n(attacker.damage))
+    if (changed(defensiveDebugBefore.targetHp, target.hp)) changes.push('own HP ' + n(defensiveDebugBefore.targetHp) + ' → ' + n(target.hp))
+    if (changed(defensiveDebugBefore.targetDamage, target.damage)) changes.push('own ATK ' + n(defensiveDebugBefore.targetDamage) + ' → ' + n(target.damage))
+    if (changes.length) pushAbilityDebug(runtime, target, name + ': ' + changes.join('; ') + '.')
+  }
   return damage
 }
 

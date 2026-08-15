@@ -171,6 +171,15 @@ type AbilityTraceCardState = {
   frostbite: number
   poisonPercent: number
   poisonFlat: number
+  hpShield: number
+  bindFatePair: number
+  perishTurns: number
+  divinationMoves: number
+  extraTurnFlag: boolean
+  awakened: boolean
+  noRng: boolean
+  eternalConfusion: boolean
+  bonusAbilities: string
   sealed: boolean
   slowed: boolean
 }
@@ -215,6 +224,15 @@ function captureAbilityTrace(runtime: Runtime): AbilityTraceSnapshot {
         frostbite: card.counters.frostbite || 0,
         poisonPercent: card.counters.poisonPercent || 0,
         poisonFlat: card.counters.poisonFlat || 0,
+        hpShield: card.counters.hpShield || 0,
+        bindFatePair: card.counters.bindFatePair || 0,
+        perishTurns: card.counters.perishTurns || 0,
+        divinationMoves: card.counters.divinationMoves || 0,
+        extraTurnFlag: Boolean(card.flags.extraTurn),
+        awakened: Boolean(card.flags.awakened),
+        noRng: Boolean(card.flags.noRng),
+        eternalConfusion: Boolean(card.flags.eternalConfusion),
+        bonusAbilities: (card.bonusAbilities || []).join(' + '),
         sealed: Boolean(card.flags.sealed),
         slowed: Boolean(card.flags.slowed),
       })
@@ -260,6 +278,15 @@ function describeAbilityTrace(runtime: Runtime, before: AbilityTraceSnapshot, so
     if (oldState.bleed !== newState.bleed) changes.push(label + ' bleed ' + oldState.bleed + ' → ' + newState.bleed)
     if (oldState.frostbite !== newState.frostbite) changes.push(label + ' frostbite ' + oldState.frostbite + ' → ' + newState.frostbite)
     if (oldState.poisonPercent !== newState.poisonPercent || oldState.poisonFlat !== newState.poisonFlat) changes.push(label + ' poison changed')
+    if (oldState.hpShield !== newState.hpShield) changes.push(label + ' HP shield ' + compactDebugNumber(oldState.hpShield) + ' → ' + compactDebugNumber(newState.hpShield))
+    if (oldState.bindFatePair !== newState.bindFatePair) changes.push(label + (newState.bindFatePair ? ' was bound by Bind Fate' : ' Bind Fate ended'))
+    if (oldState.perishTurns !== newState.perishTurns) changes.push(label + ' Perish timer ' + oldState.perishTurns + ' → ' + newState.perishTurns)
+    if (oldState.divinationMoves !== newState.divinationMoves) changes.push(label + ' Divination timer ' + oldState.divinationMoves + ' → ' + newState.divinationMoves)
+    if (oldState.extraTurnFlag !== newState.extraTurnFlag) changes.push(label + (newState.extraTurnFlag ? ' gained an extra-turn trigger' : ' extra-turn trigger consumed'))
+    if (oldState.awakened !== newState.awakened) changes.push(label + (newState.awakened ? ' awakened' : ' awakening ended'))
+    if (oldState.noRng !== newState.noRng) changes.push(label + (newState.noRng ? ' RNG disabled' : ' RNG restored'))
+    if (oldState.eternalConfusion !== newState.eternalConfusion) changes.push(label + (newState.eternalConfusion ? ' gained eternal confusion' : ' eternal confusion ended'))
+    if (oldState.bonusAbilities !== newState.bonusAbilities) changes.push(label + ' bonus abilities ' + (oldState.bonusAbilities || 'none') + ' → ' + (newState.bonusAbilities || 'none'))
     if (oldState.sealed !== newState.sealed) changes.push(label + (newState.sealed ? ' ability sealed' : ' ability unsealed'))
     if (oldState.slowed !== newState.slowed) changes.push(label + (newState.slowed ? ' was slowed' : ' slow ended'))
   }
@@ -666,10 +693,12 @@ function onEntry(runtime: Runtime, card: CombatCard) {
   const enemy = active(runtime, enemyTeam)
   if (!enemy) return
 
-  if (enemy !== card && hasAbility(runtime, enemy, 'Desire')) stealStats(card, enemy, 0.1)
-  if (enemy !== card && hasAbility(runtime, enemy, 'Cosmic Maw')) stealStats(card, enemy, 0.2)
+  if (enemy !== card && hasAbility(runtime, enemy, 'Desire')) runAbilityTrace(runtime, enemy, 'Desire', () => stealStats(card, enemy, 0.1))
+  if (enemy !== card && hasAbility(runtime, enemy, 'Cosmic Maw')) runAbilityTrace(runtime, enemy, 'Cosmic Maw', () => stealStats(card, enemy, 0.2))
   if (enemy !== card && enemy.flags.awakened && hasAbility(runtime, enemy, 'Pop-Up Impression') && !statusProtected(runtime, card.team)) {
-    card.status.confused = Math.max(card.status.confused, enemy.counters.toyCount || 1)
+    runAbilityTrace(runtime, enemy, 'Pop-Up Impression', () => {
+      card.status.confused = Math.max(card.status.confused, enemy.counters.toyCount || 1)
+    })
   }
 
   let name = resolvedAbility(runtime, card)
@@ -746,12 +775,8 @@ function onEntry(runtime: Runtime, card: CombatCard) {
     }
   }
 
-  const entryDebugBefore = runtime.captureDebug ? {
-    cardHp: card.hp, cardMaxHp: card.maxHp, cardDamage: card.damage,
-    enemyHp: enemy.hp, enemyMaxHp: enemy.maxHp, enemyDamage: enemy.damage,
-    enemyStunned: enemy.status.stunned, enemyConfused: enemy.status.confused, enemyBurn: enemy.status.burn,
-    enemyBlind: enemy.status.blind, enemyWeakness: enemy.status.weakness, enemySealed: Boolean(enemy.flags.sealed),
-  } : null
+  const entryTraceBefore = runtime.captureDebug ? captureAbilityTrace(runtime) : null
+  const entryTraceEventStart = runtime.debug.events.length
 
   switch (name) {
     case 'Bind Fate': {
@@ -930,9 +955,14 @@ function onEntry(runtime: Runtime, card: CombatCard) {
     case 'Book of Death':
       enemy.counters.death = 2
       break
-    case 'Erosion':
-      if (rand(runtime, card.team) < 0.5) clearSkillAura(runtime, enemyTeam)
+    case 'Erosion': {
+      const auraName = runtime.state.boosts[enemyTeam].skillAuraName
+      if (rand(runtime, card.team) < 0.5) {
+        clearSkillAura(runtime, enemyTeam)
+        pushAbilityDebug(runtime, card, 'Erosion succeeded' + (auraName ? ' — disabled ' + auraName + '.' : ', but there was no enemy ability aura to disable.'))
+      } else if (auraName) pushAbilityDebug(runtime, card, 'Erosion failed — ' + auraName + ' stayed active.')
       break
+    }
     case 'Divination':
       card.counters.divinationMoves = 5
       break
@@ -1220,23 +1250,13 @@ function onEntry(runtime: Runtime, card: CombatCard) {
       performEntryAttack(runtime, card, 2.5)
       break
   }
-  if (entryDebugBefore) {
-    const changes: string[] = []
-    const n = (value: number) => Number.isFinite(value) ? String(Math.round(value)) : 'lethal'
-    const changed = (before: number, after: number) => Math.abs(before - after) > Math.max(0.001, Math.abs(before) * 1e-9)
-    if (changed(entryDebugBefore.cardDamage, card.damage)) changes.push('own ATK ' + n(entryDebugBefore.cardDamage) + ' → ' + n(card.damage))
-    if (changed(entryDebugBefore.cardMaxHp, card.maxHp)) changes.push('own max HP ' + n(entryDebugBefore.cardMaxHp) + ' → ' + n(card.maxHp))
-    if (changed(entryDebugBefore.cardHp, card.hp)) changes.push('own HP ' + n(entryDebugBefore.cardHp) + ' → ' + n(card.hp))
-    if (changed(entryDebugBefore.enemyDamage, enemy.damage)) changes.push('enemy ATK ' + n(entryDebugBefore.enemyDamage) + ' → ' + n(enemy.damage))
-    if (changed(entryDebugBefore.enemyMaxHp, enemy.maxHp)) changes.push('enemy max HP ' + n(entryDebugBefore.enemyMaxHp) + ' → ' + n(enemy.maxHp))
-    if (changed(entryDebugBefore.enemyHp, enemy.hp)) changes.push('enemy HP ' + n(entryDebugBefore.enemyHp) + ' → ' + n(enemy.hp))
-    if (entryDebugBefore.enemyStunned !== enemy.status.stunned) changes.push('enemy stun ' + entryDebugBefore.enemyStunned + ' → ' + enemy.status.stunned + ' turns')
-    if (entryDebugBefore.enemyConfused !== enemy.status.confused) changes.push('enemy confusion ' + entryDebugBefore.enemyConfused + ' → ' + enemy.status.confused + ' turns')
-    if (entryDebugBefore.enemyBurn !== enemy.status.burn) changes.push('enemy burn ' + entryDebugBefore.enemyBurn + ' → ' + enemy.status.burn + ' turns')
-    if (entryDebugBefore.enemyBlind !== enemy.status.blind) changes.push(enemy.status.blind ? 'enemy blinded' : 'enemy blind removed')
-    if (entryDebugBefore.enemyWeakness !== enemy.status.weakness) changes.push(enemy.status.weakness ? 'enemy weakened' : 'enemy weakness removed')
-    if (entryDebugBefore.enemySealed !== Boolean(enemy.flags.sealed)) changes.push(enemy.flags.sealed ? 'enemy ability sealed' : 'enemy ability unsealed')
-    if (changes.length && name !== "Hell's Curse" && name !== 'Order of the Cosmos') pushAbilityDebug(runtime, card, name + ': ' + changes.join('; ') + '.')
+  if (entryTraceBefore && name !== "Hell's Curse" && name !== 'Order of the Cosmos') {
+    const cardName = effectiveCardName(card) || card.definition.name
+    const alreadyLogged = runtime.debug.events.slice(entryTraceEventStart).some((event) => event.type === 'ability' && event.card === cardName)
+    if (!alreadyLogged) {
+      const changes = describeAbilityTrace(runtime, entryTraceBefore, card)
+      if (changes.length) pushAbilityDebug(runtime, card, name + ': ' + changes.join('; ') + '.')
+    }
   }
 }
 
@@ -1933,8 +1953,9 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   if (confusionSelfHit) target = attacker
   if (attacker.status.confused > 0 && !attacker.flags.eternalConfusion) attacker.status.confused -= 1
   if (confusionSelfHit) {
+    pushAbilityDebug(runtime, attacker, 'Confusion caused this attack to hit itself.')
     const observer = active(runtime, OTHER_TEAM[attacker.team])
-    if (observer && hasAbility(runtime, observer, 'Beyond Comprehension')) boostStats(observer, 1.5)
+    if (observer && hasAbility(runtime, observer, 'Beyond Comprehension')) runAbilityTrace(runtime, observer, 'Beyond Comprehension', () => boostStats(observer, 1.5))
   }
 
   const frostbiteActiveOnAttack = (target.counters.frostbite || 0) > 0 && !statusProtected(runtime, target.team)
@@ -1946,7 +1967,7 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   damage = off.damage
   bypass = bypass || off.bypass
 
-  if (attacker.status.blind && rand(runtime, attacker.team) > 0.4) damage = 0
+  if (attacker.status.blind && rand(runtime, attacker.team) > 0.4) { damage = 0; pushAbilityDebug(runtime, attacker, 'Blind caused the attack to miss.') }
 
   if (!off.special && hasAbility(runtime, target, 'All Father') && damage > 0) {
     const cost = target.maxHp / 5
@@ -1990,6 +2011,7 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
           veilHolder.counters.luminescentVeilGain = currentGain + gain
         }
         damage = 0
+        pushAbilityDebug(runtime, veilHolder, 'Luminescent Veil evaded an attack on ' + (effectiveCardName(target) || target.definition.name) + '; evade ' + target.counters.luminescentEvades + '/2 used.')
       } else damage = defensive(runtime, attacker, target, damage)
     } else damage = defensive(runtime, attacker, target, damage)
   }
@@ -2002,7 +2024,7 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   if (threshold && target.definition.weather === 'Time Storm') threshold *= 1.5
   if (threshold && damage < target.maxHp * threshold / 100) damage = 0
 
-  if (target.status.shield > 0 && damage > 0) { target.status.shield -= 1; damage = 0 }
+  if (target.status.shield > 0 && damage > 0) { const beforeShield = target.status.shield; target.status.shield -= 1; damage = 0; pushAbilityDebug(runtime, target, 'Shield blocked the attack; shields ' + beforeShield + ' → ' + target.status.shield + '.') }
   if (damage < 0) damage = Math.max(-(target.maxHp - target.hp), damage)
   damage = Number.isFinite(damage) ? Math.ceil(damage) : target.hp
 
@@ -2010,6 +2032,7 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
     const absorbed = Math.min(target.counters.hpShield, damage)
     target.counters.hpShield -= absorbed
     damage -= absorbed
+    pushAbilityDebug(runtime, target, 'ConstellarVirgo HP shield absorbed ' + compactDebugNumber(absorbed) + ' damage; ' + compactDebugNumber(target.counters.hpShield) + ' shield remains.')
   }
 
   const xuanwu = damage > 0 ? waterShield(runtime, target.team, target) : undefined
@@ -2017,6 +2040,7 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
     const redirected = Math.ceil(damage * 0.5)
     damage -= redirected
     xuanwu.hp -= Math.min(xuanwu.hp, redirected)
+    pushAbilityDebug(runtime, xuanwu, 'Water Shield of Xuanwu redirected ' + compactDebugNumber(redirected) + ' damage away from ' + (effectiveCardName(target) || target.definition.name) + '.')
   }
 
   const farm = resolveAuraFarm(runtime, target, damage)
@@ -2024,6 +2048,7 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   damage = farm.damage
   const targetDeck = runtime.state.teams[target.team]
   const longReachTarget = hasAbility(runtime, attacker, 'Long Reach') && targetDeck[0] === target ? targetDeck[1] : undefined
+  if (longReachTarget) pushAbilityDebug(runtime, attacker, 'Long Reach bypassed ' + (effectiveCardName(target) || target.definition.name) + ' and attacked ' + (effectiveCardName(longReachTarget) || longReachTarget.definition.name) + ' in the deck.')
   const hpTarget = longReachTarget || target
   const appliedHpDamage = Math.min(hpTarget.hp, damage)
   hpTarget.hp -= appliedHpDamage
@@ -2032,7 +2057,11 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
     const partner = runtime.state.teams[hpTarget.team].find((candidate) =>
       candidate !== hpTarget && alive(candidate) && candidate.counters.bindFatePair === pair
     )
-    if (partner) partner.hp -= Math.min(partner.hp, appliedHpDamage)
+    if (partner) {
+      const mirrored = Math.min(partner.hp, appliedHpDamage)
+      partner.hp -= mirrored
+      pushAbilityDebug(runtime, hpTarget, 'Bind Fate mirrored ' + compactDebugNumber(mirrored) + ' damage onto ' + (effectiveCardName(partner) || partner.definition.name) + '.')
+    }
   }
   if (longReachTarget && longReachTarget.hp <= 0) {
     const index = targetDeck.indexOf(longReachTarget)
@@ -2044,28 +2073,35 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   }
 
   if (frostbiteActiveOnAttack && target.hp > 0 && runtime.rng.next() < 0.5) {
-    target.hp -= Math.min(target.hp, target.maxHp * 0.2)
+    const frostDamage = Math.min(target.hp, target.maxHp * 0.2)
+    target.hp -= frostDamage
+    pushAbilityDebug(runtime, target, 'Frostbite triggered for ' + compactDebugNumber(frostDamage) + ' extra damage.')
   }
 
-  if (hasAbility(runtime, active(runtime, OTHER_TEAM[attacker.team]), 'Am I Beautiful?')) {
-    if (target.team === attacker.team) target.damage *= 0.8
-    else target.status.confused += 1
+  const beautifulObserver = active(runtime, OTHER_TEAM[attacker.team])
+  if (hasAbility(runtime, beautifulObserver, 'Am I Beautiful?')) {
+    runAbilityTrace(runtime, beautifulObserver!, 'Am I Beautiful?', () => {
+      if (target.team === attacker.team) target.damage *= 0.8
+      else target.status.confused += 1
+    })
   }
 
   if ((hasAbility(runtime, target, 'Meow') || hasAbility(runtime, target, 'Never Forgotten')) && damage > 0) {
     target.counters.damageTaken = Math.min(target.maxHp, (target.counters.damageTaken || 0) + damage)
   }
 
-  if (hasAbility(runtime, attacker, 'Disarm') && damage > 0) target.damage = Math.max(0, target.damage - damage * 0.4)
+  if (hasAbility(runtime, attacker, 'Disarm') && damage > 0) runAbilityTrace(runtime, attacker, 'Disarm', () => { target.damage = Math.max(0, target.damage - damage * 0.4) })
   if (hasAbility(runtime, attacker, 'Shiny Steal') && damage > 0 && target !== attacker) {
-    const stolenDamage = target.damage * 0.1
-    const stolenHp = target.maxHp * 0.1
-    target.damage = Math.max(0, target.damage - stolenDamage)
-    target.maxHp = Math.max(1, target.maxHp - stolenHp)
-    target.hp = Math.min(target.hp, target.maxHp)
-    attacker.damage += stolenDamage
-    attacker.maxHp += stolenHp
-    attacker.hp += stolenHp
+    runAbilityTrace(runtime, attacker, 'Shiny Steal', () => {
+      const stolenDamage = target.damage * 0.1
+      const stolenHp = target.maxHp * 0.1
+      target.damage = Math.max(0, target.damage - stolenDamage)
+      target.maxHp = Math.max(1, target.maxHp - stolenHp)
+      target.hp = Math.min(target.hp, target.maxHp)
+      attacker.damage += stolenDamage
+      attacker.maxHp += stolenHp
+      attacker.hp += stolenHp
+    })
   }
 
   const flame = runtime.state.boosts[attacker.team].flameWizard
@@ -2074,26 +2110,32 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   if (!statusProtected(runtime, target.team) && phantom && damage > 0 && runtime.rng.next() * 100 < phantom) target.status.stunned = Math.max(1, target.status.stunned)
 
   if (hasAbility(runtime, target, 'Chimeric') && target.hp > 0 && target.hp <= target.maxHp / 2 && !target.flags.chimericFaded) {
-    target.flags.chimericFaded = true
-    target.maxHp /= 4; target.hp /= 4; target.damage /= 4
+    runAbilityTrace(runtime, target, 'Chimeric', () => {
+      target.flags.chimericFaded = true
+      target.maxHp /= 4; target.hp /= 4; target.damage /= 4
+    })
   }
 
   targetRetro(runtime, attacker, target, damage)
   const didRegen = attackerRetro(runtime, attacker, target, damage)
 
   if (hasAbility(runtime, target, 'Reveal') && !target.flags.revealed && target.hp > 0 && target.hp / target.maxHp < 0.65) {
-    target.flags.revealed = true
-    target.hp = target.maxHp
+    runAbilityTrace(runtime, target, 'Reveal', () => {
+      target.flags.revealed = true
+      target.hp = target.maxHp
+    })
   }
 
   const vamp = runtime.state.boosts[attacker.team].vampireMatron
   if (damage > 0 && vamp && !didRegen && alive(attacker)) {
+    const beforeHp = attacker.hp
     attacker.hp = Math.min(attacker.maxHp, attacker.hp + damage * vamp / 100)
+    if (attacker.hp > beforeHp) pushAbilityDebug(runtime, attacker, 'Vampire Matron aura healed ' + compactDebugNumber(attacker.hp - beforeHp) + ' HP from this hit.')
   }
 
   if (target.hp <= 0) tryRevive(runtime, attacker, target)
 
-  if (hasAbility(runtime, attacker, 'Infinite Dagger Works') && rand(runtime, attacker.team) > 0.5) attacker.flags.extraTurn = true
+  if (hasAbility(runtime, attacker, 'Infinite Dagger Works') && rand(runtime, attacker.team) > 0.5) { attacker.flags.extraTurn = true; pushAbilityDebug(runtime, attacker, 'Infinite Dagger Works triggered — the opponent turn will be skipped.') }
   return damage
 }
 
@@ -2125,9 +2167,10 @@ function applyOnDeathCore(runtime: Runtime, dead: CombatCard, opponent: CombatCa
 
   if (name === 'Nightmare Melody' && runtime.state.boosts[team].composerCount) {
     runtime.state.boosts[team].composerCount = Math.max(0, (runtime.state.boosts[team].composerCount || 0) - 1)
+    pushAbilityDebug(runtime, dead, 'Nightmare Melody field effect ended for this Composer.')
   }
-  if (name === 'Hard Boiled') runtime.state.boosts[team].fossils = (runtime.state.boosts[team].fossils || 0) + 3
-  if (name === 'Extinction') runtime.state.boosts[team].fossils = (runtime.state.boosts[team].fossils || 0) + 2
+  if (name === 'Hard Boiled') { runtime.state.boosts[team].fossils = (runtime.state.boosts[team].fossils || 0) + 3; pushAbilityDebug(runtime, dead, 'Hard Boiled added 3 Fossils; total ' + runtime.state.boosts[team].fossils + '.') }
+  if (name === 'Extinction') { runtime.state.boosts[team].fossils = (runtime.state.boosts[team].fossils || 0) + 2; pushAbilityDebug(runtime, dead, 'Extinction added 2 Fossils; total ' + runtime.state.boosts[team].fossils + '.') }
   if (name === 'Imminent Doom' && opponent && alive(opponent) && !statusProtected(runtime, opponent.team)) {
     opponent.counters.frostbite = Math.max(opponent.counters.frostbite || 0, 2)
   }
@@ -2284,6 +2327,7 @@ function resolveDeaths(runtime: Runtime) {
           mirror.entered = false
           runtime.state.fallen[team].splice(index, 1)
           deck.unshift(mirror)
+          pushAbilityDebug(runtime, mirror, 'Mirror Image triggered — returned to the front at full HP after an ally died.')
         }
       }
 
@@ -2388,11 +2432,11 @@ function statusEnd(runtime: Runtime, attacker: CombatCard) {
     // still consume their turns while Serket is alive.
     if (hasAbility(runtime, attacker, 'Final Tail')) {
       attacker.counters.finalTail = (attacker.counters.finalTail || 0) + 1
-      if (attacker.counters.finalTail >= 3) attacker.hp = 0
+      if (attacker.counters.finalTail >= 3) { attacker.hp = 0; pushAbilityDebug(runtime, attacker, 'Final Tail expired after 3 turns — the card is defeated.') }
     }
     if (attacker.flags.undyingActive) {
       attacker.counters.undyingTurns = Math.max(0, (attacker.counters.undyingTurns || 0) - 1)
-      if ((attacker.counters.undyingTurns || 0) <= 0) attacker.hp = 0
+      if ((attacker.counters.undyingTurns || 0) <= 0) { attacker.hp = 0; pushAbilityDebug(runtime, attacker, 'Undying expired — its survival turn ended.') }
     }
     return
   }
@@ -2418,11 +2462,11 @@ function statusEnd(runtime: Runtime, attacker: CombatCard) {
   }
   if (hasAbility(runtime, attacker, 'Final Tail')) {
     attacker.counters.finalTail = (attacker.counters.finalTail || 0) + 1
-    if (attacker.counters.finalTail >= 3) attacker.hp = 0
+    if (attacker.counters.finalTail >= 3) { attacker.hp = 0; pushAbilityDebug(runtime, attacker, 'Final Tail expired after 3 turns — the card is defeated.') }
   }
   if (attacker.flags.undyingActive) {
     attacker.counters.undyingTurns = Math.max(0, (attacker.counters.undyingTurns || 0) - 1)
-    if ((attacker.counters.undyingTurns || 0) <= 0) attacker.hp = 0
+    if ((attacker.counters.undyingTurns || 0) <= 0) { attacker.hp = 0; pushAbilityDebug(runtime, attacker, 'Undying expired — its survival turn ended.') }
   }
   if (attacker.status.weakness && (attacker.counters.weaknessTurns || 0) > 0) {
     attacker.counters.weaknessTurns -= 1
@@ -2447,32 +2491,38 @@ function prepareTurn(runtime: Runtime, attacker: CombatCard) {
       return
     }
   }
-  if (attacker.flags.naughtyListDrain) boostStats(attacker, 0.9)
-  if (hasAbility(runtime, attacker, 'Toil')) boostStats(attacker, 0.85)
+  if (attacker.flags.naughtyListDrain) runAbilityTrace(runtime, attacker, 'Naughty List', () => boostStats(attacker, 0.9))
+  if (hasAbility(runtime, attacker, 'Toil')) runAbilityTrace(runtime, attacker, 'Toil', () => boostStats(attacker, 0.85))
   if (hasAbility(runtime, attacker, 'Bloodlust')) {
     if (attacker.flags.bloodlustFirstTurn) attacker.flags.bloodlustFirstTurn = false
-    else attacker.damage += attacker.counters.bloodlustBase || 0
+    else runAbilityTrace(runtime, attacker, 'Bloodlust', () => { attacker.damage += attacker.counters.bloodlustBase || 0 })
   }
   if (hasAbility(runtime, attacker, 'ConstellarAquarius')) {
-    if (attacker.hp < attacker.maxHp / 2) attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.3)
-    else attacker.maxHp *= 1.25
+    runAbilityTrace(runtime, attacker, 'ConstellarAquarius', () => {
+      if (attacker.hp < attacker.maxHp / 2) attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.3)
+      else attacker.maxHp *= 1.25
+    })
   }
   if (hasAbility(runtime, attacker, 'Full Moon')) {
     attacker.counters.fullMoon = (attacker.counters.fullMoon || 0) + 1
     if (attacker.counters.fullMoon % 2 === 0) {
       const target = active(runtime, OTHER_TEAM[attacker.team])
-      if (target && alive(target)) dealDamage(runtime, target, target)
+      if (target && alive(target)) runAbilityTrace(runtime, attacker, 'Full Moon', () => dealDamage(runtime, target, target))
     }
   }
   if (hasAbility(runtime, attacker, 'Dark Qi Manipulation') && !attacker.flags.awakened) {
-    attacker.counters.ascension = (attacker.counters.ascension || 0) + 1
-    if (attacker.counters.ascension <= 2) boostStats(attacker, 1.3)
-    else attacker.flags.awakened = true
+    runAbilityTrace(runtime, attacker, 'Dark Qi Manipulation', () => {
+      attacker.counters.ascension = (attacker.counters.ascension || 0) + 1
+      if (attacker.counters.ascension <= 2) boostStats(attacker, 1.3)
+      else attacker.flags.awakened = true
+    })
   }
   if (hasAbility(runtime, attacker, 'Immortal Ascension') && !attacker.flags.awakened) {
-    attacker.counters.ascension = (attacker.counters.ascension || 0) + 1
-    if (attacker.counters.ascension <= 2) boostStats(attacker, 1.3)
-    else attacker.flags.awakened = true
+    runAbilityTrace(runtime, attacker, 'Immortal Ascension', () => {
+      attacker.counters.ascension = (attacker.counters.ascension || 0) + 1
+      if (attacker.counters.ascension <= 2) boostStats(attacker, 1.3)
+      else attacker.flags.awakened = true
+    })
   }
   if (hasAbility(runtime, attacker, 'Upheaval')) {
     attacker.counters.upheaval = (attacker.counters.upheaval || 0) + 1
@@ -2485,28 +2535,34 @@ function prepareTurn(runtime: Runtime, attacker: CombatCard) {
     }
   }
   if (hasAbility(runtime, attacker, 'First Tail') && (attacker.counters.tail || 0) < 9) {
-    attacker.counters.tail = (attacker.counters.tail || 0) + 1
-    boostStats(attacker, 1.2)
+    runAbilityTrace(runtime, attacker, 'First Tail', () => {
+      attacker.counters.tail = (attacker.counters.tail || 0) + 1
+      boostStats(attacker, 1.2)
+    })
   }
   if (hasAbility(runtime, attacker, 'Shapeshifter') || attacker.flags.shapeshifterActive) {
-    attacker.flags.shapeshifterActive = true
-    const shape = randomBattleCard(runtime)
-    attacker.identityOverride = shape.name
-    attacker.abilityOverride = undefined
-    attacker.entered = false
+    runAbilityTrace(runtime, attacker, 'Shapeshifter', () => {
+      attacker.flags.shapeshifterActive = true
+      const shape = randomBattleCard(runtime)
+      attacker.identityOverride = shape.name
+      attacker.abilityOverride = undefined
+      attacker.entered = false
+    })
   }
   if (hasAbility(runtime, attacker, 'Grind')) {
     attacker.counters.grind = (attacker.counters.grind || 0) + 1
-    if (attacker.counters.grind <= 5) boostStats(attacker, 1.1)
+    if (attacker.counters.grind <= 5) runAbilityTrace(runtime, attacker, 'Grind', () => boostStats(attacker, 1.1))
   }
   if (hasAbility(runtime, attacker, 'Patience')) runAbilityTrace(runtime, attacker, 'Patience', () => boostStats(attacker, 1.3))
   if (hasAbility(runtime, attacker, 'Safeguarding')) {
-    for (const dragon of runtime.state.teams[attacker.team].slice(1)) {
-      if (!DRAGON_CARDS.has(dragon.definition.name)) continue
-      dragon.damage *= 1.2
-      dragon.maxHp *= 1.2
-      dragon.hp = dragon.maxHp
-    }
+    runAbilityTrace(runtime, attacker, 'Safeguarding', () => {
+      for (const dragon of runtime.state.teams[attacker.team].slice(1)) {
+        if (!DRAGON_CARDS.has(dragon.definition.name)) continue
+        dragon.damage *= 1.2
+        dragon.maxHp *= 1.2
+        dragon.hp = dragon.maxHp
+      }
+    })
   }
   if (hasAbility(runtime, attacker, 'Absolute Sovereignty')) runAbilityTrace(runtime, attacker, 'Absolute Sovereignty', () => { for (const card of runtime.state.teams[attacker.team]) boostStats(card, 1.1) })
   if (hasAbility(runtime, attacker, 'World Creation')) {
@@ -2517,12 +2573,12 @@ function prepareTurn(runtime: Runtime, attacker: CombatCard) {
   }
   if (hasAbility(runtime, attacker, 'Persistent')) {
     const normal = attacker.counters.normalDamage || attacker.damage
-    if (attacker.damage < normal) attacker.damage = normal
+    if (attacker.damage < normal) runAbilityTrace(runtime, attacker, 'Persistent', () => { attacker.damage = normal })
   }
   if (hasAbility(runtime, attacker, 'Sky Drop')) attacker.counters.drop = (attacker.counters.drop || 0) + 1
   if (hasAbility(runtime, attacker, 'Snowbound')) {
     attacker.counters.snowbound = (attacker.counters.snowbound || 0) + 1
-    if (attacker.counters.snowbound % 2 === 0) attacker.status.stunned = Math.max(1, attacker.status.stunned)
+    if (attacker.counters.snowbound % 2 === 0) runAbilityTrace(runtime, attacker, 'Snowbound', () => { attacker.status.stunned = Math.max(1, attacker.status.stunned) })
   }
   if (hasAbility(runtime, attacker, 'Defensive Maneuver')) {
     attacker.counters.defensiveManeuver = (attacker.counters.defensiveManeuver || 0) + 1
@@ -2538,17 +2594,21 @@ function beforeAttack(runtime: Runtime, attacker: CombatCard) {
     attacker.hp = Math.min(attacker.maxHp, attacker.hp + stolen)
   })
   if (hasAbility(runtime, attacker, 'Lazy')) {
-    attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.damage * 2)
-    attacker.damage *= 0.9
+    runAbilityTrace(runtime, attacker, 'Lazy', () => {
+      attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.damage * 2)
+      attacker.damage *= 0.9
+    })
   }
   if (target && hasAbility(runtime, attacker, 'Forbidden Banquet')) runAbilityTrace(runtime, attacker, 'Forbidden Banquet', () => stealStats(target, attacker, 0.15))
   if (hasAbility(runtime, attacker, 'Rejuvenate')) runAbilityTrace(runtime, attacker, 'Rejuvenate', () => { attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.35) })
   if (hasAbility(runtime, attacker, 'First Progenitor')) runAbilityTrace(runtime, attacker, 'First Progenitor', () => { attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.1) })
-  if (hasAbility(runtime, attacker, 'Twilight Sparkle') && rand(runtime, attacker.team) > 0.6) attacker.hp = attacker.maxHp
+  if (hasAbility(runtime, attacker, 'Twilight Sparkle') && rand(runtime, attacker.team) > 0.6) runAbilityTrace(runtime, attacker, 'Twilight Sparkle', () => { attacker.hp = attacker.maxHp })
   if (target && hasAbility(runtime, attacker, 'Viral Breath')) runAbilityTrace(runtime, attacker, 'Viral Breath', () => { target.hp -= target.maxHp * 0.25 })
   if (hasAbility(runtime, attacker, 'Herbal Alchemy')) {
-    attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.2)
-    if (rand(runtime, attacker.team) > 0.5) attacker.damage *= 1.3
+    runAbilityTrace(runtime, attacker, 'Herbal Alchemy', () => {
+      attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.2)
+      if (rand(runtime, attacker.team) > 0.5) attacker.damage *= 1.3
+    })
   }
   if (hasAbility(runtime, attacker, 'Combatant')) runAbilityTrace(runtime, attacker, 'Combatant', () => { attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.1) })
 }
@@ -2627,6 +2687,7 @@ function doOrigin(runtime: Runtime, attacker: CombatCard) {
 function doLaserGun(runtime: Runtime, attacker: CombatCard) {
   if (!attacker.flags.laserCharged) {
     attacker.flags.laserCharged = true
+    pushAbilityDebug(runtime, attacker, 'Laser Gun is charging; it will fire on the next turn.')
     return
   }
   attacker.flags.laserCharged = false
@@ -2644,21 +2705,25 @@ function applyCollateralAfterHit(runtime: Runtime, attacker: CombatCard, target:
   const enemyTeam = OTHER_TEAM[attacker.team]
 
   if (hasAbility(runtime, attacker, 'Railgun')) {
-    const splash = Math.ceil(dealt * 0.3)
-    for (const enemy of runtime.state.teams[enemyTeam]) {
-      if (enemy.hp > 0) enemy.hp -= Math.min(enemy.hp, splash)
-    }
+    runAbilityTrace(runtime, attacker, 'Railgun', () => {
+      const splash = Math.ceil(dealt * 0.3)
+      for (const enemy of runtime.state.teams[enemyTeam]) {
+        if (enemy.hp > 0) enemy.hp -= Math.min(enemy.hp, splash)
+      }
+    })
   }
 
   if (hasAbility(runtime, attacker, 'Outshine')) {
-    const deck = runtime.state.teams[enemyTeam]
-    const index = deck.indexOf(target)
-    const next = index >= 0 ? deck[index + 1] : deck[1]
-    if (next && next.hp > 0) {
-      const before = next.hp
-      next.hp -= Math.min(next.hp, dealt)
-      if (before > 0 && next.hp <= 0) next.flags.suppressOnDeath = true
-    }
+    runAbilityTrace(runtime, attacker, 'Outshine', () => {
+      const deck = runtime.state.teams[enemyTeam]
+      const index = deck.indexOf(target)
+      const next = index >= 0 ? deck[index + 1] : deck[1]
+      if (next && next.hp > 0) {
+        const before = next.hp
+        next.hp -= Math.min(next.hp, dealt)
+        if (before > 0 && next.hp <= 0) next.flags.suppressOnDeath = true
+      }
+    })
   }
 }
 
@@ -2824,16 +2889,18 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
   if (hasAbility(runtime, attacker, 'Martial Will') && alive(attacker)) runAbilityTrace(runtime, attacker, 'Martial Will', () => { attacker.damage *= 1.3 })
 
   if (hasAbility(runtime, attacker, 'Eternal Voyage') && alive(attacker)) {
-    const deck = runtime.state.teams[attacker.team]
-    const selfIndex = deck.indexOf(attacker)
-    const choices = deck.map((_, index) => index).filter((index) => index !== selfIndex)
-    if (selfIndex >= 0 && choices.length) {
-      const swapIndex = choices[Math.floor(runtime.rng.next() * choices.length)]
-      ;[deck[selfIndex], deck[swapIndex]] = [deck[swapIndex], deck[selfIndex]]
-    }
+    runAbilityTrace(runtime, attacker, 'Eternal Voyage', () => {
+      const deck = runtime.state.teams[attacker.team]
+      const selfIndex = deck.indexOf(attacker)
+      const choices = deck.map((_, index) => index).filter((index) => index !== selfIndex)
+      if (selfIndex >= 0 && choices.length) {
+        const swapIndex = choices[Math.floor(runtime.rng.next() * choices.length)]
+        ;[deck[selfIndex], deck[swapIndex]] = [deck[swapIndex], deck[selfIndex]]
+      }
+    })
   }
 
-  if (attacker.flags.diesAfterAttack && alive(attacker)) attacker.hp = 0
+  if (attacker.flags.diesAfterAttack && alive(attacker)) { attacker.hp = 0; pushAbilityDebug(runtime, attacker, 'We Want YOU expired — the boosted card was sacrificed after its attack.') }
 
   statusEnd(runtime, attacker)
   processTeamTurnAbilities(runtime, attacker.team, attacker)

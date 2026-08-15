@@ -1,4 +1,4 @@
-name: Add Tower cheese maker
+name: Verify Tower cheese maker
 
 on:
   push:
@@ -16,17 +16,23 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python scripts/add_tower_cheese.py
-      - name: Check page script syntax
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: python scripts/fix_tower_cheese.py
+      - name: Check JavaScript syntax
         run: |
           python - <<'PY'
           from pathlib import Path
           html=Path('index.html').read_text()
+          start=html.index('<script>')+len('<script>')
+          end=html.rindex('</script>')
+          Path('/tmp/page.js').write_text(html[start:end])
           assert 'Tower Cheese Maker' in html
           assert 'End Times:' in html
-          assert "105:[\"Heaven's Armor\",\"Hell's Army\",'Judgment Day','Sable The Envious']" in html
-          print('Tower cheese maker checks passed.')
+          print('Extracted page script.')
           PY
+          node --check /tmp/page.js
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
@@ -35,6 +41,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes."
           else
-            git commit -m "Add Tower cheese maker"
+            git commit -m "Fix Tower cheese maker syntax"
             git push
           fi

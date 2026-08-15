@@ -1,0 +1,49 @@
+name: Fix Inari Tower counter
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-tower-inari-counter.yml'
+      - 'scripts/fix_tower_inari_counter.py'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: python scripts/fix_tower_inari_counter.py
+      - name: Verify
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          html=Path('index.html').read_text()
+          assert "enemy?.name==='Inari'?'Noveau Riche'" in html
+          assert 'save Parallax for another enemy' in html
+          start=html.index('<script>')+len('<script>')
+          end=html.rindex('</script>')
+          Path('/tmp/page.js').write_text(html[start:end])
+          print('Inari Tower counter assertions passed.')
+          PY
+          node --check /tmp/page.js
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          if git diff --cached --quiet; then
+            echo "No changes."
+          else
+            git commit -m "Use Noveau Riche against Inari in Tower"
+            git push
+          fi

@@ -1,0 +1,103 @@
+name: Apply Tower Cheese Card Borders
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/apply-tower-card-borders.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message == 'Apply Tower cheese card border selector'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Patch Tower card border selection
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('index.html')
+          text = path.read_text()
+
+          old = ".tower-pandora-toggle{margin-top:8px;width:100%;border:1px solid #39475a;background:#0d141d;color:#9faebe;border-radius:8px;padding:6px 8px;font-size:8px;font-weight:700;cursor:pointer}.tower-pandora-toggle:hover{border-color:#66548b;color:#d3c7ee}.tower-pandora-toggle.on{border-color:#765ca6;background:#181226;color:#e2d5ff}.tower-pandora-toggle:disabled{opacity:.5;cursor:default}"
+          new = old + "\n    .tower-card-borders{margin-top:8px}.tower-card-borders>span{display:block;color:#66768a;font-size:7px;text-transform:uppercase;letter-spacing:.06em;margin:0 0 5px 1px}.tower-card-border-pills{display:flex;gap:4px;flex-wrap:wrap}.tower-card-border-pills button{border:1px solid #2a3544;border-radius:999px;padding:4px 7px;background:#0b1119;color:#738196;font-size:7px;cursor:pointer}.tower-card-border-pills button:hover{border-color:#42546a;color:#b7c4d2}.tower-card-border-pills button.on{border-color:#477b76;background:rgba(135,216,202,.1);color:#d7f2ed}"
+          if old not in text:
+              raise SystemExit('Tower Pandora CSS anchor not found')
+          text = text.replace(old, new, 1)
+
+          old = "towerOverrides:['','','',''],towerAbilityAura:'',towerAbilityAuraBorder:''"
+          new = "towerOverrides:['','','',''],towerBorders:Array.from({length:4},()=>[]),towerAbilityAura:'',towerAbilityAuraBorder:''"
+          if old not in text:
+              raise SystemExit('Tower state anchor not found')
+          text = text.replace(old, new, 1)
+
+          old = "const lineup=result.picks.map((pick,i)=>{const override=state.towerOverrides[i]||'',enemy=cardByName(pick.enemy),chosen=override||pick.pick,answer=cardByName(chosen),canSwap=pick.pick!=='Pandora',reason=override?(chosen==='Pandora'&&pick.pick!=='Pandora'?`Manual Pandora swap. Original recommendation: ${esc(pick.pick)}.`:`Manual test swap to ${esc(chosen)}. Original recommendation: ${esc(pick.pick)}.`):esc(pick.reason);return `<div class=\"tower-pick\"><div class=\"tower-pick-head\">${portrait(enemy)}<span><b>${i+1}. ${esc(pick.enemy)}</b><small>${esc(pick.enemyAbility)}</small></span></div><div class=\"tower-arrow\">USE</div><div class=\"tower-answer\">${portrait(answer)}<span><b>${esc(chosen)}</b><small>${answer?esc(answer.ability||'No ability'):''}</small></span></div><div class=\"tower-reason\">${reason}</div>${canSwap?`<button class=\"tower-pandora-toggle ${chosen==='Pandora'?'on':''}\" data-tower-pandora=\"${i}\">${chosen==='Pandora'?`Restore ${esc(pick.pick)}`:'Use Pandora'}</button>`:`<button class=\"tower-pandora-toggle on\" disabled>Pandora recommended</button>`}<span class=\"tower-custom-label\">Try any card</span><div class=\"tower-autocomplete\"><input class=\"tower-custom-card\" data-tower-custom=\"${i}\" value=\"${esc(override)}\" placeholder=\"Search any card...\" autocomplete=\"off\"><div class=\"tower-suggestions\" data-tower-suggestions=\"custom-${i}\"></div></div></div>`}).join('');"
+          new = "const lineup=result.picks.map((pick,i)=>{const override=state.towerOverrides[i]||'',borders=state.towerBorders[i]||[],enemy=cardByName(pick.enemy),chosen=override||pick.pick,answer=cardByName(chosen),canSwap=pick.pick!=='Pandora',reason=override?(chosen==='Pandora'&&pick.pick!=='Pandora'?`Manual Pandora swap. Original recommendation: ${esc(pick.pick)}.`:`Manual test swap to ${esc(chosen)}. Original recommendation: ${esc(pick.pick)}.`):esc(pick.reason);return `<div class=\"tower-pick\"><div class=\"tower-pick-head\">${portrait(enemy)}<span><b>${i+1}. ${esc(pick.enemy)}</b><small>${esc(pick.enemyAbility)}</small></span></div><div class=\"tower-arrow\">USE</div><div class=\"tower-answer\">${portrait(answer)}<span><b>${esc(chosen)}</b><small>${answer?esc(answer.ability||'No ability'):''}</small></span></div><div class=\"tower-card-borders\"><span>Your card borders</span><div class=\"tower-card-border-pills\"><button type=\"button\" data-tower-card-border=\"\" data-tower-card-border-slot=\"${i}\" class=\"${!borders.length?'on':''}\">Base</button>${CARD_BORDERS.map(b=>`<button type=\"button\" data-tower-card-border=\"${b}\" data-tower-card-border-slot=\"${i}\" class=\"${borders.includes(b)?'on':''}\">${b}</button>`).join('')}</div></div><div class=\"tower-reason\">${reason}</div>${canSwap?`<button class=\"tower-pandora-toggle ${chosen==='Pandora'?'on':''}\" data-tower-pandora=\"${i}\">${chosen==='Pandora'?`Restore ${esc(pick.pick)}`:'Use Pandora'}</button>`:`<button class=\"tower-pandora-toggle on\" disabled>Pandora recommended</button>`}<span class=\"tower-custom-label\">Try any card</span><div class=\"tower-autocomplete\"><input class=\"tower-custom-card\" data-tower-custom=\"${i}\" value=\"${esc(override)}\" placeholder=\"Search any card...\" autocomplete=\"off\"><div class=\"tower-suggestions\" data-tower-suggestions=\"custom-${i}\"></div></div></div>`}).join('');"
+          if old not in text:
+              raise SystemExit('Tower lineup anchor not found')
+          text = text.replace(old, new, 1)
+
+          reset_old = "state.towerOverrides=['','','',''];state.towerAbilityAura="
+          reset_new = "state.towerOverrides=['','','',''];state.towerBorders=Array.from({length:4},()=>[]);state.towerAbilityAura="
+          reset_count = text.count(reset_old)
+          if reset_count < 3:
+              raise SystemExit(f'Expected at least 3 Tower reset anchors, found {reset_count}')
+          text = text.replace(reset_old, reset_new)
+
+          old = "root.querySelectorAll('[data-tower-custom]').forEach(el=>bindTowerAutocomplete(el,'custom',Number(el.dataset.towerCustom)));"
+          new = "root.querySelectorAll('[data-tower-card-border]').forEach(el=>el.addEventListener('click',()=>{const i=Number(el.dataset.towerCardBorderSlot),b=el.dataset.towerCardBorder||'',current=state.towerBorders[i]||[];state.towerBorders[i]=b?(current.includes(b)?current.filter(x=>x!==b):[...current,b]):[];state.towerSim=null;render()}));\n    " + old
+          if old not in text:
+              raise SystemExit('Tower event anchor not found')
+          text = text.replace(old, new, 1)
+
+          old = "return {cards:result.picks.map((p,i)=>({cardName:state.towerOverrides[i]||p.pick,borders:[]})),statAura:null,abilityAura:state.towerAbilityAura?{auraName:state.towerAbilityAura,border:state.towerAbilityAuraBorder||null}:null};"
+          new = "return {cards:result.picks.map((p,i)=>({cardName:state.towerOverrides[i]||p.pick,borders:[...(state.towerBorders[i]||[])]})),statAura:null,abilityAura:state.towerAbilityAura?{auraName:state.towerAbilityAura,border:state.towerAbilityAuraBorder||null}:null};"
+          if old not in text:
+              raise SystemExit('Tower loadout anchor not found')
+          text = text.replace(old, new, 1)
+
+          checks = [
+              "towerBorders:Array.from({length:4},()=>[])",
+              "data-tower-card-border-slot",
+              "borders:[...(state.towerBorders[i]||[])]",
+              ".tower-card-border-pills",
+          ]
+          for check in checks:
+              if check not in text:
+                  raise SystemExit('Missing post-patch check: ' + check)
+
+          path.write_text(text)
+          print('Patched Tower cheese card border selectors; reset anchors:', reset_count)
+          PY
+      - name: Validate inline JavaScript
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          text = Path('index.html').read_text()
+          scripts = re.findall(r'<script>(.*?)</script>', text, flags=re.S)
+          if not scripts:
+              raise SystemExit('No inline script found')
+          Path('/tmp/index-inline.js').write_text('\n'.join(scripts))
+          PY
+          node --check /tmp/index-inline.js
+      - name: Build
+        run: |
+          npm ci
+          npm run build
+      - name: Commit change and remove workflow
+        run: |
+          rm .github/workflows/apply-tower-card-borders.yml
+          git config user.name "Drago"
+          git config user.email "dragoidc3@gmail.com"
+          git add index.html .github/workflows/apply-tower-card-borders.yml
+          git commit -m "Add border selection to Tower cheese teams"
+          git push

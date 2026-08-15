@@ -2,8 +2,6 @@ name: Add Tower cheese maker
 
 on:
   push:
-    paths:
-      - 'scripts/add_tower_cheese.py'
 
 permissions:
   contents: write
@@ -23,7 +21,6 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re
           html=Path('index.html').read_text()
           assert 'Tower Cheese Maker' in html
           assert 'End Times:' in html

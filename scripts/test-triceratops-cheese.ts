@@ -1,7 +1,6 @@
 import { simulateTowerBatch } from '../src/engine/tower'
 import type { TeamLoadout } from '../src/types'
 
-const enemies=['Titan','Titan','Titan','Triceratops']
 const floor=94
 const difficulty='Impossible' as const
 const runs=10000
@@ -11,19 +10,16 @@ function team(names:string[]):TeamLoadout {
 }
 
 const cases=[
-  ['jd_jd_jd_para',team(['Judgment Day','Judgment Day','Judgment Day','Parallax'])],
-  ['jd_jd_para_para',team(['Judgment Day','Judgment Day','Parallax','Parallax'])],
-  ['jd_para_jd_para',team(['Judgment Day','Parallax','Judgment Day','Parallax'])],
-  ['para_jd_jd_para',team(['Parallax','Judgment Day','Judgment Day','Parallax'])],
-  ['jd_para_para_jd',team(['Judgment Day','Parallax','Parallax','Judgment Day'])],
-  ['jd_jd_trueprophet_para',team(['Judgment Day','Judgment Day','True Prophet','Parallax'])],
-  ['jd_jd_hathor_para',team(['Judgment Day','Judgment Day','Hathor','Parallax'])],
-  ['jd_jd_loveland_para',team(['Judgment Day','Judgment Day','Loveland Frog','Parallax'])],
-  ['jd_jd_heavens_para',team(['Judgment Day','Judgment Day',"Heaven's Armor",'Parallax'])],
+  ['tric2_single',['Titan','Triceratops','Titan','Titan'],team(['Judgment Day','Parallax','Judgment Day','Judgment Day'])],
+  ['tric2_double',['Titan','Triceratops','Titan','Titan'],team(['Parallax','Parallax','Judgment Day','Judgment Day'])],
+  ['tric3_single',['Titan','Titan','Triceratops','Titan'],team(['Judgment Day','Judgment Day','Parallax','Judgment Day'])],
+  ['tric3_double',['Titan','Titan','Triceratops','Titan'],team(['Judgment Day','Parallax','Parallax','Judgment Day'])],
+  ['tric4_single',['Titan','Titan','Titan','Triceratops'],team(['Judgment Day','Judgment Day','Judgment Day','Parallax'])],
+  ['tric4_double',['Titan','Titan','Titan','Triceratops'],team(['Judgment Day','Judgment Day','Parallax','Parallax'])],
 ] as const
 
 for(let i=0;i<cases.length;i++){
-  const [name,loadout]=cases[i]
-  const result=simulateTowerBatch(loadout,enemies,floor,difficulty,runs,95000+i)
+  const [name,enemies,loadout]=cases[i]
+  const result=simulateTowerBatch(loadout,[...enemies],floor,difficulty,runs,96000+i)
   console.log(JSON.stringify({name,...result}))
 }

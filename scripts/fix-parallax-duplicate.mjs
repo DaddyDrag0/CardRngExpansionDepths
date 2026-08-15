@@ -41,12 +41,6 @@ replaceOrThrow(
 'buffer Parallax pick',
 )
 
-replaceOrThrow(
-`      else if(index===parallaxIndex){pick='Parallax';reason=TOWER_OVERFLOW_THREATS.has(enemy.ability||'')?(overflowBufferIndex===index-1?\`${enemy.ability||'Horned Attack'} carries excess lethal damage into the next card. Use the previous Parallax as a buffer so this fresh Parallax is not sitting directly behind a JD when Triceratops enters.\`:\`${enemy.ability||'Horned Attack'} can overkill the current card and pierce directly into Parallax without triggering Paradox. No free buffer slot was available, so this is an unsafe Parallax setup; simulate it before using it.\`):(TOWER_KUCHISAKE_THREATS.has(enemy.ability||'')?\`${enemy.ability||'The Fall'} punishes attackers for dealing damage. Save Parallax here so this enemy killing Parallax triggers Paradox instead.\`:(TOWER_EXTRA_TURN_THREATS.has(enemy.ability||'')?\`${enemy.ability||'Extra turns'} can chain through your next card after a kill. Save Parallax here so Paradox kills this enemy when it kills Parallax.\`:(threat.block?\`${enemy.ability||'This ability'} can stop a direct kill, so reserve Parallax's one Paradox use for this card.\`:'No blocker needs Parallax later, so use its one Paradox trade here instead of spending another JD.')))}`,
-`      else if(index===parallaxIndex){pick='Parallax';reason=TOWER_OVERFLOW_THREATS.has(enemy.ability||'')?\`${enemy.ability||'Horned Attack'} can overkill the current card and carry damage into the next slot. Reserve the team's single Parallax for this threat; the setup can still be risky because no second Parallax buffer is allowed.\`:(TOWER_KUCHISAKE_THREATS.has(enemy.ability||'')?\`${enemy.ability||'The Fall'} punishes attackers for dealing damage. Save Parallax here so this enemy killing Parallax triggers Paradox instead.\`:(TOWER_EXTRA_TURN_THREATS.has(enemy.ability||'')?\`${enemy.ability||'Extra turns'} can chain through your next card after a kill. Save Parallax here so Paradox kills this enemy when it kills Parallax.\`:(threat.block?\`${enemy.ability||'This ability'} can stop a direct kill, so reserve Parallax's one Paradox use for this card.\`:'No blocker needs Parallax later, so use its one Paradox trade here instead of spending another JD.')))}`,
-'Parallax Horned Attack reason',
-)
-
 // Guard the final plan too: no future branch may accidentally recommend Parallax twice.
 replaceOrThrow(
 `    return {picks,endTimesNeeded,blockers,prophetIndex,parallaxIndex,kuchisakeIndex,overflowBufferIndex};`,
@@ -63,5 +57,3 @@ replaceOrThrow(
 
 fs.writeFileSync(path, source)
 console.log('Removed duplicate Parallax recommendations.')
-
-// workflow trigger

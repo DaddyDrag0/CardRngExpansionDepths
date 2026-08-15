@@ -68,6 +68,7 @@
   const TOWER_EXTRA_TURN_THREATS=new Set(['Haste','The World','Accelerate','First Progenitor','Melancholy']);
   const TOWER_TRUE_PROPHET_BRIDGES=new Set(['Limitless']);
   const TOWER_KUCHISAKE_THREATS=new Set(['The Fall']);
+  const TOWER_OVERFLOW_THREATS=new Set(['Horned Attack']);
   const TOWER_WEIRD_ABILITIES=new Set(['Revive','Eternity','Frozen Ashes','Flames of Rebirth','Beyond The Grave','Unholy Creature','Undying','Persistent',"Unpaid 'Interns'",'Better Days','Lotus Sutra','Gehenna','Mirror Image',"Pandora's Box",'Mutate','Shared Power','Heroes','Graveyard','Shapeshifter','Dance of Discord','Eternal Voyage']);
   function towerAbilityText(card){return `${card?.ability||''} ${state.abilities[card?.ability]||''}`.toLowerCase()}
   function towerThreat(card,index,enemies){
@@ -75,7 +76,7 @@
     let forceEndTimes=TOWER_FORCE_END_TIMES.has(ability)||/(cancel all abilities|can't use abilities|cannot use abilities|immune to other cards'? abilities|randomize enemy'?s ability|cannot be killed by abilities)/i.test(text);
     let block=/(dodge attacks|dodge every other attack|dodge first lethal|evade attacks|evade lethal|evade first attack|chance to dodge|block first attack|block the first attack|nullify every other attack|invincible for|cannot take damage|damage can['’]?t exceed|damage cannot exceed|immune to damage from lower rarity|rng abilities always fail|making rng abilities fail|skip opponent['’]?s turn|enemy loses every other turn|survives lethal attack with 1 hp|stunned? on entry|blind target on entry)/i.test(text);
     if(ability==='Unlucky'||ability==='Hex'||ability==='Limitless'||ability==='Danger Sense'||ability==='Final Tail'||ability==='The Loser'||ability==='Divine Barrier'||ability==='Transcend Time'||ability==='Invisibility'||ability==='Blinding Flash'||ability==='Stalwart'||ability==='Shelter Obsession'||ability==='Heavenly Ruler'||ability==='Indestructible')block=true;
-    if(TOWER_PREEMPTIVE_BLOCKERS.has(ability)||TOWER_EXTRA_TURN_THREATS.has(ability))block=true;
+    if(TOWER_PREEMPTIVE_BLOCKERS.has(ability)||TOWER_EXTRA_TURN_THREATS.has(ability)||TOWER_OVERFLOW_THREATS.has(ability))block=true;
     if(Number(state.towerFloor)===65&&index===0)block=true;
     if(index>0&&['Destiny Sight','Eternal Devotion','Final Stand'].includes(enemies[index-1]?.ability))block=true;
     if(index<enemies.length-1&&enemies[index+1]?.ability==='Aura Farm')block=true;
@@ -94,7 +95,7 @@
     // True Prophet bridge: if a single-use first-hit blocker (currently proven for Limitless) appears before
     // a later extra-turn threat, use True Prophet to burn that blocker and pass Destiny Sight to the next JD.
     // This preserves Parallax for the later extra-turn enemy, where Paradox prevents a lethal turn-chain.
-    let prophetIndex=-1,prophetFollowupIndex=-1,parallaxIndex=-1,kuchisakeIndex=-1;
+    let prophetIndex=-1,prophetFollowupIndex=-1,parallaxIndex=-1,kuchisakeIndex=-1,overflowBufferIndex=-1;
     for(const i of blockerIndices){
       if(!TOWER_TRUE_PROPHET_BRIDGES.has(enemies[i]?.ability||''))continue;
       if(i>=enemies.length-1)continue;
@@ -114,12 +115,26 @@
       parallaxIndex=fallIndices[fallIndices.length-1];
     }
 
+    // Horned Attack is different from a normal entry hit: lethal excess damage carries directly into
+    // the next card and can kill a Parallax sitting behind a JD without giving Paradox a chance.
+    // When possible, use a second Parallax immediately before the Parallax assigned to Horned Attack.
+    // Tests with Triceratops in slots 2, 3, and 4 roughly doubled the win rate versus a single Para.
+    const overflowIndices=blockerIndices.filter(i=>TOWER_OVERFLOW_THREATS.has(enemies[i]?.ability||''));
+    if(parallaxIndex<0&&prophetIndex<0&&overflowIndices.length){
+      const overflowIndex=overflowIndices[0];
+      parallaxIndex=overflowIndex;
+      const buffer=overflowIndex-1;
+      if(buffer>=0&&!specialCounter[buffer]&&!threats[buffer].weird&&!threats[buffer].forceEndTimes&&buffer!==prophetIndex&&buffer!==prophetFollowupIndex&&buffer!==kuchisakeIndex){
+        overflowBufferIndex=buffer;
+      }
+    }
+
     if(parallaxIndex<0){
       const candidate=blockerIndices.find(i=>i!==prophetIndex&&!threats[i].forceEndTimes);
       if(candidate!==undefined)parallaxIndex=candidate;
     }
     if(parallaxIndex<0){
-      parallaxIndex=enemies.findIndex((enemy,i)=>i!==prophetIndex&&i!==prophetFollowupIndex&&i!==kuchisakeIndex&&!specialCounter[i]&&!threats[i].weird&&!threats[i].forceEndTimes);
+      parallaxIndex=enemies.findIndex((enemy,i)=>i!==prophetIndex&&i!==prophetFollowupIndex&&i!==kuchisakeIndex&&i!==overflowBufferIndex&&!specialCounter[i]&&!threats[i].weird&&!threats[i].forceEndTimes);
     }
 
     const unresolvedBlockers=blockerIndices.filter(i=>i!==prophetIndex&&i!==parallaxIndex);
@@ -129,15 +144,16 @@
     const picks=enemies.map((enemy,index)=>{
       const threat=threats[index];let pick='Judgment Day',reason='Use JD for the one-shot attempt.';
       if(specialCounter[index]){pick=specialCounter[index];reason=enemy.name==='Inari'?"Noveau Riche hard-counters Final Tail, so save Parallax for another enemy.":'Jealousy redirects enemy abilities, so use Robin Hood here instead of feeding Sable a JD/Parallax ability.'}
+      else if(index===overflowBufferIndex){pick='Parallax';reason='Buffer Parallax: Horned Attack can carry lethal excess damage through the current card into the next slot. A second Parallax here makes it much less likely the fresh Parallax behind it is deleted by overflow.'}
       else if(index===kuchisakeIndex){pick='Kuchisake-onna';reason=`${enemy.ability||'The Fall'} punishes direct damage. Kuchisake-onna uses persistent confusion so this high-stat enemy can damage itself, preserving Parallax for the last matching threat.`}
       else if(index===prophetIndex){pick='True Prophet';reason=`${enemy.ability||'This ability'} has a one-time first-hit defense. True Prophet burns it and gives the next JD Destiny Sight, saving Parallax for the later extra-turn threat.`}
       else if(index===prophetFollowupIndex){pick='Judgment Day';reason='This JD follows True Prophet: the enemy first-hit defense is already spent, and Destiny Sight can dodge one lethal answer to buy another Armageddon attempt.'}
       else if(threat.weird){pick='Pandora';reason=`${enemy.ability||'This ability'} can survive, revive, change, or otherwise extend past a clean one-shot, so use Pandora as the fallback cheese.`}
-      else if(index===parallaxIndex){pick='Parallax';reason=TOWER_KUCHISAKE_THREATS.has(enemy.ability||'')?`${enemy.ability||'The Fall'} punishes attackers for dealing damage. Save Parallax here so this enemy killing Parallax triggers Paradox instead.`:(TOWER_EXTRA_TURN_THREATS.has(enemy.ability||'')?`${enemy.ability||'Extra turns'} can chain through your next card after a kill. Save Parallax here so Paradox kills this enemy when it kills Parallax.`:(threat.block?`${enemy.ability||'This ability'} can stop a direct kill, so reserve Parallax's one Paradox use for this card.`:'No blocker needs Parallax later, so use its one Paradox trade here instead of spending another JD.'))}
+      else if(index===parallaxIndex){pick='Parallax';reason=TOWER_OVERFLOW_THREATS.has(enemy.ability||'')?(overflowBufferIndex===index-1?`${enemy.ability||'Horned Attack'} carries excess lethal damage into the next card. Use the previous Parallax as a buffer so this fresh Parallax is not sitting directly behind a JD when Triceratops enters.`:`${enemy.ability||'Horned Attack'} can overkill the current card and pierce directly into Parallax without triggering Paradox. No free buffer slot was available, so this is an unsafe Parallax setup; simulate it before using it.`):(TOWER_KUCHISAKE_THREATS.has(enemy.ability||'')?`${enemy.ability||'The Fall'} punishes attackers for dealing damage. Save Parallax here so this enemy killing Parallax triggers Paradox instead.`:(TOWER_EXTRA_TURN_THREATS.has(enemy.ability||'')?`${enemy.ability||'Extra turns'} can chain through your next card after a kill. Save Parallax here so Paradox kills this enemy when it kills Parallax.`:(threat.block?`${enemy.ability||'This ability'} can stop a direct kill, so reserve Parallax's one Paradox use for this card.`:'No blocker needs Parallax later, so use its one Paradox trade here instead of spending another JD.')))}
       else if(threat.block){pick='Judgment Day';reason=endTimesNeeded?`${enemy.ability||'This ability'} can stop the direct kill. The dedicated counters are already used, so End Times is needed for the remaining blocker(s).`:'This card can interfere with the direct kill.'}
       return {enemy:enemy.name,enemyAbility:enemy.ability||'No ability',pick,reason,threat};
     });
-    return {picks,endTimesNeeded,blockers,prophetIndex,parallaxIndex,kuchisakeIndex};
+    return {picks,endTimesNeeded,blockers,prophetIndex,parallaxIndex,kuchisakeIndex,overflowBufferIndex};
   }
   function fixedTowerTeam(floor){const team=TOWER_FIXED[Number(floor)];return team?[...team]:null}
   function syncTowerPreset(){const fixed=fixedTowerTeam(state.towerFloor);if(fixed)state.towerEnemies=fixed}

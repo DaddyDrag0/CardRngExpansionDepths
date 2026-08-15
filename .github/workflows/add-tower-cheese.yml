@@ -1,0 +1,43 @@
+name: Add Tower cheese maker
+
+on:
+  push:
+    paths:
+      - 'scripts/add_tower_cheese.py'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python scripts/add_tower_cheese.py
+      - name: Check page script syntax
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          html=Path('index.html').read_text()
+          assert 'Tower Cheese Maker' in html
+          assert 'End Times:' in html
+          assert "105:[\"Heaven's Armor\",\"Hell's Army\",'Judgment Day','Sable The Envious']" in html
+          print('Tower cheese maker checks passed.')
+          PY
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          if git diff --cached --quiet; then
+            echo "No changes."
+          else
+            git commit -m "Add Tower cheese maker"
+            git push
+          fi

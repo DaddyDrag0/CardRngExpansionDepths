@@ -24,18 +24,8 @@ jobs:
           from pathlib import Path
           path = Path('src/engine/battle-v2.ts')
           text = path.read_text()
-          old = '''    case "Humanity's Spirit": {
-      const count = runtime.state.fallen[card.team].length
-      if (count) boostStats(card, Math.pow(1.5, count))
-      break
-    }
-'''
-          new = '''    case "Humanity's Spirit": {
-      const count = runtime.state.fallen[card.team].length
-      if (count) boostStats(card, 1 + count * 0.3)
-      break
-    }
-'''
+          old = "    case \"Humanity's Spirit\": {\n      const count = runtime.state.fallen[card.team].length\n      if (count) boostStats(card, Math.pow(1.5, count))\n      break\n    }\n"
+          new = "    case \"Humanity's Spirit\": {\n      const count = runtime.state.fallen[card.team].length\n      if (count) boostStats(card, 1 + count * 0.3)\n      break\n    }\n"
           if text.count(old) != 1:
               raise SystemExit(f'Expected exactly one Humanity Spirit block, found {text.count(old)}')
           text = text.replace(old, new, 1)

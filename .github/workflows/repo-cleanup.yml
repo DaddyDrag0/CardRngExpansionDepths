@@ -21,6 +21,19 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Repair support-set duplicate parser
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/repo-cleanup.py')
+          s = p.read_text()
+          old = '''items = re.findall(r"['\\\"]([^'\\\"]+)['\\\"]", match.group(1))\nset_dupes = sorted({name for name in items if items.count(name) > 1})'''
+          new = '''literal_pattern = re.compile(r"'((?:\\\\.|[^'\\\\])*)'|\\\"((?:\\\\.|[^\\\"\\\\])*)\\\"")\nitems = [single or double for single, double in literal_pattern.findall(match.group(1))]\nset_dupes = sorted({name for name in items if items.count(name) > 1})'''
+          if old not in s:
+              raise SystemExit('FULLY_SUPPORTED parser anchor not found')
+          p.write_text(s.replace(old, new, 1))
+          PY
       - name: Apply structural cleanup
         run: python3 scripts/repo-cleanup.py
       - name: Refresh package lock

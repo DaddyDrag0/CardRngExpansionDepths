@@ -65,11 +65,16 @@ jobs:
           from pathlib import Path
           p = Path('scripts/data-integrity.ts')
           s = p.read_text()
-          old = "  assert(Number.isFinite(card.rarity) && card.rarity > 0, `${card.name} has invalid rarity`)"
-          new = "  assert(Number.isFinite(card.rarity) && card.rarity >= 0, `${card.name} has invalid rarity`)"
-          if old not in s:
+          old_rarity = "  assert(Number.isFinite(card.rarity) && card.rarity > 0, `${card.name} has invalid rarity`)"
+          new_rarity = "  assert(Number.isFinite(card.rarity) && card.rarity >= 0, `${card.name} has invalid rarity`)"
+          if old_rarity not in s:
               raise SystemExit('rarity integrity anchor not found')
-          p.write_text(s.replace(old, new, 1))
+          s = s.replace(old_rarity, new_rarity, 1)
+          old_missing = "const missingDescriptions = [...new Set(cards.map((card) => card.ability).filter((name): name is string => Boolean(name) && !abilityNames.has(name)))]"
+          new_missing = "const missingDescriptions = [...new Set(cards.filter((card) => !card.unobtainable).map((card) => card.ability).filter((name): name is string => Boolean(name) && !abilityNames.has(name)))]"
+          if old_missing not in s:
+              raise SystemExit('ability description integrity anchor not found')
+          p.write_text(s.replace(old_missing, new_missing, 1))
           PY
       - name: Refresh package lock
         run: npm install --package-lock-only

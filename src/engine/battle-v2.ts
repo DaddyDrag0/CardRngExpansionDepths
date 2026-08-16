@@ -422,6 +422,11 @@ function luminescentVeilHolder(runtime: Runtime, team: BattleTeam): CombatCard |
   return runtime.state.teams[team].find((card) => alive(card) && hasAbility(runtime, card, 'Luminescent Veil'))
 }
 
+function luminescentVeilCanAffect(attacker: CombatCard): boolean {
+  const name = effectiveCardName(attacker) || attacker.definition.name
+  return name !== 'Kira' && name !== 'Judgment Day'
+}
+
 function clearSkillAura(runtime: Runtime, team: BattleTeam) {
   const boosts = runtime.state.boosts[team]
   runtime.state.boosts[team] = {
@@ -1062,8 +1067,9 @@ function onEntry(runtime: Runtime, card: CombatCard) {
       card.hp = card.maxHp
       break
     case 'Immortal':
-      card.maxHp *= 3.5
-      card.hp *= 3.5
+      // Typhon was nerfed from +250% HP to +200% HP: 3x total HP.
+      card.maxHp *= 3
+      card.hp *= 3
       break
     case 'Fury of the White Tiger':
       card.damage *= 3
@@ -1210,9 +1216,10 @@ function onEntry(runtime: Runtime, card: CombatCard) {
     case 'Deadly Ambush': {
       const first = active(runtime, enemyTeam)
       if (first) {
+        // Poison belongs to the card hit by the entry attack; do not jump it to the next
+        // enemy if the entry hit kills its original target.
         dealDamage(runtime, card, first)
-        const current = active(runtime, enemyTeam)
-        if (current && !statusProtected(runtime, current.team)) current.counters.poisonPercent = -0.15
+        if (alive(first) && !statusProtected(runtime, first.team)) first.counters.poisonPercent = -0.15
         resolveDeaths(runtime)
       }
       break
@@ -1748,9 +1755,14 @@ function targetRetro(runtime: Runtime, attacker: CombatCard, target: CombatCard,
   return runAbilityTrace(runtime, target, name, () => targetRetroCore(runtime, attacker, target, damage))
 }
 
+function vampireMatronCanHeal(card: CombatCard): boolean {
+  const name = effectiveCardName(card) || card.definition.name
+  return name !== 'Odin' && name !== 'Gilgamesh'
+}
+
 function lifestealFraction(runtime: Runtime, attacker: CombatCard, base: number): number {
   const vamp = runtime.state.boosts[attacker.team].vampireMatron
-  return vamp ? base * (100 + vamp * 5) / 100 : base
+  return vamp && vampireMatronCanHeal(attacker) ? base * (100 + vamp * 5) / 100 : base
 }
 
 function attackerRetroCore(runtime: Runtime, attacker: CombatCard, target: CombatCard, damage: number): boolean {
@@ -1997,7 +2009,7 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   else if (!bypass) {
     const veilHolder = luminescentVeilHolder(runtime, target.team)
     const successfulEvades = target.counters.luminescentEvades || 0
-    if (veilHolder && successfulEvades < 2) {
+    if (veilHolder && luminescentVeilCanAffect(attacker) && successfulEvades < 2) {
       const chance = Math.max(0.2, 0.4 - successfulEvades * 0.1)
       if (rand(runtime, target.team) < chance) {
         target.counters.luminescentEvades = successfulEvades + 1
@@ -2127,7 +2139,7 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   }
 
   const vamp = runtime.state.boosts[attacker.team].vampireMatron
-  if (damage > 0 && vamp && !didRegen && alive(attacker)) {
+  if (damage > 0 && vamp && !didRegen && alive(attacker) && vampireMatronCanHeal(attacker)) {
     const beforeHp = attacker.hp
     attacker.hp = Math.min(attacker.maxHp, attacker.hp + damage * vamp / 100)
     if (attacker.hp > beforeHp) pushAbilityDebug(runtime, attacker, 'Vampire Matron aura healed ' + compactDebugNumber(attacker.hp - beforeHp) + ' HP from this hit.')
@@ -2553,7 +2565,7 @@ function prepareTurn(runtime: Runtime, attacker: CombatCard) {
     attacker.counters.grind = (attacker.counters.grind || 0) + 1
     if (attacker.counters.grind <= 5) runAbilityTrace(runtime, attacker, 'Grind', () => boostStats(attacker, 1.1))
   }
-  if (hasAbility(runtime, attacker, 'Patience')) runAbilityTrace(runtime, attacker, 'Patience', () => boostStats(attacker, 1.3))
+  if (hasAbility(runtime, attacker, 'Patience')) runAbilityTrace(runtime, attacker, 'Patience', () => { attacker.damage *= 1.3 })
   if (hasAbility(runtime, attacker, 'Safeguarding')) {
     runAbilityTrace(runtime, attacker, 'Safeguarding', () => {
       for (const dragon of runtime.state.teams[attacker.team].slice(1)) {

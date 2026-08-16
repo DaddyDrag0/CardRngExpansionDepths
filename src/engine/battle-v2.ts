@@ -856,7 +856,7 @@ function onEntry(runtime: Runtime, card: CombatCard) {
     }
     case "Humanity's Spirit": {
       const count = runtime.state.fallen[card.team].length
-      if (count) boostStats(card, Math.pow(1.5, count))
+      if (count) boostStats(card, 1 + count * 0.3)
       break
     }
     case 'Perforating Mist': {

@@ -11,59 +11,39 @@ permissions:
 
 jobs:
   patch:
-    if: github.event.head_commit.message == 'Apply Terra additive stat fix'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
-      - name: Fix Humanity's Spirit scaling
+          node-version: '20'
+      - name: Patch Terra scaling
+        shell: bash
         run: |
-          python - <<'PY'
+          python3 - <<'PY'
           from pathlib import Path
           path = Path('src/engine/battle-v2.ts')
           text = path.read_text()
-          old = """    case \"Humanity's Spirit\": {
-      const count = runtime.state.fallen[card.team].length
-      if (count) boostStats(card, Math.pow(1.5, count))
-      break
-    }
-"""
-          new = """    case \"Humanity's Spirit\": {
-      const count = runtime.state.fallen[card.team].length
-      // Terra's Aria is additive: +30% of base/current entry stats per fallen ally.
-      // Three fallen allies therefore means +90% total (1.9x), not compounding.
-      if (count) boostStats(card, 1 + count * 0.3)
-      break
-    }
-"""
-          if old not in text:
-              raise SystemExit("Humanity's Spirit implementation anchor not found")
+          old = "if (count) boostStats(card, Math.pow(1.5, count))"
+          new = "if (count) boostStats(card, 1 + count * 0.3)"
+          if text.count(old) != 1:
+              raise SystemExit(f'Expected exactly one old Terra formula, found {text.count(old)}')
           text = text.replace(old, new, 1)
           path.write_text(text)
           PY
-      - name: Verify Terra scaling source
-        run: |
           grep -F "boostStats(card, 1 + count * 0.3)" src/engine/battle-v2.ts
-          if grep -F "boostStats(card, Math.pow(1.5, count))" src/engine/battle-v2.ts; then
-            echo "Old compounded Terra scaling still exists" >&2
-            exit 1
-          fi
       - name: Install dependencies
         run: npm ci
-      - name: Build
-        run: npm run build
-      - name: Engine tests
-        run: npm run test:engine
-      - name: Depths tests
-        run: npm run test:depths
-      - name: Player coverage
-        run: npm run test:player
+      - name: Build and test
+        run: |
+          npm run build
+          npm run test:engine
+          npm run test:depths
+          npm run test:player
       - name: Rebuild browser worker
         run: npx --no-install esbuild src/browser-worker.ts --bundle --format=iife --platform=browser --target=es2020 --minify --outfile=browser/depths-worker.js
-      - name: Commit fix and remove workflow
+      - name: Commit final Terra fix
+        shell: bash
         run: |
           rm .github/workflows/fix-terra-additive.yml
           git config user.name "Drago"

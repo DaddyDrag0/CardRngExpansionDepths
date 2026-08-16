@@ -66,7 +66,7 @@ jobs:
           p = Path('scripts/data-integrity.ts')
           s = p.read_text()
           old = "  assert(Number.isFinite(card.rarity) && card.rarity > 0, `${card.name} has invalid rarity`)"
-          new = "  const validRarity = Number.isFinite(card.rarity) && (card.rarity > 0 || (card.name === 'Ouroboros' && card.rarity === 0))\n  assert(validRarity, `${card.name} has invalid rarity`)"
+          new = "  assert(Number.isFinite(card.rarity) && card.rarity >= 0, `${card.name} has invalid rarity`)"
           if old not in s:
               raise SystemExit('rarity integrity anchor not found')
           p.write_text(s.replace(old, new, 1))

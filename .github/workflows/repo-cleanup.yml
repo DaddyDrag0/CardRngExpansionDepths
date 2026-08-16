@@ -1,0 +1,53 @@
+name: Repository Cleanup
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/repo-cleanup.py
+      - .github/workflows/repo-cleanup.yml
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply structural cleanup
+        run: python3 scripts/repo-cleanup.py
+      - name: Refresh package lock
+        run: npm install --package-lock-only
+      - name: Install cleaned dependencies
+        run: npm ci
+      - name: Run full repository checks
+        run: npm run check
+      - name: Build both browser workers
+        run: npm run build:workers
+      - name: Verify repository cleanliness
+        shell: bash
+        run: |
+          git diff --check
+          test ! -e src/App.tsx
+          test ! -e src/main.tsx
+          test ! -e src/engine/battle.ts
+          test ! -e scripts/apply-current-fixes.mjs
+          test -e .github/workflows/engine-check.yml
+          test -e .github/workflows/resolve-thumbnails.yml
+          node -e "const p=require('./package.json'); if(p.dependencies) throw new Error('runtime dependencies should be empty'); if(!p.devDependencies.esbuild) throw new Error('esbuild must be direct dev dependency')"
+      - name: Commit cleaned repository
+        shell: bash
+        run: |
+          rm scripts/repo-cleanup.py .github/workflows/repo-cleanup.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Clean repository structure and enforce data integrity"
+          git push

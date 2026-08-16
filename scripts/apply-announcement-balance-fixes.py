@@ -75,6 +75,7 @@ function lifestealFraction(runtime: Runtime, attacker: CombatCard, base: number)
         dealDamage(runtime, card, first)
         const current = active(runtime, enemyTeam)
         if (current && !statusProtected(runtime, current.team)) current.counters.poisonPercent = -0.15
+        resolveDeaths(runtime)
       }
       break
     }
@@ -86,6 +87,7 @@ function lifestealFraction(runtime: Runtime, attacker: CombatCard, base: number)
         // enemy if the entry hit kills its original target.
         dealDamage(runtime, card, first)
         if (alive(first) && !statusProtected(runtime, first.team)) first.counters.poisonPercent = -0.15
+        resolveDeaths(runtime)
       }
       break
     }
@@ -162,13 +164,15 @@ assert(hunter, 'Hunter must exist after the regression battle.')
 close(hunter.maxHp, getHealth(hunterDef), 'Hunter Patience max HP')
 close(hunter.damage, getAttack(hunterDef) * 1.3, 'Hunter Patience ATK')
 
+// Use three turns so the ordinary ally first takes damage on the enemy turn and then
+// attacks again, giving Vampire Matron a real missing-HP amount to restore.
 const normalVampBattle = simulateBattleV2(
   {
     cards: [{ cardName: 'Shining Armor', borders: [] }],
     abilityAura: { auraName: 'Vampire Matron', border: null },
   },
   [enemy('Arthur', 1e20, getHealth(card('Shining Armor')) * 0.2)],
-  1103, 1, false, true,
+  1103, 3, false, true,
 )
 assert(
   normalVampBattle.debug?.events.some((event) => event.detail.includes('Vampire Matron aura healed')),
@@ -182,7 +186,7 @@ for (const excluded of ['Odin', 'Gilgamesh']) {
       abilityAura: { auraName: 'Vampire Matron', border: null },
     },
     [enemy('Arthur', 1e20, getHealth(card(excluded)) * 0.2)],
-    excluded === 'Odin' ? 1104 : 1105, 1, false, true,
+    excluded === 'Odin' ? 1104 : 1105, 3, false, true,
   )
   assert(
     !result.debug?.events.some((event) => event.card === excluded && event.detail.includes('Vampire Matron aura healed')),

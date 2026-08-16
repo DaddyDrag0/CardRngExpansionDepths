@@ -24,14 +24,24 @@ jobs:
           from pathlib import Path
           path = Path('src/engine/battle-v2.ts')
           text = path.read_text()
-          old = "if (count) boostStats(card, Math.pow(1.5, count))"
-          new = "if (count) boostStats(card, 1 + count * 0.3)"
+          old = '''    case "Humanity's Spirit": {
+      const count = runtime.state.fallen[card.team].length
+      if (count) boostStats(card, Math.pow(1.5, count))
+      break
+    }
+'''
+          new = '''    case "Humanity's Spirit": {
+      const count = runtime.state.fallen[card.team].length
+      if (count) boostStats(card, 1 + count * 0.3)
+      break
+    }
+'''
           if text.count(old) != 1:
-              raise SystemExit(f'Expected exactly one old Terra formula, found {text.count(old)}')
+              raise SystemExit(f'Expected exactly one Humanity Spirit block, found {text.count(old)}')
           text = text.replace(old, new, 1)
           path.write_text(text)
           PY
-          grep -F "boostStats(card, 1 + count * 0.3)" src/engine/battle-v2.ts
+          grep -A4 -B1 -F "case \"Humanity's Spirit\"" src/engine/battle-v2.ts
       - name: Install dependencies
         run: npm ci
       - name: Build and test

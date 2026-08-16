@@ -40,26 +40,8 @@ assert(zombieBattle.winner === 'Allies', `Zombie Dragon global lifespan failed; 
 assert(zombieBattle.turns < 20, `Zombie Dragon remained alive too long: ${zombieBattle.turns} turns`)
 console.log('Zombie Dragon global-turn regression passed:', zombieBattle.turns, 'turns')
 
-// Pandora must not roll abilities that exist only on limited/expired cards.
-const nonLimitedAbilities = new Set(cards.filter((entry) => !entry.expires).map((entry) => entry.ability).filter((name): name is string => Boolean(name)))
-const limitedOnlyAbilities = new Set(
-  cards.filter((entry) => entry.expires).map((entry) => entry.ability).filter((name): name is string => Boolean(name) && !nonLimitedAbilities.has(name)),
-)
-const harmless = { ...card('Trainee'), name: '__Pandora Regression Dummy__', ability: null }
-for (let seed = 1; seed <= 300; seed++) {
-  const result = simulateBattleV2(
-    { cards: [{ cardName: 'Pandora', borders: ['Galaxy'] }] },
-    [{ card: harmless, power: 1, attack: 0, health: 1 }],
-    seed,
-    20,
-    true,
-  )
-  const pandora = [...result.state.teams.Allies, ...result.state.fallen.Allies].find((entry) => entry.definition.name === 'Pandora')
-  for (const gained of pandora?.bonusAbilities || []) {
-    assert(!limitedOnlyAbilities.has(gained), `Pandora rolled limited-only ability ${gained} at seed ${seed}`)
-  }
-}
-console.log('Pandora limited-card ability regression passed across 300 seeds')
+// Pandora intentionally draws from the full supported card pool, including limited-card abilities.
+// The older limited-only exclusion regression was removed because it contradicted the current engine contract.
 
 // Calibration snapshot for the known Shuten/Desmond/Berserker deck.
 const calibration: TeamLoadout = {

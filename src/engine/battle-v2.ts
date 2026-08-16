@@ -45,7 +45,7 @@ const FULLY_SUPPORTED = new Set([
   'Blood Drinker', 'Drain Vitality', 'Fury of the White Tiger', 'Defraud',
   'Unforgiving', 'Grape Juice', 'Perfect Sacrifice', 'Guilt', 'Melt', 'Boiling Blood',
   'Run As Fast As You Can', 'Bind', 'Guerilla Warfare', 'Avalon', 'Reflective Shell',
-  'Moonlight Beam', 'Firepower', 'Chainsaw',
+  'Firepower', 'Chainsaw',
   'Third Eye', 'Influence', 'Art of War', 'Dominate', 'Lightning Slash', 'True Fang',
   'Book of Death', 'Holy Wrath', 'Telekinesis', 'Unlucky', 'Dragon Slayer', 'Outrank',
   'Golden Bell Shield', 'Frozen Wrath', 'Immortal', 'Haste', 'Tonic', 'Destiny Sight',

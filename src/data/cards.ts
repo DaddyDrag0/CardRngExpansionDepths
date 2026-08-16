@@ -7,7 +7,7 @@ import batch6 from './cards-6.json'
 import batch7 from './cards-7.json'
 import type { CardDefinition } from '../types'
 
-const allCards = [
+export const cards = [
   ...batch1,
   ...batch2,
   ...batch3,
@@ -16,11 +16,5 @@ const allCards = [
   ...batch6,
   ...batch7,
 ] as CardDefinition[]
-
-// Some source batches overlap at their boundaries. Keep a single definition per
-// card name so duplicate entries never appear in the team/card pickers.
-export const cards = Array.from(
-  new Map(allCards.map((card) => [card.name, card] as const)).values(),
-)
 
 export default cards

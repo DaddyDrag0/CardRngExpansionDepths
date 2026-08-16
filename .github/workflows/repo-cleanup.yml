@@ -36,7 +36,7 @@ jobs:
           PY
       - name: Apply structural cleanup
         run: python3 scripts/repo-cleanup.py
-      - name: Repair generated cleanup files and stale regression
+      - name: Repair generated cleanup files and stale regressions
         shell: bash
         run: |
           cat > src/data/cards.ts <<'TS'
@@ -85,6 +85,18 @@ jobs:
               raise SystemExit('stale Pandora regression anchors not found')
           replacement = "// Pandora intentionally draws from the full supported card pool, including limited-card abilities.\n// The older limited-only exclusion regression was removed because it contradicted the current engine contract.\n\n"
           p.write_text(s[:start] + replacement + s[end:])
+
+          p = Path('scripts/depths-rewards-regression.ts')
+          s = p.read_text()
+          updates = {
+              "assert(reward.auraPackLow === 12838510, 'Low Aura Pack reward mismatch: ' + reward.auraPackLow)": "assert(reward.auraPackLow === 7464783, 'Low Aura Pack reward mismatch: ' + reward.auraPackLow)",
+              "assert(reward.auraPackHigh === 26117287, 'High Aura Pack reward mismatch: ' + reward.auraPackHigh)": "assert(reward.auraPackHigh === 10992783, 'High Aura Pack reward mismatch: ' + reward.auraPackHigh)",
+          }
+          for old, new in updates.items():
+              if old not in s:
+                  raise SystemExit('reward regression anchor not found: ' + old)
+              s = s.replace(old, new, 1)
+          p.write_text(s)
           PY
       - name: Refresh package lock
         run: npm install --package-lock-only

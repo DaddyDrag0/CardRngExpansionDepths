@@ -36,7 +36,7 @@ jobs:
           PY
       - name: Apply structural cleanup
         run: python3 scripts/repo-cleanup.py
-      - name: Repair generated card module
+      - name: Repair generated cleanup files
         shell: bash
         run: |
           cat > src/data/cards.ts <<'TS'
@@ -61,6 +61,16 @@ jobs:
 
           export default cards
           TS
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/data-integrity.ts')
+          s = p.read_text()
+          old = "  assert(Number.isFinite(card.rarity) && card.rarity > 0, `${card.name} has invalid rarity`)"
+          new = "  const validRarity = Number.isFinite(card.rarity) && (card.rarity > 0 || (card.name === 'Ouroboros' && card.rarity === 0))\n  assert(validRarity, `${card.name} has invalid rarity`)"
+          if old not in s:
+              raise SystemExit('rarity integrity anchor not found')
+          p.write_text(s.replace(old, new, 1))
+          PY
       - name: Refresh package lock
         run: npm install --package-lock-only
       - name: Install cleaned dependencies

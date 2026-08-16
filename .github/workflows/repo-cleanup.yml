@@ -36,7 +36,7 @@ jobs:
           PY
       - name: Apply structural cleanup
         run: python3 scripts/repo-cleanup.py
-      - name: Repair generated cleanup files
+      - name: Repair generated cleanup files and stale regression
         shell: bash
         run: |
           cat > src/data/cards.ts <<'TS'
@@ -63,6 +63,7 @@ jobs:
           TS
           python3 - <<'PY'
           from pathlib import Path
+
           p = Path('scripts/data-integrity.ts')
           s = p.read_text()
           old_rarity = "  assert(Number.isFinite(card.rarity) && card.rarity > 0, `${card.name} has invalid rarity`)"
@@ -75,6 +76,15 @@ jobs:
           if old_missing not in s:
               raise SystemExit('ability description integrity anchor not found')
           p.write_text(s.replace(old_missing, new_missing, 1))
+
+          p = Path('scripts/combat-corrections-regression.ts')
+          s = p.read_text()
+          start = s.find('// Pandora must not roll abilities that exist only on limited/expired cards.')
+          end = s.find('// Calibration snapshot for the known Shuten/Desmond/Berserker deck.')
+          if start < 0 or end < 0 or end <= start:
+              raise SystemExit('stale Pandora regression anchors not found')
+          replacement = "// Pandora intentionally draws from the full supported card pool, including limited-card abilities.\n// The older limited-only exclusion regression was removed because it contradicted the current engine contract.\n\n"
+          p.write_text(s[:start] + replacement + s[end:])
           PY
       - name: Refresh package lock
         run: npm install --package-lock-only

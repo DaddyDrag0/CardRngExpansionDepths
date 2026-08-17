@@ -1,0 +1,80 @@
+name: Patch Team Drag and Drop
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/patch-team-drag-drop.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Add drag and drop team reordering
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('index.html')
+          s = path.read_text()
+
+          old_css = ".team-row,.library-list button{position:relative}.empty-team-card"
+          new_css = ".team-row,.library-list button{position:relative}.team-row[draggable=\"true\"]{cursor:grab}.team-row[draggable=\"true\"]:active{cursor:grabbing}.team-row.dragging{opacity:.42}.team-row.drop-target{border-color:#5fa99d!important;background:rgba(135,216,202,.08)!important;box-shadow:inset 0 0 0 1px rgba(135,216,202,.18)}.empty-team-card"
+          if old_css not in s:
+              raise SystemExit('Team row CSS anchor not found')
+          s = s.replace(old_css, new_css, 1)
+
+          old_empty = '<button class=\"team-row empty-team-card ${state.activeSlot===index?\'active\':\'\'}\" data-slot=\"${index}\">'
+          new_empty = '<button class=\"team-row empty-team-card ${state.activeSlot===index?\'active\':\'\'}\" data-slot=\"${index}\" draggable=\"true\" title=\"Drag to reorder team slots\">'
+          if old_empty not in s:
+              raise SystemExit('Empty team row anchor not found')
+          s = s.replace(old_empty, new_empty, 1)
+
+          old_card = '<button class=\"team-row ${state.activeSlot===index?\'active\':\'\'}\" data-slot=\"${index}\" data-tooltip-card=\"${esc(card.name)}\">'
+          new_card = '<button class=\"team-row ${state.activeSlot===index?\'active\':\'\'}\" data-slot=\"${index}\" draggable=\"true\" title=\"Drag to reorder team slots\" data-tooltip-card=\"${esc(card.name)}\">'
+          if old_card not in s:
+              raise SystemExit('Filled team row anchor not found')
+          s = s.replace(old_card, new_card, 1)
+
+          old_bind = "root.querySelectorAll('[data-slot]').forEach(el=>el.addEventListener('click',e=>{if(e.target.closest('[data-border]'))return;state.activeSlot=Number(el.dataset.slot);render()}));root.querySelectorAll('[data-border]')"
+          new_bind = """let draggedSlot=null;const clearDragStyles=()=>root.querySelectorAll('[data-slot]').forEach(row=>row.classList.remove('dragging','drop-target'));root.querySelectorAll('[data-slot]').forEach(el=>{el.addEventListener('click',e=>{if(e.target.closest('[data-border]'))return;state.activeSlot=Number(el.dataset.slot);render()});el.addEventListener('dragstart',e=>{if(e.target.closest('[data-border]')){e.preventDefault();return}draggedSlot=Number(el.dataset.slot);el.classList.add('dragging');if(e.dataTransfer){e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',String(draggedSlot))}});el.addEventListener('dragover',e=>{if(draggedSlot===null)return;e.preventDefault();if(e.dataTransfer)e.dataTransfer.dropEffect='move';root.querySelectorAll('[data-slot]').forEach(row=>row.classList.toggle('drop-target',row===el&&Number(el.dataset.slot)!==draggedSlot))});el.addEventListener('drop',e=>{if(draggedSlot===null)return;e.preventDefault();const to=Number(el.dataset.slot),from=draggedSlot;clearDragStyles();draggedSlot=null;if(!Number.isInteger(from)||!Number.isInteger(to)||from===to)return;const cards=current().cards;[cards[from],cards[to]]=[cards[to],cards[from]];state.activeSlot=to;current().result=null;persist();render()});el.addEventListener('dragend',()=>{draggedSlot=null;clearDragStyles()})});root.querySelectorAll('[data-border]')"""
+          if old_bind not in s:
+              raise SystemExit('Team slot event binding anchor not found')
+          s = s.replace(old_bind, new_bind, 1)
+
+          path.write_text(s)
+          print('Added drag-and-drop team slot reordering.')
+          PY
+      - run: npm ci
+      - run: npm run check
+      - name: Publish tested index only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo="$GITHUB_REPOSITORY"
+          parent=$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha')
+          base_tree=$(gh api "repos/$repo/git/commits/$parent" --jq '.tree.sha')
+          index_blob=$(python3 - <<'PY' | gh api --method POST "repos/$GITHUB_REPOSITORY/git/blobs" --input - --jq '.sha'
+          import base64, json
+          with open('index.html','rb') as f:
+              encoded=base64.b64encode(f.read()).decode('ascii')
+          print(json.dumps({'content':encoded,'encoding':'base64'}))
+          PY
+          )
+          tree=$(gh api --method POST "repos/$repo/git/trees" -f base_tree="$base_tree" -f 'tree[][path]=index.html' -f 'tree[][mode]=100644' -f 'tree[][type]=blob' -f "tree[][sha]=$index_blob" --jq '.sha')
+          commit=$(gh api --method POST "repos/$repo/git/commits" -f message='Add drag-and-drop team slot reordering' -f tree="$tree" -f 'parents[]'="$parent" --jq '.sha')
+          gh api --method PATCH "repos/$repo/git/refs/heads/main" -f sha="$commit" -F force=false >/dev/null
+          echo "Published $commit"

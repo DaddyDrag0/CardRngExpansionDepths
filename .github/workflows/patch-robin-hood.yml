@@ -60,9 +60,13 @@ jobs:
 
           make_blob() {
             local path="$1"
-            local encoded
-            encoded=$(base64 -w0 "$path")
-            gh api --method POST "repos/$repo/git/blobs" -f content="$encoded" -f encoding=base64 --jq '.sha'
+            python3 - "$path" <<'PY' | gh api --method POST "repos/$GITHUB_REPOSITORY/git/blobs" --input - --jq '.sha'
+          import base64, json, sys
+          path = sys.argv[1]
+          with open(path, 'rb') as f:
+              encoded = base64.b64encode(f.read()).decode('ascii')
+          print(json.dumps({'content': encoded, 'encoding': 'base64'}))
+          PY
           }
 
           battle_blob=$(make_blob src/engine/battle-v2.ts)

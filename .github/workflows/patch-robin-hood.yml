@@ -1,0 +1,86 @@
+name: Patch Robin Hood Live Behavior
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/patch-robin-hood.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply Robin Hood behavior guard
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          battle = Path('src/engine/battle-v2.ts')
+          s = battle.read_text()
+          old = """  const hpTarget = longReachTarget || target\n  const appliedHpDamage = Math.min(hpTarget.hp, damage)"""
+          new = """  const hpTarget = longReachTarget || target\n  if (hasAbility(runtime, attacker, 'Defraud')) {\n    // Live-game quirk: Defraud may reduce a target but can never finish it.\n    // Clamp after defensive modifiers too, so effects such as Frail cannot turn\n    // the 50%-of-current-HP hit into lethal damage. Robin Hood still pays the\n    // separate 25% Max HP self-cost after every attack.\n    damage = Math.min(damage, hpTarget.hp * 0.5)\n  }\n  const appliedHpDamage = Math.min(hpTarget.hp, damage)"""
+          if old not in s:
+              raise SystemExit('Defraud damage application anchor not found')
+          battle.write_text(s.replace(old, new, 1))
+
+          regression = Path('scripts/robin-hood-regression.ts')
+          regression.write_text("""import { strict as assert } from 'node:assert'\nimport cards from '../src/data/cards'\nimport { simulateBattleV2 } from '../src/engine/battle-v2'\nimport type { DepthsEnemy, TeamLoadout } from '../src/types'\n\nfunction card(name: string) {\n  const found = cards.find((entry) => entry.name === name)\n  if (!found) throw new Error(`Missing card: ${name}`)\n  return found\n}\n\n// Robin Hood / Defraud is intentionally bad in the live game:\n// - each hit is based on 50% of the target's CURRENT HP, so Defraud itself can never finish the target;\n// - Robin Hood loses 25% of Max HP after every attack, so with no healing/interference it kills itself on attack 4.\n// Keep this behavior even if it looks like a bug or an ability that should be \"fixed\".\n// Cherub is intentional here: Frail doubles incoming damage, which must STILL not let Defraud kill.\nconst loadout: TeamLoadout = {\n  cards: [{ cardName: 'Robin Hood', borders: [] }],\n}\n\nconst enemy: DepthsEnemy = {\n  card: card('Cherub'),\n  power: 1_000_000,\n  health: 1_000_000,\n  attack: 0,\n}\n\nconst battle = simulateBattleV2(loadout, [enemy], 20260817, 20, false, true)\n\nassert.equal(battle.winner, 'Enemies', 'Robin Hood should self-destruct before Defraud can kill a passive target')\n\nconst robinDeath = battle.debug?.events.some(\n  (event) => event.type === 'death' && event.card === 'Robin Hood',\n)\nassert.equal(robinDeath, true, 'Robin Hood should die from Defraud self-damage')\n\nconst enemyDeath = battle.debug?.events.some(\n  (event) => event.type === 'death' && event.card === 'Cherub',\n)\nassert.equal(enemyDeath, false, 'Defraud must remain non-lethal even when Frail would otherwise double its damage')\n\nconsole.log('Robin Hood regression passed: Defraud cannot finish the target and Robin Hood self-destructs.')\n""")
+
+          package_path = Path('package.json')
+          package = json.loads(package_path.read_text())
+          test_engine = package['scripts']['test:engine']
+          robin = 'tsx scripts/robin-hood-regression.ts'
+          if robin not in test_engine:
+              package['scripts']['test:engine'] = test_engine + ' && ' + robin
+          package_path.write_text(json.dumps(package, indent=2) + '\n')
+          PY
+      - run: npm ci
+      - run: npm run check
+      - name: Publish tested source as one commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo="$GITHUB_REPOSITORY"
+          parent=$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha')
+          base_tree=$(gh api "repos/$repo/git/commits/$parent" --jq '.tree.sha')
+
+          make_blob() {
+            local path="$1"
+            local encoded
+            encoded=$(base64 -w0 "$path")
+            gh api --method POST "repos/$repo/git/blobs" -f content="$encoded" -f encoding=base64 --jq '.sha'
+          }
+
+          battle_blob=$(make_blob src/engine/battle-v2.ts)
+          regression_blob=$(make_blob scripts/robin-hood-regression.ts)
+          package_blob=$(make_blob package.json)
+
+          tree=$(gh api --method POST "repos/$repo/git/trees" \
+            -f base_tree="$base_tree" \
+            -f 'tree[][path]=src/engine/battle-v2.ts' -f 'tree[][mode]=100644' -f 'tree[][type]=blob' -f "tree[][sha]=$battle_blob" \
+            -f 'tree[][path]=scripts/robin-hood-regression.ts' -f 'tree[][mode]=100644' -f 'tree[][type]=blob' -f "tree[][sha]=$regression_blob" \
+            -f 'tree[][path]=package.json' -f 'tree[][mode]=100644' -f 'tree[][type]=blob' -f "tree[][sha]=$package_blob" \
+            --jq '.sha')
+
+          commit=$(gh api --method POST "repos/$repo/git/commits" \
+            -f message='Preserve Robin Hood non-lethal Defraud behavior' \
+            -f tree="$tree" \
+            -f 'parents[]'="$parent" \
+            --jq '.sha')
+
+          gh api --method PATCH "repos/$repo/git/refs/heads/main" -f sha="$commit" -F force=false >/dev/null
+          echo "Published $commit"

@@ -2062,6 +2062,13 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   const longReachTarget = hasAbility(runtime, attacker, 'Long Reach') && targetDeck[0] === target ? targetDeck[1] : undefined
   if (longReachTarget) pushAbilityDebug(runtime, attacker, 'Long Reach bypassed ' + (effectiveCardName(target) || target.definition.name) + ' and attacked ' + (effectiveCardName(longReachTarget) || longReachTarget.definition.name) + ' in the deck.')
   const hpTarget = longReachTarget || target
+  if (hasAbility(runtime, attacker, 'Defraud')) {
+    // Live-game quirk: Defraud may reduce a target but can never finish it.
+    // Clamp after defensive modifiers too, so effects such as Frail cannot turn
+    // the 50%-of-current-HP hit into lethal damage. Robin Hood still pays the
+    // separate 25% Max HP self-cost after every attack.
+    damage = Math.min(damage, hpTarget.hp * 0.5)
+  }
   const appliedHpDamage = Math.min(hpTarget.hp, damage)
   hpTarget.hp -= appliedHpDamage
   if (appliedHpDamage > 0 && (hpTarget.counters.bindFatePair || 0) > 0) {

@@ -2,7 +2,7 @@
 
 import { simulateDepthsRun, type DepthsRunResult } from './engine/simulation'
 import { SeededRng } from './engine/rng'
-import { auraPackRangeForMedian } from './engine/depths-rewards'
+import { auraPackRangeForMedian, potionDropRangeForMedian } from './engine/depths-rewards'
 import { estimateDepthClearSeconds } from './engine/depths-time'
 import type { TeamLoadout } from './types'
 
@@ -14,6 +14,7 @@ interface BatchRequest {
   floorCap: number
   seed: number
   bannedCardNames?: string[]
+  bountifulDepths?: boolean
 }
 
 interface SingleRunRequest {
@@ -40,7 +41,7 @@ function runSeed(batchSeed: number, runIndex: number): number {
   return seed
 }
 
-function summarize(results: DepthsRunResult[]) {
+function summarize(results: DepthsRunResult[], bountifulDepths = false) {
   const unsupported = new Set<string>()
   for (const result of results) {
     for (const ability of result.unsupportedAbilities) unsupported.add(ability)
@@ -49,6 +50,7 @@ function summarize(results: DepthsRunResult[]) {
   const middle = Math.floor(floors.length / 2)
   const medianFloor = floors.length % 2 ? floors[middle] : (floors[middle - 1] + floors[middle]) / 2
   const estimate = auraPackRangeForMedian(medianFloor)
+  const potionRewards = potionDropRangeForMedian(medianFloor, 0.15, bountifulDepths)
   const totalBattles = results.reduce((sum, result) => sum + result.battles, 0)
   const totalTurns = results.reduce((sum, result) => sum + result.totalTurns, 0)
   const averageTurnsPerBattle = totalBattles > 0 ? totalTurns / totalBattles : 0
@@ -72,6 +74,7 @@ function summarize(results: DepthsRunResult[]) {
     estimatedSecondsMedian,
     estimatedSecondsHigh,
     auraCardsPerHour,
+    potionRewards,
     trusted: unsupported.size === 0,
     unsupportedAbilities: [...unsupported].sort(),
   }
@@ -253,7 +256,7 @@ self.onmessage = async (event: MessageEvent<SimulationRequest>) => {
       return
     }
     const results = await simulateParallel(request)
-    self.postMessage({ id: request.id, ok: true, elapsedMs: performance.now() - started, result: summarize(results) })
+    self.postMessage({ id: request.id, ok: true, elapsedMs: performance.now() - started, result: summarize(results, request.bountifulDepths) })
   } catch (error) {
     self.postMessage({
       id: request.id,

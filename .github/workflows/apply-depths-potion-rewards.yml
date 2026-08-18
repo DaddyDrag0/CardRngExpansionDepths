@@ -33,3 +33,5 @@ jobs:
           git commit -m "Add Depths potion reward estimates"
           git pull --rebase origin main
           git push origin HEAD:main
+
+# trigger

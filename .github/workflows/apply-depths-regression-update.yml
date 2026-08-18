@@ -16,14 +16,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
       - run: python3 scripts/update-depths-regression.py
-      - run: npm ci
-      - run: npm run test:depths
-      - name: Publish tested regression update
+      - name: Publish regression update
         run: |
           rm .github/workflows/apply-depths-regression-update.yml scripts/update-depths-regression.py
           git config user.name "github-actions[bot]"
@@ -32,5 +26,3 @@ jobs:
           git commit -m "Update Depths regression coverage"
           git pull --rebase origin main
           git push origin HEAD:main
-
-# run

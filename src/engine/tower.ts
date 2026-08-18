@@ -180,6 +180,11 @@ export function towerCheeseCandidatePool(): string[] {
   return [...new Set(resolved)]
 }
 
+/** Tower cheese inventory rules that differ from normal duplicate-friendly search. */
+export function isTowerCheeseCandidateLegal(names: readonly string[]): boolean {
+  return names.filter((name) => name === 'Parallax').length <= 1
+}
+
 /** Known hard-counter knowledge is deliberately tiny. It constrains the search, not the whole deck. */
 export function towerCheeseAnchors(enemyNames: string[]): string[] {
   const enemies = enemyNames.map((name) => CARD_BY_NAME.get(name)).filter(Boolean)
@@ -334,7 +339,7 @@ export function searchTowerCheese(
   const teamKeys = new Set<string>()
   for (const team of rawTeams) {
     const key = [...team].sort().join('\u0000')
-    if (team.length !== 4 || teamKeys.has(key)) continue
+    if (team.length !== 4 || teamKeys.has(key) || !isTowerCheeseCandidateLegal(team)) continue
     teamKeys.add(key)
     uniqueTeams.push(team)
   }

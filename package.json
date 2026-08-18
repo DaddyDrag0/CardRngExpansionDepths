@@ -8,7 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "build:workers": "esbuild src/browser-worker.ts --bundle --platform=browser --format=iife --target=es2020 --minify --outfile=browser/depths-worker.js && esbuild src/tower-worker.ts --bundle --platform=browser --format=iife --target=es2020 --minify --outfile=browser/tower-worker.js",
     "test:data": "tsx scripts/data-integrity.ts",
-    "test:engine": "tsx scripts/engine-smoke.ts && tsx scripts/stall-regression.ts && tsx scripts/ability-trace-regression.ts && tsx scripts/announcement-balance-regression.ts && tsx scripts/anubis-regression.ts && tsx scripts/combat-corrections-regression.ts && tsx scripts/insatiable-unholy-regression.ts && tsx scripts/order-cosmos-regression.ts && tsx scripts/revive-grinch-regression.ts && tsx scripts/robin-hood-regression.ts",
+    "test:engine": "tsx scripts/engine-smoke.ts && tsx scripts/stall-regression.ts && tsx scripts/ability-trace-regression.ts && tsx scripts/announcement-balance-regression.ts && tsx scripts/anubis-regression.ts && tsx scripts/combat-corrections-regression.ts && tsx scripts/insatiable-unholy-regression.ts && tsx scripts/order-cosmos-regression.ts && tsx scripts/revive-grinch-regression.ts && tsx scripts/robin-hood-regression.ts && tsx scripts/tower-cheese-search-regression.ts",
     "test:depths": "tsx scripts/depths-regression.ts && tsx scripts/depths-rewards-regression.ts && tsx scripts/depths-time-regression.ts && tsx scripts/watchdog-heartbeat-regression.ts",
     "test:player": "tsx scripts/player-coverage.ts",
     "test:ui": "node scripts/validate-ui.mjs",

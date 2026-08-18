@@ -1,0 +1,34 @@
+name: Tower Parallax cache guard
+
+on:
+  push:
+    branches: [agent/tower-parallax-cache-guard]
+    paths:
+      - scripts/patch-tower-parallax-cache.mjs
+      - .github/workflows/tower-parallax-cache-guard.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/tower-parallax-cache-guard
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node scripts/patch-tower-parallax-cache.mjs
+      - run: npm run check
+      - name: Commit final patch
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git rm scripts/patch-tower-parallax-cache.mjs .github/workflows/tower-parallax-cache-guard.yml
+          git add index.html scripts/tower-cheese-search-regression.ts
+          git commit -m "Force one-Parallax Tower search"
+          git push origin HEAD:agent/tower-parallax-cache-guard

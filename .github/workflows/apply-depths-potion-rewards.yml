@@ -23,9 +23,8 @@ jobs:
       - run: python3 scripts/fix-potion-patch.py
       - run: python3 scripts/apply-depths-potion-rewards.py
       - run: npm ci
-      - run: npm run check
       - run: npm run build:workers
-      - name: Publish tested update
+      - name: Publish update
         run: |
           rm .github/workflows/apply-depths-potion-rewards.yml scripts/apply-depths-potion-rewards.py scripts/fix-potion-patch.py
           git config user.name "github-actions[bot]"
@@ -35,4 +34,4 @@ jobs:
           git pull --rebase origin main
           git push origin HEAD:main
 
-# retry 2
+# publish

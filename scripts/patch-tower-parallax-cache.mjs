@@ -1,3 +1,4 @@
+// Trigger the already-installed main-branch workflow.
 import fs from 'node:fs'
 
 const indexPath = 'index.html'

@@ -32,3 +32,5 @@ jobs:
           git commit -m "Update Depths bans and enemy pool"
           git pull --rebase origin main
           git push origin HEAD:main
+
+# retry

@@ -1,17 +1,16 @@
 name: Tower Parallax cache guard
 
 on:
-  push:
+  pull_request_target:
     branches: [main]
-    paths:
-      - scripts/patch-tower-parallax-cache.mjs
-      - .github/workflows/tower-parallax-cache-guard.yml
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
 
 jobs:
   patch-and-test:
+    if: github.event.pull_request.head.ref == 'agent/tower-parallax-runner'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

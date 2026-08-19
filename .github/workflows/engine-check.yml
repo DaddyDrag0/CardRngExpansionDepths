@@ -21,6 +21,8 @@ jobs:
           cache: npm
       - name: Apply faster Tower search update
         run: python3 scripts/apply-faster-tower-search.py
+      - name: Fix Tower worker typing
+        run: python3 scripts/fix-faster-generated.py
       - run: npm ci
       - run: npm run check
       - name: Build browser workers
@@ -28,7 +30,7 @@ jobs:
       - name: Publish tested Tower search update
         run: |
           printf '{"version":"%s"}\n' "$(date -u +%Y%m%d-%H%M%SZ)" > site-version.json
-          rm -f scripts/apply-faster-tower-search.py
+          rm -f scripts/apply-faster-tower-search.py scripts/fix-faster-generated.py
           git show origin/main:.github/workflows/engine-check.yml > .github/workflows/engine-check.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

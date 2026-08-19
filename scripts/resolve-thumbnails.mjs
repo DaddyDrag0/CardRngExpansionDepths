@@ -1,7 +1,12 @@
 import fs from 'node:fs/promises'
 
-const cardFiles = [1,2,3,4,5,6].map(i => `src/data/cards-${i}.json`)
-const auraFiles = [1,2].map(i => `src/data/auras-${i}.json`)
+const dataFiles = await fs.readdir('src/data')
+const numberedDataFiles = prefix => dataFiles
+  .filter(file => new RegExp(`^${prefix}-\\d+\\.json$`).test(file))
+  .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+  .map(file => `src/data/${file}`)
+const cardFiles = numberedDataFiles('cards')
+const auraFiles = numberedDataFiles('auras')
 
 async function readAll(files) {
   const sets = await Promise.all(files.map(async file => JSON.parse(await fs.readFile(file, 'utf8'))))

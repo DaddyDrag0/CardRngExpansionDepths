@@ -15,6 +15,7 @@ const DIFFICULTY_ID: Record<TowerDifficulty, number> = {
 }
 
 const CARD_BY_NAME = new Map(cards.map((card) => [card.name, card] as const))
+const SINGLE_COPY_CHEESE_CARDS = new Set(['Parallax', 'Fate Seamstress'])
 
 /**
  * Small, intentionally curated cheese pool. The search is not a general deck builder:
@@ -200,7 +201,7 @@ export function towerCheeseCandidatePool(options: TowerCheesePoolOptions = {}): 
 
 /** Tower cheese inventory rules that differ from normal duplicate-friendly search. */
 export function isTowerCheeseCandidateLegal(names: readonly string[]): boolean {
-  return names.filter((name) => name === 'Parallax').length <= 1
+  return [...SINGLE_COPY_CHEESE_CARDS].every((restricted) => names.filter((name) => name === restricted).length <= 1)
 }
 
 /** Known hard-counter knowledge is deliberately tiny. It constrains the search, not the whole deck. */
@@ -458,7 +459,7 @@ function orderedCheeseTeams(values: string[]): string[][] {
       return
     }
     for (const name of values) {
-      if (name === 'Parallax' && current.includes('Parallax')) continue
+      if (SINGLE_COPY_CHEESE_CARDS.has(name) && current.includes(name)) continue
       current.push(name)
       walk()
       current.pop()

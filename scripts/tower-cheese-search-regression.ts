@@ -11,6 +11,8 @@ assert.deepEqual(towerCheeseAnchors(['Inari', 'Good Boy', 'Good Boy', 'Good Boy'
 assert.deepEqual(towerCheeseAnchors(['Sable The Envious', 'Inari', 'Good Boy', 'Good Boy']), ['Robin Hood', 'Noveau Riche'])
 assert.equal(isTowerCheeseCandidateLegal(['Parallax', 'Judgment Day', 'Pandora', 'Control Freak']), true)
 assert.equal(isTowerCheeseCandidateLegal(['Parallax', 'Parallax', 'Judgment Day', 'Pandora']), false)
+assert.equal(isTowerCheeseCandidateLegal(['Fate Seamstress', 'Judgment Day', 'Fate Seamstress', 'Pandora']), false)
+assert.equal(isTowerCheeseCandidateLegal(['Fate Seamstress', 'Judgment Day', 'Parallax', 'Pandora']), true)
 const customPool = towerCheeseCandidatePool({ excludedCards: ['Parallax'], addedCards: ['Behemoth'] })
 assert.equal(customPool.includes('Parallax'), false, 'Excluded cards must be removed from the cheese search pool')
 assert.equal(customPool.includes('Behemoth'), true, 'User-added cards must be included in the cheese search pool')

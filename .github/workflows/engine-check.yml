@@ -17,27 +17,14 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - name: Apply daily potion display patch on PR
-        if: github.event_name == 'pull_request'
-        run: |
-          if [ -f scripts/apply-potion-daily-display.py ]; then
-            python3 scripts/apply-potion-daily-display.py
-          else
-            echo "Potion patch already applied."
-          fi
-      - run: npm ci
-      - run: npm run test:ui
-      - name: Publish patch to PR branch
+      - name: Apply and publish daily potion display
         if: github.event_name == 'pull_request'
         run: |
           if [ ! -f scripts/apply-potion-daily-display.py ]; then
-            echo "Patch already published."
+            echo "Patch already applied."
             exit 0
           fi
+          python3 scripts/apply-potion-daily-display.py
           printf '{"version":"%s"}\n' "$(date -u +%Y%m%d-%H%M%SZ)" > site-version.json
           rm -f .github/workflows/apply-potion-daily-display.yml scripts/apply-potion-daily-display.py .daily-potion-trigger
           git show 1e06d1e92818357f26cc4fd7904abff6ee0e0c0a:.github/workflows/engine-check.yml > .github/workflows/engine-check.yml

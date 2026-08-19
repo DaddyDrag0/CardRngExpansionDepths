@@ -1,5 +1,5 @@
 export type BorderName = 'Platinum' | 'Crystal' | 'Ruby' | 'Galaxy'
-export type AuraBorderName = 'Platinum' | 'Crystal' | 'Ruby' | 'Galaxy'
+export type AuraBorderName = 'Platinum' | 'Crystal' | 'Galaxy'
 export type BattleTeam = 'Allies' | 'Enemies'
 
 export interface CardDefinition {

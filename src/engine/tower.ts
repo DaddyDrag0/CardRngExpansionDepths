@@ -469,7 +469,7 @@ function orderedCheeseTeams(values: string[]): string[][] {
 }
 
 function intensiveCheeseAuraVariants(hasEndTimes = true): Array<TeamLoadout['abilityAura']> {
-  const borders = [null, 'Platinum', 'Crystal', 'Ruby', 'Galaxy'] as const
+  const borders = [null, 'Platinum', 'Crystal', 'Galaxy'] as const
   const variants: Array<TeamLoadout['abilityAura']> = [null]
   const skillAuras = auras
     .filter((aura) => !aura.unobtainable && aura.type === 'Skill' && (hasEndTimes || aura.name !== 'End Times'))
@@ -503,7 +503,7 @@ export function towerCheeseIntensivePlan(poolOptions: TowerCheesePoolOptions = {
 /**
  * Deliberately expensive Tower search. Unlike the fast search, this does not prune by anchors,
  * order, or a small aura list. Every legal ordered four-card lineup in the cheese pool is tested
- * with no aura and every obtainable Skill Aura at Base/Platinum/Crystal/Ruby/Galaxy. The discovery pass
+ * with no aura and every obtainable Skill Aura at Base/Platinum/Crystal/Galaxy. The discovery pass
  * is guaranteed to execute at least one million battles, then the best candidates get an independent
  * 2,000-battle verification pass.
  */

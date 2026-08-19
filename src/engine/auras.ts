@@ -10,16 +10,12 @@ import type {
 export const AURA_RARITY_MULTIPLIERS: Record<AuraBorderName, number> = {
   Platinum: 10,
   Crystal: 100,
-  Ruby: 500,
   Galaxy: 1_000,
 }
 
 const AURA_TIERS: Record<AuraBorderName, number> = {
   Platinum: 1,
   Crystal: 2,
-  // Current Roblox client source omits Ruby from the Skill-aura tier table,
-  // so Ruby Skill auras resolve to the base tier even though Stat auras use x500 rarity.
-  Ruby: 0,
   Galaxy: 3,
 }
 
@@ -32,7 +28,7 @@ const CUSTOM_SKILL_VALUES: Record<string, readonly number[]> = {
   'Guardian Angel': [10, 15, 20, 30],
   Executioner: [15, 25, 35, 50],
   'Mirror Knight': [10, 15, 20, 30],
-  // The NEW source contains a fifth 15% entry, but its current generic tier map never selects it.
+  // The NEW source contains a fifth 15% entry, but Aura cards only use Base/Platinum/Crystal/Galaxy.
   'Final Testament': [5, 7.5, 10, 12.5, 15],
 }
 

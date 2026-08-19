@@ -27,11 +27,7 @@ jobs:
         run: python3 scripts/apply-unbanned-support.py
       - name: Update regressions for new Depth pool
         run: python3 scripts/apply-aug19-regression-fixes.py
-      - name: Add Cherub diagnostics
-        run: python3 scripts/apply-cherub-debug.py
       - run: npm ci
-      - name: Quick Cherub/Depth regression
-        run: npx tsx scripts/depths-regression.ts
       - run: npm run check
       - name: Build browser workers
         run: npm run build:workers

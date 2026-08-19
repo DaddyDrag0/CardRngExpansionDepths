@@ -23,6 +23,8 @@ jobs:
         run: python3 scripts/fix-aug19-patch.py
       - name: Apply Aug 19 calculator update
         run: python3 scripts/apply-aug19-intensive-update.py
+      - name: Enable newly unbanned abilities
+        run: python3 scripts/apply-unbanned-support.py
       - run: npm ci
       - run: npm run check
       - name: Build browser workers
@@ -30,7 +32,7 @@ jobs:
       - name: Publish tested patch to PR branch
         run: |
           printf '{"version":"%s"}\n' "$(date -u +%Y%m%d-%H%M%SZ)" > site-version.json
-          rm -f scripts/apply-aug19-intensive-update.py scripts/fix-aug19-patch.py .github/workflows/apply-aug19-intensive-update.yml
+          rm -f scripts/apply-aug19-intensive-update.py scripts/fix-aug19-patch.py scripts/apply-unbanned-support.py .github/workflows/apply-aug19-intensive-update.yml
           git show 21a439b9ef2234dccdf1d5feb1c37935f1eb384c:.github/workflows/engine-check.yml > .github/workflows/engine-check.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

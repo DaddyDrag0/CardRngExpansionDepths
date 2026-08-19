@@ -12,7 +12,7 @@ thumb = thumb_path.read_text()
 thumb = replace_once(
     thumb,
     "const cardFiles = [1,2,3,4,5,6].map(i => `src/data/cards-${i}.json`)\nconst auraFiles = [1,2].map(i => `src/data/auras-${i}.json`)\n",
-    "const dataFiles = await fs.readdir('src/data')\nconst numberedDataFiles = prefix => dataFiles\n  .filter(file => new RegExp(`^${prefix}-\\\\d+\\\\.json$`).test(file))\n  .sort((a, b) => Number(a.match(/(\\\\d+)/)?.[1] || 0) - Number(b.match(/(\\\\d+)/)?.[1] || 0))\n  .map(file => `src/data/${file}`)\nconst cardFiles = numberedDataFiles('cards')\nconst auraFiles = numberedDataFiles('auras')\n",
+    "const dataFiles = await fs.readdir('src/data')\nconst numberedDataFiles = prefix => dataFiles\n  .filter(file => new RegExp(`^${prefix}-\\\\d+\\\\.json$`).test(file))\n  .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))\n  .map(file => `src/data/${file}`)\nconst cardFiles = numberedDataFiles('cards')\nconst auraFiles = numberedDataFiles('auras')\n",
     'thumbnail file list',
 )
 thumb_path.write_text(thumb)

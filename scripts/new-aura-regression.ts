@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict'
-import { buildSkillAuraBoosts, getAura, getAuraRarity, getSkillAuraValue } from '../src/engine/auras'
+import { buildSkillAuraBoosts, getAura, getSkillAuraValue } from '../src/engine/auras'
 
 const expected = [
-  ['Storm Spirit', 'stormSpirit', [10, 15, 20, 10, 30]],
-  ['Guardian Angel', 'guardianAngel', [10, 15, 20, 10, 30]],
-  ['Executioner', 'executioner', [15, 25, 35, 15, 50]],
-  ['Mirror Knight', 'mirrorKnight', [10, 15, 20, 10, 30]],
-  ['Final Testament', 'finalTestament', [5, 7.5, 10, 5, 12.5]],
+  ['Storm Spirit', 'stormSpirit', [10, 15, 20, 30]],
+  ['Guardian Angel', 'guardianAngel', [10, 15, 20, 30]],
+  ['Executioner', 'executioner', [15, 25, 35, 50]],
+  ['Mirror Knight', 'mirrorKnight', [10, 15, 20, 30]],
+  ['Final Testament', 'finalTestament', [5, 7.5, 10, 12.5]],
 ] as const
 
 for (const [name, boostKey, values] of expected) {
@@ -16,16 +16,12 @@ for (const [name, boostKey, values] of expected) {
   assert.equal(getSkillAuraValue(aura, null), values[0], `${name} Base value`)
   assert.equal(getSkillAuraValue(aura, 'Platinum'), values[1], `${name} Platinum value`)
   assert.equal(getSkillAuraValue(aura, 'Crystal'), values[2], `${name} Crystal value`)
-  assert.equal(getSkillAuraValue(aura, 'Ruby'), values[3], `${name} Ruby value should match the current Roblox client tier map`)
-  assert.equal(getSkillAuraValue(aura, 'Galaxy'), values[4], `${name} Galaxy value`)
+  assert.equal(getSkillAuraValue(aura, 'Galaxy'), values[3], `${name} Galaxy value`)
   const built = buildSkillAuraBoosts({ auraName: name })
   assert.equal(built.implemented, true, `${name} must be implemented by the simulator`)
   assert.equal((built.boosts as unknown as Record<string, number>)[boostKey], values[0], `${name} combat boost`)
 }
 
-const adventurer = getAura('Adventurer')
-assert.ok(adventurer)
-assert.equal(getAuraRarity(adventurer, 'Ruby'), adventurer.rarity * 500, 'Ruby Stat Aura rarity multiplier should be x500')
 
 const virtueRarities: Record<string, number> = {
   'Cedric Of Charity': 1_000_000_000,
@@ -40,4 +36,4 @@ for (const [name, rarity] of Object.entries(virtueRarities)) {
   assert.equal(getAura(name)?.rarity, rarity, `${name} rarity should match NEW source`)
 }
 
-console.log('New blue aura + Ruby aura regression passed.')
+console.log('New blue aura regression passed.')

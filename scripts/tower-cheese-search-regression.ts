@@ -20,6 +20,6 @@ assert.ok(noParallaxPlan.orderedTeams < intensivePlan.orderedTeams, 'Excluding a
 assert.ok(intensivePlan.plannedDiscoveryBattles >= 1_000_000, 'Intensive cheese search must plan at least one million discovery battles')
 assert.ok(intensivePlan.auraVariants > 4, 'Intensive cheese search should test many Ability Aura/border variants')
 const noEndTimesPlan = towerCheeseIntensivePlan({ hasEndTimes: false })
-assert.equal(noEndTimesPlan.auraVariants, intensivePlan.auraVariants - 5, 'Disabling End Times should remove its Base/Platinum/Crystal/Ruby/Galaxy variants')
+assert.equal(noEndTimesPlan.auraVariants, intensivePlan.auraVariants - 4, 'Disabling End Times should remove its Base/Platinum/Crystal/Galaxy variants')
 assert.ok(intensivePlan.orderedTeams > 1_000, 'Intensive cheese search should test a large ordered deck space')
 console.log(`Tower cheese search regression passed with ${pool.length} candidates.`)

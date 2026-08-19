@@ -27,14 +27,18 @@ jobs:
         run: python3 scripts/apply-unbanned-support.py
       - name: Update regressions for new Depth pool
         run: python3 scripts/apply-aug19-regression-fixes.py
+      - name: Add Cherub diagnostics
+        run: python3 scripts/apply-cherub-debug.py
       - run: npm ci
+      - name: Quick Cherub/Depth regression
+        run: npx tsx scripts/depths-regression.ts
       - run: npm run check
       - name: Build browser workers
         run: npm run build:workers
       - name: Publish tested patch to PR branch
         run: |
           printf '{"version":"%s"}\n' "$(date -u +%Y%m%d-%H%M%SZ)" > site-version.json
-          rm -f scripts/apply-aug19-intensive-update.py scripts/fix-aug19-patch.py scripts/apply-unbanned-support.py scripts/apply-aug19-regression-fixes.py .github/workflows/apply-aug19-intensive-update.yml
+          rm -f scripts/apply-aug19-intensive-update.py scripts/fix-aug19-patch.py scripts/apply-unbanned-support.py scripts/apply-aug19-regression-fixes.py scripts/apply-cherub-debug.py .github/workflows/apply-aug19-intensive-update.yml
           git show 21a439b9ef2234dccdf1d5feb1c37935f1eb384c:.github/workflows/engine-check.yml > .github/workflows/engine-check.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

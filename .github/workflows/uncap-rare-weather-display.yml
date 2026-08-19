@@ -1,0 +1,28 @@
+name: Uncap Rare Weather display
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/uncap-rare-weather-display.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: python3 scripts/uncap-rare-weather-display.py
+      - name: Publish update
+        run: |
+          rm .github/workflows/uncap-rare-weather-display.yml scripts/uncap-rare-weather-display.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Show uncapped Rare Weather expected percentage"
+          git pull --rebase origin main
+          git push origin HEAD:main

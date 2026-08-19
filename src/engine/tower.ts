@@ -80,6 +80,7 @@ export interface TowerCheeseSearchProgress {
 export interface TowerCheesePoolOptions {
   excludedCards?: readonly string[]
   addedCards?: readonly string[]
+  hasEndTimes?: boolean
 }
 
 export interface TowerCheeseIntensiveOptions extends TowerCheesePoolOptions {
@@ -408,7 +409,8 @@ export function searchTowerCheese(
   for (let index = 0; index < auraPool.length; index++) {
     const entry = auraPool[index]
     let best: { loadout: TeamLoadout; score: SampleScore } | null = null
-    for (const auraName of CHEESE_AURAS) {
+    const quickAuras = poolOptions.hasEndTimes === false ? CHEESE_AURAS.filter((auraName) => auraName !== 'End Times') : CHEESE_AURAS
+    for (const auraName of quickAuras) {
       const loadout = { ...entry.loadout, abilityAura: auraName ? { auraName, border: null } : null }
       const score = sampleLoadout(loadout, enemies, 12, nextSeed(), simulations)
       if (!best || compareSamples(score, best.score) < 0) best = { loadout, score }
@@ -466,11 +468,11 @@ function orderedCheeseTeams(values: string[]): string[][] {
   return result
 }
 
-function intensiveCheeseAuraVariants(): Array<TeamLoadout['abilityAura']> {
+function intensiveCheeseAuraVariants(hasEndTimes = true): Array<TeamLoadout['abilityAura']> {
   const borders = [null, 'Platinum', 'Crystal', 'Galaxy'] as const
   const variants: Array<TeamLoadout['abilityAura']> = [null]
   const skillAuras = auras
-    .filter((aura) => !aura.unobtainable && aura.type === 'Skill')
+    .filter((aura) => !aura.unobtainable && aura.type === 'Skill' && (hasEndTimes || aura.name !== 'End Times'))
     .sort((a, b) => a.name.localeCompare(b.name))
   for (const aura of skillAuras) {
     for (const border of borders) variants.push({ auraName: aura.name, border })
@@ -481,7 +483,7 @@ function intensiveCheeseAuraVariants(): Array<TeamLoadout['abilityAura']> {
 function intensiveSearchSpace(poolOptions: TowerCheesePoolOptions = {}) {
   const pool = towerCheeseCandidatePool(poolOptions)
   const orderedTeams = orderedCheeseTeams(pool)
-  const auraVariants = intensiveCheeseAuraVariants()
+  const auraVariants = intensiveCheeseAuraVariants(poolOptions.hasEndTimes !== false)
   const variants = orderedTeams.length * auraVariants.length
   const runsPerVariant = Math.max(1, Math.ceil(1_000_000 / Math.max(1, variants)))
   return { pool, orderedTeams, auraVariants, variants, runsPerVariant }

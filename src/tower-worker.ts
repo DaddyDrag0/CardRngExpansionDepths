@@ -24,6 +24,7 @@ interface TowerCheeseSearchRequest {
   intensive?: boolean
   excludedCards?: string[]
   addedCards?: string[]
+  hasEndTimes?: boolean
   shardIndex?: number
   shardCount?: number
 }
@@ -37,7 +38,7 @@ self.onmessage = (event: MessageEvent<TowerRequest>) => {
     if (request.kind === 'tower-cheese-search') {
       const progress = (update: TowerCheeseSearchProgress) =>
         self.postMessage({ kind: 'tower-cheese-progress', id: request.id, ...update })
-      const poolOptions = { excludedCards: request.excludedCards || [], addedCards: request.addedCards || [] }
+      const poolOptions = { excludedCards: request.excludedCards || [], addedCards: request.addedCards || [], hasEndTimes: request.hasEndTimes !== false }
       const result = request.intensive
         ? searchTowerCheeseIntensive(
             request.enemyNames, request.floor, request.difficulty, request.seed, progress,

@@ -1,6 +1,8 @@
 name: Engine Check
 
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
 
@@ -13,27 +15,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - name: Apply faster Tower search update
-        run: python3 scripts/apply-faster-tower-search.py
-      - name: Fix Tower worker typing
-        run: python3 scripts/fix-faster-generated.py
       - run: npm ci
       - run: npm run check
       - name: Build browser workers
         run: npm run build:workers
-      - name: Publish tested Tower search update
+      - name: Verify worker bundles on pull requests
+        if: github.event_name == 'pull_request'
+        run: git diff --exit-code -- browser/depths-worker.js browser/tower-worker.js
+      - name: Commit worker bundles on main
+        if: github.event_name == 'push'
         run: |
-          printf '{"version":"%s"}\n' "$(date -u +%Y%m%d-%H%M%SZ)" > site-version.json
-          rm -f scripts/apply-faster-tower-search.py scripts/fix-faster-generated.py
-          git show origin/main:.github/workflows/engine-check.yml > .github/workflows/engine-check.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "Speed up intensive Tower search and add custom card pool"
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          git add browser/depths-worker.js browser/tower-worker.js
+          if git diff --cached --quiet; then
+            echo "Browser bundles unchanged."
+            exit 0
+          fi
+          git commit -m "Build browser worker bundles"
+          git push

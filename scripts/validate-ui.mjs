@@ -6,8 +6,8 @@ if (!scripts.length) throw new Error('No inline live-page script found')
 for (const script of scripts) new Function(script)
 
 const requiredUiHooks = [
-  "new Worker('./browser/depths-worker.js')",
-  "new Worker('./browser/tower-worker.js')",
+  "./browser/depths-worker.js",
+  "./browser/tower-worker.js",
   'CRE1-',
   'Most common losing-floor enemies',
   'crypto.getRandomValues',

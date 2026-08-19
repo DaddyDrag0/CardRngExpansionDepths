@@ -56,6 +56,7 @@ export interface DepthsSimulationOptions {
 
 export interface DepthsBatchOptions extends DepthsSimulationOptions {
   runs?: number
+  battleSpeedStructureLevel?: number
 }
 
 export type DepthsProgressCallback = (floor: number, battleTurn?: number, enemyNames?: string[]) => void
@@ -178,9 +179,9 @@ export function simulateDepthsBatch(
   const totalBattles = results.reduce((sum, result) => sum + result.battles, 0)
   const allTurns = results.reduce((sum, result) => sum + result.totalTurns, 0)
   const averageTurnsPerBattle = totalBattles > 0 ? allTurns / totalBattles : 0
-  const estimatedSecondsLow = estimateDepthClearSeconds(estimate.low, averageTurnsPerBattle, true)
-  const estimatedSecondsMedian = estimateDepthClearSeconds(estimate.medianDepth, averageTurnsPerBattle, true)
-  const estimatedSecondsHigh = estimateDepthClearSeconds(estimate.high, averageTurnsPerBattle, true)
+  const estimatedSecondsLow = estimateDepthClearSeconds(estimate.low, averageTurnsPerBattle, true, options.battleSpeedStructureLevel)
+  const estimatedSecondsMedian = estimateDepthClearSeconds(estimate.medianDepth, averageTurnsPerBattle, true, options.battleSpeedStructureLevel)
+  const estimatedSecondsHigh = estimateDepthClearSeconds(estimate.high, averageTurnsPerBattle, true, options.battleSpeedStructureLevel)
   const auraCardsPerHour = estimatedSecondsMedian > 0 ? estimate.auraPackMedian / (estimatedSecondsMedian / 3600) : 0
 
   return {

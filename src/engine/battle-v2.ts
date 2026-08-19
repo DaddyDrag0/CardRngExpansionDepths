@@ -1351,6 +1351,7 @@ function offensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
     case 'Frozen Wrath': if (!statusProtected(runtime, target.team)) target.counters.frostbite = Math.max(target.counters.frostbite || 0, 2); break
     case 'Favorable Odds': damage *= Math.max(1, Math.ceil(rand(runtime, attacker.team) * 5)); break
     case 'Vainglory': if (attacker.hp / attacker.maxHp > 0.5) damage *= 1.5; break
+    case 'Frail': damage *= 1.5; break
     case 'Modesty': damage *= 0.7; break
     case 'Decapitate': damage *= 2; break
     case 'Martial Will': {
@@ -1525,7 +1526,7 @@ function defensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
       break
     }
     case 'Big and Large': if (target.hp / target.maxHp > 0.25) damage *= 0.5; break
-    case 'Frail': damage *= 2; break
+    case 'Frail': damage *= 1.5; break
     case "Humanity's Spirit": if (target.hp / target.maxHp < 0.25) damage *= 0.5; break
     case 'Perforating Mist': damage *= 1.5; break
     case 'Reflective Shell': {
@@ -2059,8 +2060,12 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   target = farm.target
   damage = farm.damage
   const targetDeck = runtime.state.teams[target.team]
-  const longReachTarget = hasAbility(runtime, attacker, 'Long Reach') && targetDeck[0] === target ? targetDeck[1] : undefined
-  if (longReachTarget) pushAbilityDebug(runtime, attacker, 'Long Reach bypassed ' + (effectiveCardName(target) || target.definition.name) + ' and attacked ' + (effectiveCardName(longReachTarget) || longReachTarget.definition.name) + ' in the deck.')
+  let longReachTarget: CombatCard | undefined
+  if (hasAbility(runtime, attacker, 'Long Reach') && targetDeck[0] === target && targetDeck.length) {
+    const randomIndex = Math.min(targetDeck.length - 1, Math.floor(rand(runtime, attacker.team) * targetDeck.length))
+    longReachTarget = targetDeck[randomIndex]
+    pushAbilityDebug(runtime, attacker, 'Long Reach randomly targeted ' + (effectiveCardName(longReachTarget) || longReachTarget.definition.name) + ' from the living enemy deck.')
+  }
   const hpTarget = longReachTarget || target
   if (hasAbility(runtime, attacker, 'Defraud')) {
     // Live-game quirk: Defraud may reduce a target but can never finish it.

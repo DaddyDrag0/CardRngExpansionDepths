@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-import { searchTowerCheese, simulateTowerBatch, type TowerDifficulty } from './engine/tower'
+import { searchTowerCheese, searchTowerCheeseIntensive, simulateTowerBatch, type TowerDifficulty } from './engine/tower'
 import type { TeamLoadout } from './types'
 
 interface TowerSimulationRequest {
@@ -21,6 +21,7 @@ interface TowerCheeseSearchRequest {
   floor: number
   difficulty: TowerDifficulty
   seed: number
+  intensive?: boolean
 }
 
 type TowerRequest = TowerSimulationRequest | TowerCheeseSearchRequest
@@ -30,7 +31,8 @@ self.onmessage = (event: MessageEvent<TowerRequest>) => {
   const started = performance.now()
   try {
     if (request.kind === 'tower-cheese-search') {
-      const result = searchTowerCheese(
+      const search = request.intensive ? searchTowerCheeseIntensive : searchTowerCheese
+      const result = search(
         request.enemyNames,
         request.floor,
         request.difficulty,

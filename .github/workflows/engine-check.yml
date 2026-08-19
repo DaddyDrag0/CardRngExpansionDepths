@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: end-times-toggle
+          ref: ${{ github.event_name == 'push' && 'main' || 'end-times-toggle' }}
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
@@ -39,8 +39,12 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git show origin/main:.github/workflows/engine-check.yml > .github/workflows/engine-check.yml
-          git rm scripts/apply-end-times-toggle.py .github/workflows/end-times-toggle.yml
-          git add index.html src/engine/tower.ts src/tower-worker.ts scripts/tower-cheese-search-regression.ts browser/tower-worker.js site-version.json .github/workflows/engine-check.yml
-          git commit -m "Add End Times ownership toggle"
-          git push origin HEAD:end-times-toggle
+          if [ "${{ github.event_name }}" = "push" ]; then
+            git show HEAD^1:.github/workflows/engine-check.yml > .github/workflows/engine-check.yml
+            git rm scripts/apply-end-times-toggle.py .github/workflows/end-times-toggle.yml
+            git add index.html src/engine/tower.ts src/tower-worker.ts scripts/tower-cheese-search-regression.ts browser/tower-worker.js site-version.json .github/workflows/engine-check.yml
+            git commit -m "Add End Times ownership toggle"
+            git push origin HEAD:main
+          else
+            echo "PR check only; publish happens after merge to main."
+          fi

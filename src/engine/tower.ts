@@ -77,6 +77,16 @@ export interface TowerCheeseSearchProgress {
   battleSimulations: number
 }
 
+export interface TowerCheesePoolOptions {
+  excludedCards?: readonly string[]
+  addedCards?: readonly string[]
+}
+
+export interface TowerCheeseIntensiveOptions extends TowerCheesePoolOptions {
+  shardIndex?: number
+  shardCount?: number
+}
+
 interface SampleScore {
   wins: number
   runs: number
@@ -177,9 +187,14 @@ function resolveCheeseCard(alias: string): string | null {
   return candidates[0]?.name ?? null
 }
 
-export function towerCheeseCandidatePool(): string[] {
+export function towerCheeseCandidatePool(options: TowerCheesePoolOptions = {}): string[] {
   const resolved = CHEESE_CARD_ALIASES.map(resolveCheeseCard).filter((name): name is string => Boolean(name))
-  return [...new Set(resolved)]
+  const excluded = new Set((options.excludedCards || []).map((name) => String(name)))
+  const added = (options.addedCards || [])
+    .map((name) => CARD_BY_NAME.get(String(name)))
+    .filter((card) => Boolean(card && !card.unobtainable))
+    .map((card) => card!.name)
+  return [...new Set([...resolved, ...added])].filter((name) => !excluded.has(name))
 }
 
 /** Tower cheese inventory rules that differ from normal duplicate-friendly search. */
@@ -327,10 +342,11 @@ export function searchTowerCheese(
   difficulty: TowerDifficulty,
   seed = 1,
   onProgress?: (progress: TowerCheeseSearchProgress) => void,
+  poolOptions: TowerCheesePoolOptions = {},
 ): TowerCheeseSearchResult {
   const enemies = buildTowerEnemies(enemyNames, floor, difficulty)
-  const pool = towerCheeseCandidatePool()
-  const anchors = towerCheeseAnchors(enemyNames)
+  const pool = towerCheeseCandidatePool(poolOptions)
+  const anchors = towerCheeseAnchors(enemyNames).filter((name) => pool.includes(name))
   const missingSlots = 4 - anchors.length
   if (missingSlots < 0) throw new Error('More than four required Tower counters were selected.')
   if (!pool.length) throw new Error('Tower cheese candidate pool is empty.')
@@ -462,8 +478,8 @@ function intensiveCheeseAuraVariants(): Array<TeamLoadout['abilityAura']> {
   return variants
 }
 
-function intensiveSearchSpace() {
-  const pool = towerCheeseCandidatePool()
+function intensiveSearchSpace(poolOptions: TowerCheesePoolOptions = {}) {
+  const pool = towerCheeseCandidatePool(poolOptions)
   const orderedTeams = orderedCheeseTeams(pool)
   const auraVariants = intensiveCheeseAuraVariants()
   const variants = orderedTeams.length * auraVariants.length
@@ -471,8 +487,8 @@ function intensiveSearchSpace() {
   return { pool, orderedTeams, auraVariants, variants, runsPerVariant }
 }
 
-export function towerCheeseIntensivePlan(): TowerCheeseIntensivePlan {
-  const space = intensiveSearchSpace()
+export function towerCheeseIntensivePlan(poolOptions: TowerCheesePoolOptions = {}): TowerCheeseIntensivePlan {
+  const space = intensiveSearchSpace(poolOptions)
   return {
     orderedTeams: space.orderedTeams.length,
     auraVariants: space.auraVariants.length,
@@ -495,10 +511,17 @@ export function searchTowerCheeseIntensive(
   difficulty: TowerDifficulty,
   seed = 1,
   onProgress?: (progress: TowerCheeseSearchProgress) => void,
+  options: TowerCheeseIntensiveOptions = {},
 ): TowerCheeseSearchResult {
   const enemies = buildTowerEnemies(enemyNames, floor, difficulty)
-  const { pool, orderedTeams, auraVariants, variants, runsPerVariant } = intensiveSearchSpace()
+  const { pool, orderedTeams, auraVariants, variants, runsPerVariant } = intensiveSearchSpace(options)
   if (!pool.length) throw new Error('Tower cheese candidate pool is empty.')
+
+  const shardCount = Math.max(1, Math.floor(Number(options.shardCount) || 1))
+  const shardIndex = Math.max(0, Math.min(shardCount - 1, Math.floor(Number(options.shardIndex) || 0)))
+  const assignedTeams = shardCount === 1 ? orderedTeams : orderedTeams.filter((_, index) => index % shardCount === shardIndex)
+  const assignedVariants = assignedTeams.length * auraVariants.length
+  if (!assignedVariants) throw new Error('Tower cheese search shard has no variants.')
 
   const simulations = { value: 0 }
   const stageRng = new SeededRng(seed || 1)
@@ -507,7 +530,7 @@ export function searchTowerCheeseIntensive(
   const keep = 80
   let completed = 0
 
-  for (const names of orderedTeams) {
+  for (const names of assignedTeams) {
     for (const auraVariant of auraVariants) {
       const loadout: TeamLoadout = {
         ...loadoutFor(names, null),
@@ -520,18 +543,20 @@ export function searchTowerCheeseIntensive(
         contenders.splice(keep)
       }
       completed += 1
-      if (completed % 200 === 0 || completed === variants) {
-        onProgress?.({ phase: 'exhaustive', completed, total: variants, battleSimulations: simulations.value })
+      if (completed % 1_000 === 0 || completed === assignedVariants) {
+        onProgress?.({ phase: 'exhaustive', completed, total: assignedVariants, battleSimulations: simulations.value })
       }
     }
   }
 
   contenders.sort((a, b) => compareSamples(a.score, b.score))
-  const verifyPool = contenders.slice(0, Math.min(24, contenders.length))
+  const verifyLimit = shardCount > 1 ? 8 : 24
+  const verifyRuns = shardCount > 1 ? 1_000 : 2_000
+  const verifyPool = contenders.slice(0, Math.min(verifyLimit, contenders.length))
   const recommendations: TowerCheeseCandidate[] = []
   for (let index = 0; index < verifyPool.length; index++) {
     const entry = verifyPool[index]
-    const score = sampleLoadout(entry.loadout, enemies, 2_000, nextSeed(), simulations)
+    const score = sampleLoadout(entry.loadout, enemies, verifyRuns, nextSeed(), simulations)
     recommendations.push(candidate(entry.loadout, score))
     onProgress?.({ phase: 'verify', completed: index + 1, total: verifyPool.length, battleSimulations: simulations.value })
   }
@@ -541,7 +566,7 @@ export function searchTowerCheeseIntensive(
     recommendations: recommendations.slice(0, 10),
     anchorCards: [],
     candidatePool: pool,
-    combinations: variants,
+    combinations: assignedVariants,
     battleSimulations: simulations.value,
   }
 }

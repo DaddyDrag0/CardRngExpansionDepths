@@ -20,6 +20,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Apply daily potion display patch
+        if: github.event_name == 'push'
+        run: python3 scripts/apply-potion-daily-display.py
       - run: npm ci
       - run: npm run check
       - name: Build browser workers
@@ -27,15 +30,19 @@ jobs:
       - name: Verify worker bundles on pull requests
         if: github.event_name == 'pull_request'
         run: git diff --exit-code -- browser/depths-worker.js browser/tower-worker.js
-      - name: Commit worker bundles on main
+      - name: Commit daily potion display on main
         if: github.event_name == 'push'
         run: |
+          printf '{"version":"%s"}\n' "$(date -u +%Y%m%d-%H%M%SZ)" > site-version.json
+          rm -f .github/workflows/apply-potion-daily-display.yml scripts/apply-potion-daily-display.py
+          git checkout HEAD^ -- .github/workflows/engine-check.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add browser/depths-worker.js browser/tower-worker.js
+          git add -A
           if git diff --cached --quiet; then
-            echo "Browser bundles unchanged."
+            echo "No changes to publish."
             exit 0
           fi
-          git commit -m "Build browser worker bundles"
-          git push
+          git commit -m "Show daily potion reward estimates"
+          git pull --rebase origin main
+          git push origin HEAD:main

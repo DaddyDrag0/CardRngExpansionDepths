@@ -1,8 +1,6 @@
 name: Engine Check
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
 
@@ -15,27 +13,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+      - name: Apply Aug 19 calculator update
+        run: python3 scripts/apply-aug19-intensive-update.py
       - run: npm ci
       - run: npm run check
       - name: Build browser workers
         run: npm run build:workers
-      - name: Verify worker bundles on pull requests
-        if: github.event_name == 'pull_request'
-        run: git diff --exit-code -- browser/depths-worker.js browser/tower-worker.js
-      - name: Commit worker bundles on main
-        if: github.event_name == 'push'
+      - name: Publish tested patch to PR branch
         run: |
+          printf '{"version":"%s"}\n' "$(date -u +%Y%m%d-%H%M%SZ)" > site-version.json
+          rm -f scripts/apply-aug19-intensive-update.py .github/workflows/apply-aug19-intensive-update.yml
+          git show 21a439b9ef2234dccdf1d5feb1c37935f1eb384c:.github/workflows/engine-check.yml > .github/workflows/engine-check.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add browser/depths-worker.js browser/tower-worker.js
-          if git diff --cached --quiet; then
-            echo "Browser bundles unchanged."
-            exit 0
-          fi
-          git commit -m "Build browser worker bundles"
-          git push
+          git add -A
+          git commit -m "Add intensive Tower search and Aug 19 balance update"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}

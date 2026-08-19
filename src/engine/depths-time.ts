@@ -21,6 +21,8 @@
  */
 export const DEPTHS_BASE_BATTLE_SPEED = 3
 export const CHRONO_SHARD_BONUS = 1
+export const BATTLE_SPEED_STRUCTURE_MAX_LEVEL = 7
+export const BATTLE_SPEED_STRUCTURE_STEP = 0.25
 export const DEPTHS_FLOOR_SPEED_STEP = 0.25
 export const DEPTHS_FLOOR_SPEED_STEP_FLOORS = 100
 export const DEPTHS_FLOOR_SPEED_BONUS_CAP = 4.5
@@ -36,9 +38,15 @@ export function depthsFloorSpeedBonus(floor: number): number {
   )
 }
 
-export function effectiveDepthsBattleSpeed(floor: number, chronoShard = true): number {
+export function battleSpeedStructureBonus(level = 0): number {
+  const safeLevel = Math.max(0, Math.min(BATTLE_SPEED_STRUCTURE_MAX_LEVEL, Math.floor(Number(level) || 0)))
+  return safeLevel * BATTLE_SPEED_STRUCTURE_STEP
+}
+
+export function effectiveDepthsBattleSpeed(floor: number, chronoShard = true, structureLevel = 0): number {
   return DEPTHS_BASE_BATTLE_SPEED
     + (chronoShard ? CHRONO_SHARD_BONUS : 0)
+    + battleSpeedStructureBonus(structureLevel)
     + depthsFloorSpeedBonus(floor)
 }
 
@@ -65,20 +73,20 @@ function attackAnimationSecondsForCount(turns: number, effectiveSpeed: number): 
   return seconds
 }
 
-export function estimateBattleSeconds(floor: number, turns: number, chronoShard = true): number {
-  const speed = effectiveDepthsBattleSpeed(floor, chronoShard)
+export function estimateBattleSeconds(floor: number, turns: number, chronoShard = true, structureLevel = 0): number {
+  const speed = effectiveDepthsBattleSpeed(floor, chronoShard, structureLevel)
   return INTER_FLOOR_OVERHEAD_SECONDS
     + BASE_BATTLE_START_SECONDS / speed
     + attackAnimationSecondsForCount(turns, speed)
 }
 
 /** Estimate a full run using the batch's observed average turns per battle. */
-export function estimateDepthClearSeconds(depth: number, averageTurnsPerBattle: number, chronoShard = true): number {
+export function estimateDepthClearSeconds(depth: number, averageTurnsPerBattle: number, chronoShard = true, structureLevel = 0): number {
   const endFloor = Math.max(0, Math.floor(Number(depth) || 0))
   const avgTurns = Math.max(0, Number(averageTurnsPerBattle) || 0)
   let seconds = 0
   for (let floor = 1; floor <= endFloor; floor++) {
-    seconds += estimateBattleSeconds(floor, avgTurns, chronoShard)
+    seconds += estimateBattleSeconds(floor, avgTurns, chronoShard, structureLevel)
   }
   return seconds
 }

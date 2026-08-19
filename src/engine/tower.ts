@@ -1,4 +1,5 @@
 import cards from '../data/cards'
+import auras from '../data/auras'
 import type { BattleResult, DepthsEnemy, TeamCard, TeamLoadout } from '../types'
 import { simulateBattleV2 } from './battle-v2'
 import { SeededRng } from './rng'
@@ -32,6 +33,7 @@ const CHEESE_CARD_ALIASES = [
   'Control Freak',
   "Hell's Army",
   'Noveau Riche',
+  'True Prophet',
 ] as const
 
 const CHEESE_AURAS = [null, 'End Times', 'Flame Wizard'] as const
@@ -69,7 +71,7 @@ export interface TowerCheeseSearchResult {
 }
 
 export interface TowerCheeseSearchProgress {
-  phase: 'quick' | 'order' | 'aura' | 'final'
+  phase: 'quick' | 'order' | 'aura' | 'final' | 'exhaustive' | 'verify'
   completed: number
   total: number
   battleSimulations: number
@@ -420,3 +422,127 @@ export function searchTowerCheese(
     battleSimulations: simulations.value,
   }
 }
+
+export interface TowerCheeseIntensivePlan {
+  orderedTeams: number
+  auraVariants: number
+  variants: number
+  runsPerVariant: number
+  plannedDiscoveryBattles: number
+}
+
+function orderedCheeseTeams(values: string[]): string[][] {
+  const result: string[][] = []
+  const current: string[] = []
+  const walk = () => {
+    if (current.length === 4) {
+      result.push([...current])
+      return
+    }
+    for (const name of values) {
+      if (name === 'Parallax' && current.includes('Parallax')) continue
+      current.push(name)
+      walk()
+      current.pop()
+    }
+  }
+  walk()
+  return result
+}
+
+function intensiveCheeseAuraVariants(): Array<TeamLoadout['abilityAura']> {
+  const borders = [null, 'Platinum', 'Crystal', 'Galaxy'] as const
+  const variants: Array<TeamLoadout['abilityAura']> = [null]
+  const skillAuras = auras
+    .filter((aura) => !aura.unobtainable && aura.type === 'Skill')
+    .sort((a, b) => a.name.localeCompare(b.name))
+  for (const aura of skillAuras) {
+    for (const border of borders) variants.push({ auraName: aura.name, border })
+  }
+  return variants
+}
+
+function intensiveSearchSpace() {
+  const pool = towerCheeseCandidatePool()
+  const orderedTeams = orderedCheeseTeams(pool)
+  const auraVariants = intensiveCheeseAuraVariants()
+  const variants = orderedTeams.length * auraVariants.length
+  const runsPerVariant = Math.max(1, Math.ceil(1_000_000 / Math.max(1, variants)))
+  return { pool, orderedTeams, auraVariants, variants, runsPerVariant }
+}
+
+export function towerCheeseIntensivePlan(): TowerCheeseIntensivePlan {
+  const space = intensiveSearchSpace()
+  return {
+    orderedTeams: space.orderedTeams.length,
+    auraVariants: space.auraVariants.length,
+    variants: space.variants,
+    runsPerVariant: space.runsPerVariant,
+    plannedDiscoveryBattles: space.variants * space.runsPerVariant,
+  }
+}
+
+/**
+ * Deliberately expensive Tower search. Unlike the fast search, this does not prune by anchors,
+ * order, or a small aura list. Every legal ordered four-card lineup in the cheese pool is tested
+ * with no aura and every obtainable Skill Aura at Base/Platinum/Crystal/Galaxy. The discovery pass
+ * is guaranteed to execute at least one million battles, then the best candidates get an independent
+ * 2,000-battle verification pass.
+ */
+export function searchTowerCheeseIntensive(
+  enemyNames: string[],
+  floor: number,
+  difficulty: TowerDifficulty,
+  seed = 1,
+  onProgress?: (progress: TowerCheeseSearchProgress) => void,
+): TowerCheeseSearchResult {
+  const enemies = buildTowerEnemies(enemyNames, floor, difficulty)
+  const { pool, orderedTeams, auraVariants, variants, runsPerVariant } = intensiveSearchSpace()
+  if (!pool.length) throw new Error('Tower cheese candidate pool is empty.')
+
+  const simulations = { value: 0 }
+  const stageRng = new SeededRng(seed || 1)
+  const nextSeed = () => Math.floor(stageRng.next() * 0x7fffffff) || 1
+  const contenders: Array<{ loadout: TeamLoadout; score: SampleScore }> = []
+  const keep = 80
+  let completed = 0
+
+  for (const names of orderedTeams) {
+    for (const auraVariant of auraVariants) {
+      const loadout: TeamLoadout = {
+        ...loadoutFor(names, null),
+        abilityAura: auraVariant ? { ...auraVariant } : null,
+      }
+      const score = sampleLoadout(loadout, enemies, runsPerVariant, nextSeed(), simulations)
+      contenders.push({ loadout, score })
+      if (contenders.length >= keep * 2) {
+        contenders.sort((a, b) => compareSamples(a.score, b.score))
+        contenders.splice(keep)
+      }
+      completed += 1
+      if (completed % 200 === 0 || completed === variants) {
+        onProgress?.({ phase: 'exhaustive', completed, total: variants, battleSimulations: simulations.value })
+      }
+    }
+  }
+
+  contenders.sort((a, b) => compareSamples(a.score, b.score))
+  const verifyPool = contenders.slice(0, Math.min(24, contenders.length))
+  const recommendations: TowerCheeseCandidate[] = []
+  for (let index = 0; index < verifyPool.length; index++) {
+    const entry = verifyPool[index]
+    const score = sampleLoadout(entry.loadout, enemies, 2_000, nextSeed(), simulations)
+    recommendations.push(candidate(entry.loadout, score))
+    onProgress?.({ phase: 'verify', completed: index + 1, total: verifyPool.length, battleSimulations: simulations.value })
+  }
+  recommendations.sort(compareCandidates)
+
+  return {
+    recommendations: recommendations.slice(0, 10),
+    anchorCards: [],
+    candidatePool: pool,
+    combinations: variants,
+    battleSimulations: simulations.value,
+  }
+}
+

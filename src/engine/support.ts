@@ -36,6 +36,7 @@ export const SOURCE_ALIGNED_ABILITIES = new Set([
   'Jaws', 'Lightning Strike', 'Danger Sense', 'Defensive Maneuver', 'First Tail',
   'Grind', 'World Creation', 'Melancholy', 'The World', 'Accelerate', 'Black Flash',
   'Limitless', "Monkey King's Rage",
+  'Flames of Rebirth', 'God of Trickery', 'Long Reach', 'Order of the Cosmos', 'Sacred Judgment',
   'A Pair of Two', 'Final Stand', 'Heard but not Seen', 'Lights Way', 'Eclipse',
   'Friendship', 'Fusion... HA!', 'Divine Mist', 'Dark Qi Manipulation',
   'Immortal Ascension', 'Hard Boiled', 'Tyrannospirit', 'Absolute Apex', 'Last Meal',

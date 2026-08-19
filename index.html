@@ -391,7 +391,9 @@ function decodeTeam(code){
   if(!r)return team.lastError?`<section class="result-card"><div class="result-head"><div><span class="kicker">TEAM ${index+1}</span><h4>Simulation failed</h4></div></div><div class="team-error">${esc(team.lastError)}</div></section>`:'';
   const avgTurns=r.runs.length?r.runs.reduce((s,x)=>s+x.totalTurns,0)/r.runs.length:0;
   const drops=r.potionRewards;
-  const dropHtml=drops?`<div class="reward-drop-grid"><div class="reward-drop-card"><span>Jackpot Potion ${drops.bountiful?'<em>· Bountiful</em>':''}</span><b>${one(drops.low.jackpot.expected)}–${one(drops.high.jackpot.expected)} / run</b></div><div class="reward-drop-card"><span>Rare Weather Potion ${drops.bountiful?'<em>· Bountiful</em>':''}</span><b>Average of ${one(drops.median.rareWeather.expected)}</b></div></div>`:'';
+  const runsPerDayLow=r.estimatedSecondsHigh>0?86400/r.estimatedSecondsHigh:0,runsPerDayMedian=r.estimatedSecondsMedian>0?86400/r.estimatedSecondsMedian:0,runsPerDayHigh=r.estimatedSecondsLow>0?86400/r.estimatedSecondsLow:0;
+  const jackpotDayLow=drops?drops.low.jackpot.expected*runsPerDayLow:0,jackpotDayHigh=drops?drops.high.jackpot.expected*runsPerDayHigh:0,rareWeatherDay=drops?drops.median.rareWeather.expected*runsPerDayMedian:0;
+  const dropHtml=drops?`<div class="reward-drop-grid"><div class="reward-drop-card"><span>Jackpot Potion ${drops.bountiful?'<em>· Bountiful</em>':''}</span><b>${one(drops.low.jackpot.expected)}–${one(drops.high.jackpot.expected)} / run</b><small>≈${one(jackpotDayLow)}–${one(jackpotDayHigh)} / day</small></div><div class="reward-drop-card"><span>Rare Weather Potion ${drops.bountiful?'<em>· Bountiful</em>':''}</span><b>Average of ${one(drops.median.rareWeather.expected)}</b><small>≈${one(rareWeatherDay)} / day</small></div></div>`:'';
   const enemyCounts={};
   for(const run of r.runs)for(const name of (run.endingEnemies||[]))enemyCounts[name]=(enemyCounts[name]||0)+1;
   const commonEnemies=Object.entries(enemyCounts).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,6);

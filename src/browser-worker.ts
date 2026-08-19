@@ -14,6 +14,7 @@ interface BatchRequest {
   floorCap: number
   seed: number
   bannedCardNames?: string[]
+  rebanLegacyDepths?: boolean
   bountifulDepths?: boolean
 }
 
@@ -25,6 +26,7 @@ interface SingleRunRequest {
   batchSeed: number
   runIndex: number
   bannedCardNames?: string[]
+  rebanLegacyDepths?: boolean
 }
 
 type SimulationRequest = BatchRequest | SingleRunRequest
@@ -87,6 +89,7 @@ function simulateOne(request: SingleRunRequest, onProgress?: (floor: number, bat
     battleTurnCap: LIVE_BATTLE_TURN_CAP,
     throwOnBattleTurnCap: false,
     bannedCardNames: request.bannedCardNames,
+    rebanLegacyDepths: request.rebanLegacyDepths,
   }, onProgress)
 }
 
@@ -222,6 +225,7 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
         batchSeed: request.seed,
         runIndex,
         bannedCardNames: request.bannedCardNames,
+        rebanLegacyDepths: request.rebanLegacyDepths,
       } satisfies SingleRunRequest)
     }
 

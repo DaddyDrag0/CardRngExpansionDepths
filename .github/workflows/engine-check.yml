@@ -30,9 +30,7 @@ jobs:
             echo "Potion patch already applied."
           fi
       - run: npm ci
-      - run: npm run check
-      - name: Build browser workers
-        run: npm run build:workers
+      - run: npm run test:ui
       - name: Publish patch to PR branch
         if: github.event_name == 'pull_request'
         run: |
@@ -48,15 +46,3 @@ jobs:
           git add -A
           git commit -m "Show daily potion reward estimates"
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
-      - name: Commit worker bundles on main
-        if: github.event_name == 'push'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add browser/depths-worker.js browser/tower-worker.js
-          if git diff --cached --quiet; then
-            echo "Browser bundles unchanged."
-            exit 0
-          fi
-          git commit -m "Build browser worker bundles"
-          git push

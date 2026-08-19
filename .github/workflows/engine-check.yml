@@ -1,6 +1,8 @@
 name: Engine Check
 
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
 
@@ -13,27 +15,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: aug19-new-blue-auras
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - name: Apply NEW aura source changes
-        run: python3 scripts/apply-new-auras.py
       - run: npm ci
       - run: npm run check
       - name: Build browser workers
         run: npm run build:workers
-      - name: Bump site version
-        run: |
-          printf '{"version":"%s"}\n' "$(date -u +%Y%m%d-%H%M%SZ)" > site-version.json
-      - name: Publish tested NEW aura update
+      - name: Verify worker bundles on pull requests
+        if: github.event_name == 'pull_request'
+        run: git diff --exit-code -- browser/depths-worker.js browser/tower-worker.js
+      - name: Commit worker bundles on main
+        if: github.event_name == 'push'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git show origin/main:.github/workflows/engine-check.yml > .github/workflows/engine-check.yml
-          rm -f scripts/apply-new-auras.py .github/workflows/new-blue-auras.yml .new-auras-trigger
-          git add -A
-          git commit -m "Add new blue auras and Ruby aura border"
-          git push origin HEAD:aug19-new-blue-auras
+          git add browser/depths-worker.js browser/tower-worker.js
+          if git diff --cached --quiet; then
+            echo "Browser bundles unchanged."
+            exit 0
+          fi
+          git commit -m "Build browser worker bundles"
+          git push

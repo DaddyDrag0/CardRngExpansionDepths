@@ -1980,6 +1980,11 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   damage = off.damage
   bypass = bypass || off.bypass
 
+  const executioner = runtime.state.boosts[attacker.team].executioner
+  if (executioner && target.maxHp > 0 && target.hp / target.maxHp < 0.3) {
+    damage *= 1 + executioner / 100
+  }
+
   if (attacker.status.blind && rand(runtime, attacker.team) > 0.4) { damage = 0; pushAbilityDebug(runtime, attacker, 'Blind caused the attack to miss.') }
 
   if (!off.special && hasAbility(runtime, target, 'All Father') && damage > 0) {
@@ -2076,6 +2081,16 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   }
   const appliedHpDamage = Math.min(hpTarget.hp, damage)
   hpTarget.hp -= appliedHpDamage
+
+  const mirrorKnight = runtime.state.boosts[hpTarget.team].mirrorKnight
+  if (appliedHpDamage > 0 && attacker !== hpTarget && mirrorKnight && alive(attacker)) {
+    const reflected = Math.min(attacker.hp, appliedHpDamage * mirrorKnight / 100)
+    if (reflected > 0) {
+      attacker.hp -= reflected
+      pushAbilityDebug(runtime, hpTarget, 'Mirror Knight aura reflected ' + compactDebugNumber(reflected) + ' damage back to ' + (effectiveCardName(attacker) || attacker.definition.name) + '.')
+    }
+  }
+
   if (appliedHpDamage > 0 && (hpTarget.counters.bindFatePair || 0) > 0) {
     const pair = hpTarget.counters.bindFatePair
     const partner = runtime.state.teams[hpTarget.team].find((candidate) =>
@@ -2278,6 +2293,15 @@ function resolveDeaths(runtime: Runtime) {
       const card = deck[0]
       if (!card || card.hp > 0) continue
 
+      const guardianAngel = runtime.state.boosts[team].guardianAngel
+      if (guardianAngel && !card.flags.guardianAngelUsed && runtime.rng.next() * 100 < guardianAngel) {
+        card.flags.guardianAngelUsed = true
+        card.hp = 1
+        pushAbilityDebug(runtime, card, 'Guardian Angel prevented lethal damage and left this ally at 1 HP. Its one save for this ally is now used.')
+        changed = true
+        continue
+      }
+
       if (hasAbility(runtime, card, 'Undying')) {
         if (!card.flags.undyingActive) {
           card.flags.undyingActive = true
@@ -2329,6 +2353,18 @@ function resolveDeaths(runtime: Runtime) {
       card.hp = 0
       card.dead = true
       runtime.state.fallen[team].push(card)
+
+      const finalTestament = runtime.state.boosts[team].finalTestament
+      const inheritor = deck[0]
+      if (inheritor && finalTestament) {
+        const inheritedDamage = card.damage * finalTestament / 100
+        const inheritedHp = card.maxHp * finalTestament / 100
+        inheritor.damage += inheritedDamage
+        inheritor.maxHp += inheritedHp
+        inheritor.hp += inheritedHp
+        pushAbilityDebug(runtime, card, 'Final Testament passed ' + finalTestament + '% of its ATK and Max HP to ' + (effectiveCardName(inheritor) || inheritor.definition.name) + '.')
+      }
+
       if (runtime.captureDebug) pushDebugEvent(runtime, {
         turn: runtime.state.turn,
         type: 'death',
@@ -2870,6 +2906,15 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
         dealDamage(runtime, attacker, target, 0.5, true)
       }
       resolveDeaths(runtime)
+
+      const stormSpirit = runtime.state.boosts[attacker.team].stormSpirit
+      const stormTarget = active(runtime, enemyTeam)
+      if (stormSpirit && stormTarget && alive(attacker) && runtime.rng.next() * 100 < stormSpirit) {
+        pushAbilityDebug(runtime, attacker, 'Storm Spirit triggered — immediately attacking again at 50% damage.')
+        const stormDamage = dealDamage(runtime, attacker, stormTarget, 0.5)
+        applyCollateralAfterHit(runtime, attacker, stormTarget, stormDamage)
+        resolveDeaths(runtime)
+      }
     }
   }
 

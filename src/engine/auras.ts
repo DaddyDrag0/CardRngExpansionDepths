@@ -10,20 +10,30 @@ import type {
 export const AURA_RARITY_MULTIPLIERS: Record<AuraBorderName, number> = {
   Platinum: 10,
   Crystal: 100,
+  Ruby: 500,
   Galaxy: 1_000,
 }
 
 const AURA_TIERS: Record<AuraBorderName, number> = {
   Platinum: 1,
   Crystal: 2,
+  // Current Roblox client source omits Ruby from the Skill-aura tier table,
+  // so Ruby Skill auras resolve to the base tier even though Stat auras use x500 rarity.
+  Ruby: 0,
   Galaxy: 3,
 }
 
-const CUSTOM_SKILL_VALUES: Record<string, readonly [number, number, number, number]> = {
+const CUSTOM_SKILL_VALUES: Record<string, readonly number[]> = {
   Berserker: [5, 10, 15, 20],
   'Flame Wizard': [15, 25, 35, 50],
   Shielder: [2, 5, 7, 10],
   'Synth Human': [8, 10, 12, 15],
+  'Storm Spirit': [10, 15, 20, 30],
+  'Guardian Angel': [10, 15, 20, 30],
+  Executioner: [15, 25, 35, 50],
+  'Mirror Knight': [10, 15, 20, 30],
+  // The NEW source contains a fifth 15% entry, but its current generic tier map never selects it.
+  'Final Testament': [5, 7.5, 10, 12.5, 15],
 }
 
 const BOOSTED_PACKS: Record<string, string> = {
@@ -76,7 +86,7 @@ export function getStatAuraValue(aura: AuraDefinition, border?: AuraBorderName |
 export function getSkillAuraValue(aura: AuraDefinition, border?: AuraBorderName | null): number {
   const tier = getAuraTier(border)
   const custom = CUSTOM_SKILL_VALUES[aura.name]
-  if (custom) return custom[tier]
+  if (custom) return custom[tier] ?? custom[0] ?? 0
   return Number(aura.base || 0) + Number(aura.perLevel || 0) * tier
 }
 
@@ -181,6 +191,11 @@ const DIRECT_SKILL_BOOST_KEYS: Record<string, keyof BattleBoosts> = {
   'Synth Human': 'synthHuman',
   'End Times': 'endTimes',
   'Vampire Matron': 'vampireMatron',
+  'Storm Spirit': 'stormSpirit',
+  'Guardian Angel': 'guardianAngel',
+  Executioner: 'executioner',
+  'Mirror Knight': 'mirrorKnight',
+  'Final Testament': 'finalTestament',
 }
 
 export function buildSkillAuraBoosts(selection?: AuraSelection | null): {

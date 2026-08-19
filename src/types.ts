@@ -1,5 +1,5 @@
 export type BorderName = 'Platinum' | 'Crystal' | 'Ruby' | 'Galaxy'
-export type AuraBorderName = 'Platinum' | 'Crystal' | 'Galaxy'
+export type AuraBorderName = 'Platinum' | 'Crystal' | 'Ruby' | 'Galaxy'
 export type BattleTeam = 'Allies' | 'Enemies'
 
 export interface CardDefinition {
@@ -94,6 +94,11 @@ export interface BattleBoosts {
   synthHuman?: number
   endTimes?: number
   vampireMatron?: number
+  stormSpirit?: number
+  guardianAngel?: number
+  executioner?: number
+  mirrorKnight?: number
+  finalTestament?: number
   fossils?: number
   composerCount?: number
   composerThreshold?: number

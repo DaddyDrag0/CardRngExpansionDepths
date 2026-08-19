@@ -13,5 +13,9 @@ old = "t = replace_once(t, '      const result = searchTowerCheese(request.enemy
 new = "t = replace_once(t, '      const result = searchTowerCheese(\\n', '      const search = request.intensive ? searchTowerCheeseIntensive : searchTowerCheese\\n      const result = search(\\n', 'tower worker search dispatch')"
 if old not in t: raise SystemExit('worker dispatch patch line not found')
 t = t.replace(old, new, 1)
+old = "t = replace_once(t, 'rebanLegacyDepths:state.rebanLegacyDepths,', '', 'persist reban removal')"
+new = "count=t.count('rebanLegacyDepths:state.rebanLegacyDepths,')\nif count != 2: raise SystemExit(f'reban UI references: expected 2, found {count}')\nt=t.replace('rebanLegacyDepths:state.rebanLegacyDepths,','')"
+if old not in t: raise SystemExit('reban patch line not found')
+t = t.replace(old, new, 1)
 p.write_text(t)
 print('Patch anchors fixed.')

@@ -1,0 +1,97 @@
+name: Diagnose Team 2 Depths mismatch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/diagnose-team2.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run exact reported team
+        run: |
+          cat > /tmp/diagnose.ts <<'TS'
+          import fs from 'node:fs'
+          import { simulateDepthsBatch } from './src/engine/simulation'
+          import type { TeamLoadout } from './src/types'
+
+          const loadout: TeamLoadout = {
+            cards: [
+              { cardName: 'Fuxi', borders: [] },
+              { cardName: 'Cosmic Pop Star', borders: ['Platinum'] },
+              { cardName: 'Meteosaurus', borders: ['Platinum','Galaxy'] },
+              { cardName: 'Priest', borders: ['Platinum','Galaxy'] },
+            ],
+            statAura: { auraName: 'Yggdrasil', border: 'Galaxy' },
+            abilityAura: { auraName: 'Vampire Matron', border: 'Galaxy' },
+          }
+          const bannedCardNames = ['Surt','Yamato no Orochi','Poison Witch','Piccolo','Mastermind','Cosmic Pop Star']
+          const result = simulateDepthsBatch(loadout, {
+            runs: 200,
+            startFloor: 1,
+            floorCap: 12000,
+            seed: 0x26082026,
+            battleTurnCap: 10000,
+            bannedCardNames,
+            battleSpeedStructureLevel: 7,
+          })
+          const floors = result.runs.map(r => r.deathFloor).sort((a,b)=>a-b)
+          const q = (p:number) => {
+            const x=(floors.length-1)*p, lo=Math.floor(x), hi=Math.ceil(x)
+            return lo===hi?floors[lo]:floors[lo]+(floors[hi]-floors[lo])*(x-lo)
+          }
+          const enemyCounts: Record<string,number> = {}
+          for (const run of result.runs) for (const name of run.endingEnemies) enemyCounts[name]=(enemyCounts[name]||0)+1
+          const lowest = [...result.runs].sort((a,b)=>a.deathFloor-b.deathFloor).slice(0,20).map(r=>({
+            deathFloor:r.deathFloor,
+            enemies:r.endingEnemies,
+            trusted:r.trusted,
+            unsupported:r.unsupportedAbilities,
+            turnLimit:r.turnLimitEnemy||null,
+            events:r.debug?.events?.slice(-30).map(e=>({turn:e.turn,type:e.type,team:e.team,card:e.card,detail:e.detail}))||[],
+          }))
+          const out = {
+            loadout,
+            bannedCardNames,
+            summary:{
+              runs:floors.length,
+              min:floors[0],
+              p01:q(.01),p05:q(.05),p10:q(.10),p25:q(.25),median:q(.50),p75:q(.75),p90:q(.90),p95:q(.95),p99:q(.99),max:floors.at(-1),
+              average:result.averageFloor,
+              below4900:floors.filter(f=>f<4900).length,
+              below5200:floors.filter(f=>f<5200).length,
+              below5500:floors.filter(f=>f<5500).length,
+              below5800:floors.filter(f=>f<5800).length,
+              currentEstimatedLow:result.estimatedFloorLow,
+              currentEstimatedHigh:result.estimatedFloorHigh,
+            },
+            topLosingEnemies:Object.entries(enemyCounts).sort((a,b)=>b[1]-a[1]).slice(0,25),
+            lowest,
+          }
+          fs.mkdirSync('diagnostics',{recursive:true})
+          fs.writeFileSync('diagnostics/team2-20260820.json', JSON.stringify(out,null,2)+'\n')
+          console.log(JSON.stringify(out.summary,null,2))
+          TS
+          npx tsx /tmp/diagnose.ts
+      - name: Publish diagnostic
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/diagnose-team2.yml
+          git add -A diagnostics/team2-20260820.json .github/workflows/diagnose-team2.yml
+          git commit -m "Record Team 2 Depths diagnostic"
+          git pull --rebase origin main
+          git push origin HEAD:main

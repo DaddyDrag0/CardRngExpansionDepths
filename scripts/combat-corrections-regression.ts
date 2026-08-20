@@ -43,6 +43,49 @@ console.log('Zombie Dragon global-turn regression passed:', zombieBattle.turns, 
 // Pandora intentionally draws from the full supported card pool, including limited-card abilities.
 // The older limited-only exclusion regression was removed because it contradicted the current engine contract.
 
+// Storm Spirit must not jump to the next enemy when the primary attack kills its target.
+const stormKillLoadout: TeamLoadout = {
+  cards: [{ cardName: 'Titan', borders: ['Galaxy'] }],
+  abilityAura: { auraName: 'Storm Spirit', border: 'Galaxy' },
+}
+const stormKillEnemies: DepthsEnemy[] = [
+  { card: card('Wizard'), power: 1, attack: 0, health: 1 },
+  { card: card('Wizard'), power: 1, attack: 0, health: 1 },
+]
+for (let seed = 1; seed <= 40; seed++) {
+  const battle = simulateBattleV2(stormKillLoadout, stormKillEnemies, seed, 20, true, true)
+  const badProc = battle.debug.events.some((event) => event.detail?.includes('Storm Spirit triggered'))
+  assert(!badProc, `Storm Spirit incorrectly proc'd after a killing primary hit on seed ${seed}`)
+}
+
+// But Storm Spirit must still proc normally when the primary target survives.
+const stormSurviveEnemy: DepthsEnemy[] = [{ card: card('Titan'), power: 1_000_000_000, attack: 0, health: 1_000_000_000 }]
+let sawStormProc = false
+for (let seed = 1; seed <= 80 && !sawStormProc; seed++) {
+  const battle = simulateBattleV2(stormKillLoadout, stormSurviveEnemy, seed, 1, true, true)
+  sawStormProc = battle.debug.events.some((event) => event.detail?.includes('Storm Spirit triggered'))
+}
+assert(sawStormProc, 'Storm Spirit should still be able to proc when the primary target survives')
+console.log('Storm Spirit kill-gate regression passed')
+
+// Live-game quirk: Triceratops Horned Attack overkill can kill a Parallax in the
+// next slot without Paradox killing Triceratops in return.
+const triceratopsBattle = simulateBattleV2(
+  { cards: [{ cardName: 'Triceratops', borders: [] }] },
+  [
+    { card: card('Wizard'), power: 10, attack: 0, health: 10 },
+    { card: card('Parallax'), power: 10, attack: 0, health: 10 },
+  ],
+  777,
+  20,
+  true,
+  true,
+)
+assert(triceratopsBattle.winner === 'Allies', `Triceratops overkill should bypass Paradox; got ${triceratopsBattle.winner}`)
+assert(triceratopsBattle.state.teams.Allies.some((entry) => entry.definition.name === 'Triceratops'), 'Triceratops should survive the Parallax overkill quirk')
+assert(triceratopsBattle.state.fallen.Enemies.some((entry) => entry.definition.name === 'Parallax'), 'Parallax should die to Triceratops overkill')
+console.log('Triceratops overkill/Parallax regression passed')
+
 // Calibration snapshot for the known Shuten/Desmond/Berserker deck.
 const calibration: TeamLoadout = {
   cards: [

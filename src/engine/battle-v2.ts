@@ -1232,7 +1232,16 @@ function onEntry(runtime: Runtime, card: CombatCard) {
         resolveDeaths(runtime)
         if (dealt > hpBefore && first.hp <= 0) {
           const next = active(runtime, enemyTeam)
-          if (next) next.hp -= Math.min(next.hp, dealt - hpBefore)
+          if (next) {
+            const overflowDamage = Math.min(next.hp, dealt - hpBefore)
+            // Preserve the live-game Triceratops quirk: lethal overkill into a
+            // Parallax behind the front card bypasses Paradox retaliation.
+            if (overflowDamage >= next.hp && hasAbility(runtime, next, 'Paradox') && !next.flags.paradox) {
+              next.flags.paradox = true
+              pushAbilityDebug(runtime, card, 'Horned Attack overkill bypassed Paradox on the card behind the defeated target.')
+            }
+            next.hp -= overflowDamage
+          }
           resolveDeaths(runtime)
         }
       }
@@ -2909,7 +2918,9 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
 
       const stormSpirit = runtime.state.boosts[attacker.team].stormSpirit
       const stormTarget = active(runtime, enemyTeam)
-      if (stormSpirit && stormTarget && alive(attacker) && runtime.rng.next() * 100 < stormSpirit) {
+      // Live behavior: Overcharge does not roll onto the next enemy when the
+      // primary attack killed the card it originally struck.
+      if (stormSpirit && stormTarget && alive(attacker) && alive(target) && runtime.rng.next() * 100 < stormSpirit) {
         pushAbilityDebug(runtime, attacker, 'Storm Spirit triggered — immediately attacking again at 50% damage.')
         const stormDamage = dealDamage(runtime, attacker, stormTarget, 0.5)
         applyCollateralAfterHit(runtime, attacker, stormTarget, stormDamage)

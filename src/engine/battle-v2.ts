@@ -1951,8 +1951,12 @@ function attackerRetro(runtime: Runtime, attacker: CombatCard, target: CombatCar
 function resolveAuraFarm(runtime: Runtime, target: CombatCard, incoming: number): { target: CombatCard; damage: number } {
   if (incoming < target.hp) return { target, damage: incoming }
   const deck = runtime.state.teams[target.team]
+  // Aura Farm only protects the active card directly ahead of Piccolo.
+  // Origin/Long Reach can hit Piccolo on the bench; Piccolo must never
+  // treat itself as the card it is protecting or overwrite the front slot.
+  if (deck[0] !== target) return { target, damage: incoming }
   const piccolo = deck[1]
-  if (!piccolo || piccolo.definition.name !== 'Piccolo' || piccolo.flags.farmed) return { target, damage: incoming }
+  if (!piccolo || piccolo === target || !alive(piccolo) || piccolo.definition.name !== 'Piccolo' || piccolo.flags.farmed) return { target, damage: incoming }
   const protectedName = effectiveCardName(target) || target.definition.name
   const fatherhood = target.definition.name === 'Kid Gohan'
   piccolo.flags.farmed = true

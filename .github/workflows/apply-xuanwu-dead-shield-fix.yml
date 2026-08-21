@@ -1,0 +1,86 @@
+name: Apply Xuanwu dead shield fix
+
+on:
+  push:
+    branches: [fix-xuanwu-dead-shield]
+    paths:
+      - '.github/workflows/apply-xuanwu-dead-shield-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix-xuanwu-dead-shield
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Patch Xuanwu and add regression
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          battle_path = Path('src/engine/battle-v2.ts')
+          battle = battle_path.read_text()
+          old = """function waterShield(runtime: Runtime, team: BattleTeam, target: CombatCard): CombatCard | undefined {
+            return runtime.state.teams[team].find((card) => card !== target && hasAbility(runtime, card, 'Water Shield of Xuanwu'))
+          }
+          """
+          new = """function waterShield(runtime: Runtime, team: BattleTeam, target: CombatCard): CombatCard | undefined {
+            // Bench cards can remain in the deck at 0 HP until they reach the front.
+            // A defeated Xuanwu must not keep redirecting damage while waiting there.
+            return runtime.state.teams[team].find((card) => card !== target && alive(card) && hasAbility(runtime, card, 'Water Shield of Xuanwu'))
+          }
+          """
+          if old not in battle:
+              raise SystemExit('waterShield patch target not found')
+          battle_path.write_text(battle.replace(old, new, 1))
+
+          regression_path = Path('scripts/combat-corrections-regression.ts')
+          regression = regression_path.read_text()
+          marker = "// Calibration snapshot for the known Shuten/Desmond/Berserker deck.\n"
+          if marker not in regression:
+              raise SystemExit('regression insertion marker not found')
+          test = r'''// Water Shield of Xuanwu only protects allies while Xuanwu is alive.
+          // A bench Xuanwu can be reduced to 0 HP before reaching the front; it must not
+          // continue providing a free 50% reduction from that point onward.
+          const xuanwuShieldBattle = simulateBattleV2(
+            { cards: [{ cardName: 'Titan', borders: [] }] },
+            [
+              { card: card('Astraeus'), power: 1e30, attack: 0, health: 1e30 },
+              { card: card('Běi Fāng Xuán Wǔ'), power: 1, attack: 0, health: 1 },
+            ],
+            0x58a9,
+            8,
+            true,
+          )
+          const xuanwuRedirects = xuanwuShieldBattle.debug.events.filter((event) =>
+            event.detail?.includes('Water Shield of Xuanwu redirected')
+          )
+          assert(xuanwuRedirects.length === 1, `Dead Xuanwu kept shielding: saw ${xuanwuRedirects.length} redirects after it should have died`)
+          console.log('Xuanwu dead-shield regression passed')
+
+          '''
+          regression_path.write_text(regression.replace(marker, test + marker, 1))
+          PY
+      - run: npm ci
+      - run: npm run check
+      - name: Build browser workers
+        run: npm run build:workers
+      - name: Bump site version
+        run: printf '{"version":"%s"}\n' "$(date -u +%Y%m%d-%H%M%SZ)" > site-version.json
+      - name: Commit tested fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/apply-xuanwu-dead-shield-fix.yml
+          git add -A
+          git commit -m "Stop dead Xuanwu from shielding allies"
+          git push origin HEAD:fix-xuanwu-dead-shield

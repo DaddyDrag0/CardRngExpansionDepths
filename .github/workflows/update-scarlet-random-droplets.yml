@@ -112,3 +112,5 @@ html[data-theme="scarlet"] body::after{
           git add .github/workflows/update-scarlet-random-droplets.yml
           git commit -m "Remove temporary Scarlet droplet workflow"
           git push origin HEAD:main
+
+# trigger

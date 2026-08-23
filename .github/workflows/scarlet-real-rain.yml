@@ -84,7 +84,6 @@ jobs:
   const schedule = () => {
     if (!running) return;
     spawnDrop();
-    // Every droplet gets a new interval. Small bursts happen naturally, then gaps.
     const burst = Math.random() < 0.20;
     const delay = burst ? 35 + Math.random() * 85 : 95 + Math.random() * 260;
     timer = window.setTimeout(schedule, delay);
@@ -94,7 +93,6 @@ jobs:
     if (running || reducedMotion() || !isScarlet()) return;
     running = true;
     getLayer();
-    // Seed a few at random heights/times so switching to Scarlet never starts as a row.
     const seedCount = 10 + Math.floor(Math.random() * 8);
     for (let i = 0; i < seedCount; i++) {
       window.setTimeout(() => {
@@ -148,7 +146,6 @@ jobs:
           css += r'''
 
 /* SCARLET REAL RANDOM RAIN V4 */
-/* Disable every older pseudo-element rain implementation. */
 html[data-theme="scarlet"] body::before,
 html[data-theme="scarlet"] body::after{
   content:none!important;
@@ -216,3 +213,5 @@ html[data-theme="scarlet"] body::after{
           git add .github/workflows/scarlet-real-rain.yml
           git commit -m "Remove temporary Scarlet real rain workflow"
           git push origin HEAD:main
+
+# trigger real randomized rain

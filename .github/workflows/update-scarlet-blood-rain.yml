@@ -66,3 +66,5 @@ html[data-theme="scarlet"] body::after{content:"";position:fixed;inset:-220px 0 
           git add .github/workflows/update-scarlet-blood-rain.yml
           git commit -m "Remove temporary Scarlet rain workflow"
           git push origin HEAD:main
+
+# trigger after workflow exists on default branch

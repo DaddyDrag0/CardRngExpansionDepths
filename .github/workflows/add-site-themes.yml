@@ -1,0 +1,206 @@
+name: Add site themes
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/add-site-themes.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Add theme switcher and theme palettes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          index_path = Path('index.html')
+          css_path = Path('src/styles.css')
+          index = index_path.read_text()
+          css = css_path.read_text()
+
+          marker = '/* SITE THEMES V1 */'
+          if marker in css or 'id="themeSwitcher"' in index:
+              raise SystemExit('Theme switcher already exists; refusing to duplicate it.')
+
+          extra_vars = ';'.join([
+              '--accent-rgb:135,216,202',
+              '--accent-line:#477b76',
+              '--accent-line-soft:#355e5a',
+              '--accent-line-focus:#4b817b',
+              '--accent-line-bright:#5fa99d',
+              '--accent-line-hover:#588f86',
+              '--accent-deep:#17302d',
+              '--accent-bright:#cfeee8',
+              '--accent-text:#d6f1ec',
+              '--accent-text-strong:#d7f2ed',
+              '--accent-text-pale:#e1f3f0',
+              '--accent-chip:#b8d8d2',
+              '--accent-meta:#badbd4',
+              '--accent-chip-2:#bfe0da',
+              '--accent-chip-3:#c8e8e2',
+              '--surface-1:#0a0f16',
+              '--surface-2:#0b1119',
+              '--surface-3:#0d141d',
+              '--surface-4:#0c121a',
+              '--surface-5:#111925',
+              '--surface-hover:#151d28',
+              '--surface-build:#0b1017',
+              '--surface-button:#121a25',
+              '--surface-toggle:#101722',
+              '--surface-track:#17212d',
+              '--surface-tooltip:#080d14',
+              '--surface-portrait:#1a2330',
+              '--surface-accent-chip:#0d171d',
+              '--line-strong:#263142',
+              '--line-soft:#243141',
+              '--line-card:#202b3a',
+              '--line-inner:#1c2633',
+              '--line-metric:#1e2937',
+              '--panel-grad-top:rgba(17,24,36,.96)',
+              '--panel-grad-bottom:rgba(12,17,25,.96)',
+          ])
+          root_needle = '--amber:#d9b76e}'
+          if root_needle not in css:
+              raise SystemExit('Could not locate :root variable block.')
+          css = css.replace(root_needle, '--amber:#d9b76e;' + extra_vars + '}', 1)
+
+          replacements = {
+              '#87d8ca': 'var(--accent)',
+              '#477b76': 'var(--accent-line)',
+              '#355e5a': 'var(--accent-line-soft)',
+              '#4b817b': 'var(--accent-line-focus)',
+              '#5fa99d': 'var(--accent-line-bright)',
+              '#588f86': 'var(--accent-line-hover)',
+              '#17302d': 'var(--accent-deep)',
+              '#cfeee8': 'var(--accent-bright)',
+              '#d6f1ec': 'var(--accent-text)',
+              '#d7f2ed': 'var(--accent-text-strong)',
+              '#e1f3f0': 'var(--accent-text-pale)',
+              '#b8d8d2': 'var(--accent-chip)',
+              '#badbd4': 'var(--accent-meta)',
+              '#bfe0da': 'var(--accent-chip-2)',
+              '#c8e8e2': 'var(--accent-chip-3)',
+              '#0a0f16': 'var(--surface-1)',
+              '#0b1119': 'var(--surface-2)',
+              '#0d141d': 'var(--surface-3)',
+              '#0c121a': 'var(--surface-4)',
+              '#111925': 'var(--surface-5)',
+              '#151d28': 'var(--surface-hover)',
+              '#0b1017': 'var(--surface-build)',
+              '#121a25': 'var(--surface-button)',
+              '#101722': 'var(--surface-toggle)',
+              '#17212d': 'var(--surface-track)',
+              '#080d14': 'var(--surface-tooltip)',
+              '#1a2330': 'var(--surface-portrait)',
+              '#0d171d': 'var(--surface-accent-chip)',
+              '#263142': 'var(--line-strong)',
+              '#243141': 'var(--line-soft)',
+              '#202b3a': 'var(--line-card)',
+              '#1c2633': 'var(--line-inner)',
+              '#1e2937': 'var(--line-metric)',
+              'rgba(17,24,36,.96)': 'var(--panel-grad-top)',
+              'rgba(12,17,25,.96)': 'var(--panel-grad-bottom)',
+              'rgba(135,216,202,': 'rgba(var(--accent-rgb),',
+          }
+
+          # Avoid rewriting the literal defaults we just added to :root.
+          root_end = css.find('}*{')
+          if root_end < 0:
+              raise SystemExit('Could not split :root from stylesheet body.')
+          css_head = css[:root_end + 1]
+          css_rest = css[root_end + 1:]
+          for old, new in replacements.items():
+              css_rest = css_rest.replace(old, new)
+          css = css_head + css_rest
+
+          for old, new in replacements.items():
+              index = index.replace(old, new)
+
+          theme_css = r'''
+
+/* SITE THEMES V1 */
+html[data-theme="scarlet"]{background:#080406;color:var(--text);--bg:#080406;--panel:#170a0f;--line:#451c27;--text:#faeef1;--muted:#ad858e;--accent:#f03a55;--accent-soft:rgba(240,58,85,.13);--accent-rgb:240,58,85;--accent-line:#922f43;--accent-line-soft:#642231;--accent-line-focus:#aa354c;--accent-line-bright:#c5425a;--accent-line-hover:#b13a50;--accent-deep:#351018;--accent-bright:#ffd5dc;--accent-text:#ffe1e6;--accent-text-strong:#ffedf0;--accent-text-pale:#fff1f3;--accent-chip:#e8b4bd;--accent-meta:#edc2c9;--accent-chip-2:#f0c4cc;--accent-chip-3:#f5d2d8;--surface-1:#12070a;--surface-2:#15090d;--surface-3:#190c11;--surface-4:#160a0e;--surface-5:#211017;--surface-hover:#251219;--surface-build:#14090d;--surface-button:#211017;--surface-toggle:#1d0d13;--surface-track:#291118;--surface-tooltip:#100609;--surface-portrait:#27141b;--surface-accent-chip:#1d0c12;--line-strong:#59222f;--line-soft:#49202a;--line-card:#3e1822;--line-inner:#351720;--line-metric:#3b1a23;--panel-grad-top:rgba(31,11,17,.97);--panel-grad-bottom:rgba(15,6,9,.97)}
+html[data-theme="slate"]{background:#14191f;color:var(--text);--bg:#14191f;--panel:#1c232c;--line:#394554;--text:#f1f4f7;--muted:#9ca8b7;--accent-soft:rgba(135,216,202,.14);--surface-1:#181e26;--surface-2:#1a212a;--surface-3:#1d252f;--surface-4:#1b222b;--surface-5:#202934;--surface-hover:#27313d;--surface-build:#1a2129;--surface-button:#222c37;--surface-toggle:#202833;--surface-track:#2a3541;--surface-tooltip:#161c23;--surface-portrait:#27323f;--surface-accent-chip:#1b2a2d;--line-strong:#465465;--line-soft:#3d4a59;--line-card:#354251;--line-inner:#34404e;--line-metric:#394654;--panel-grad-top:rgba(34,42,52,.97);--panel-grad-bottom:rgba(26,33,42,.97)}
+html[data-theme="scarlet"] body{background:radial-gradient(circle at 70% -8%,rgba(240,58,85,.17),transparent 31%),radial-gradient(circle at 12% 38%,rgba(128,0,26,.15),transparent 30%),linear-gradient(180deg,#080406 0%,#0d0508 52%,#070305 100%)}
+html[data-theme="slate"] body{background:radial-gradient(circle at 72% -10%,rgba(107,139,151,.16),transparent 34%),radial-gradient(circle at 15% 34%,rgba(82,96,111,.10),transparent 28%),var(--bg)}
+html[data-theme="scarlet"] body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.62;background-image:radial-gradient(ellipse at 18px 24px,rgba(194,15,47,.44) 0 3px,transparent 3.8px),radial-gradient(ellipse at 74px 86px,rgba(142,6,31,.38) 0 5px,transparent 5.8px),radial-gradient(circle at 122px 44px,rgba(225,27,60,.28) 0 2px,transparent 2.7px),radial-gradient(ellipse at 164px 138px,rgba(121,4,27,.36) 0 7px,transparent 8px),radial-gradient(circle at 206px 30px,rgba(231,40,70,.25) 0 2px,transparent 2.8px),radial-gradient(ellipse at 238px 184px,rgba(168,8,39,.32) 0 4px,transparent 4.8px);background-size:260px 220px,310px 270px,230px 190px,360px 320px,290px 250px,410px 360px;animation:blood-drift 44s linear infinite}
+html[data-theme="scarlet"] body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.5;background:linear-gradient(180deg,rgba(173,8,37,.32),rgba(126,2,25,.08) 55%,transparent 100%) 5% 0/3px 175px no-repeat,linear-gradient(180deg,rgba(199,11,43,.27),rgba(132,3,28,.06) 60%,transparent 100%) 23% 0/2px 115px no-repeat,linear-gradient(180deg,rgba(151,4,31,.28),rgba(102,1,21,.05) 60%,transparent 100%) 61% 0/4px 145px no-repeat,linear-gradient(180deg,rgba(207,18,49,.25),rgba(121,2,26,.04) 60%,transparent 100%) 88% 0/2px 205px no-repeat}
+@keyframes blood-drift{from{background-position:0 0,0 0,0 0,0 0,0 0,0 0}to{background-position:36px 74px,-44px 56px,58px -30px,-26px 82px,46px 38px,-60px -48px}}
+@media(prefers-reduced-motion:reduce){html[data-theme="scarlet"] body::before{animation:none}}
+.shell{position:relative;z-index:1;padding-top:78px}.loading{background:var(--bg)!important}.panel,.results-panel,.tower-cheese-card{background:linear-gradient(180deg,var(--panel-grad-top),var(--panel-grad-bottom))}
+.theme-switcher{position:fixed;z-index:10000;top:13px;left:14px;display:flex;align-items:center;gap:8px;padding:7px 8px 7px 10px;border:1px solid var(--line);border-radius:13px;background:var(--surface-build);box-shadow:0 12px 34px rgba(0,0,0,.28);backdrop-filter:blur(14px);user-select:none}.theme-switcher-label{color:var(--muted);font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.12em}.theme-options{display:flex;align-items:center;gap:4px}.theme-choice{display:flex;align-items:center;gap:5px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--muted);padding:6px 7px;font-size:9px;font-weight:720;cursor:pointer;transition:.15s ease}.theme-choice:hover{border-color:var(--line-strong);color:var(--text);background:var(--surface-3)}.theme-choice[aria-pressed="true"]{border-color:var(--accent-line);background:var(--accent-soft);color:var(--text)}.theme-choice i{width:7px;height:7px;border-radius:50%;display:block;box-shadow:0 0 10px rgba(255,255,255,.08)}.theme-choice[data-theme-choice="default"] i{background:#87d8ca}.theme-choice[data-theme-choice="scarlet"] i{background:#f03a55}.theme-choice[data-theme-choice="slate"] i{background:#98a5b4}
+html[data-theme="scarlet"] body :is(.panel,.results-panel,.tower-cheese-card,.tower-search-panel,.tower-pool-panel){box-shadow:0 18px 58px rgba(77,0,17,.22)}
+html[data-theme="scarlet"] body :is(input,select){accent-color:var(--accent)}
+@media(max-width:520px){.theme-switcher{left:8px;right:8px;justify-content:space-between}.theme-switcher-label{display:none}.theme-options{width:100%}.theme-choice{flex:1;justify-content:center}.shell{padding-top:76px}}
+'''
+          css += theme_css
+
+          theme_head_script = r'''  <script>
+  (()=>{
+    const valid=new Set(['default','scarlet','slate']);
+    let theme='default';
+    try{const saved=localStorage.getItem('crx-site-theme');if(valid.has(saved))theme=saved}catch(_){}
+    document.documentElement.dataset.theme=theme;
+    window.addEventListener('DOMContentLoaded',()=>{
+      const colors={default:'#080b10',scarlet:'#080406',slate:'#14191f'};
+      const buttons=[...document.querySelectorAll('[data-theme-choice]')];
+      const apply=(next,persist=true)=>{
+        if(!valid.has(next))next='default';
+        document.documentElement.dataset.theme=next;
+        buttons.forEach(btn=>btn.setAttribute('aria-pressed',String(btn.dataset.themeChoice===next)));
+        const meta=document.querySelector('meta[name="theme-color"]');if(meta)meta.setAttribute('content',colors[next]);
+        if(persist){try{localStorage.setItem('crx-site-theme',next)}catch(_){}}
+      };
+      buttons.forEach(btn=>btn.addEventListener('click',()=>apply(btn.dataset.themeChoice||'default')));
+      apply(document.documentElement.dataset.theme||'default',false);
+    });
+  })();
+  </script>
+'''
+          link_needle = '  <link rel="stylesheet" href="./src/styles.css" />\n'
+          if link_needle not in index:
+              raise SystemExit('Could not find stylesheet link for theme bootstrap.')
+          index = index.replace(link_needle, theme_head_script + link_needle, 1)
+
+          switcher = r'''<div id="themeSwitcher" class="theme-switcher" aria-label="Site theme">
+  <span class="theme-switcher-label">Theme</span>
+  <div class="theme-options" role="group" aria-label="Choose site theme">
+    <button class="theme-choice" type="button" data-theme-choice="default" aria-pressed="true"><i></i>Default</button>
+    <button class="theme-choice" type="button" data-theme-choice="scarlet" aria-pressed="false"><i></i>Scarlet</button>
+    <button class="theme-choice" type="button" data-theme-choice="slate" aria-pressed="false"><i></i>Slate</button>
+  </div>
+</div>
+'''
+          body_needle = '<body>\n'
+          if body_needle not in index:
+              raise SystemExit('Could not find body tag for theme switcher.')
+          index = index.replace(body_needle, body_needle + switcher, 1)
+
+          css_path.write_text(css)
+          index_path.write_text(index)
+          PY
+      - run: npm ci
+      - run: npm run check
+      - name: Bump site version
+        run: printf '{"version":"%s"}\n' "$(date -u +%Y%m%d-%H%M%SZ)" > site-version.json
+      - name: Publish theme update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/add-site-themes.yml
+          git add -A
+          git commit -m "Add Default Scarlet and Slate site themes"
+          git pull --rebase origin main
+          git push origin HEAD:main

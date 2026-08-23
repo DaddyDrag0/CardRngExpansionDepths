@@ -1,0 +1,218 @@
+name: Scarlet real rain update
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/scarlet-real-rain.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install randomized Scarlet rain
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import datetime, json
+
+          js = r'''(() => {
+  const THEME = 'scarlet';
+  const LAYER_ID = 'bloodRainLayer';
+  const MAX_DROPS = 150;
+  let running = false;
+  let timer = 0;
+
+  const reducedMotion = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const isScarlet = () => document.documentElement.dataset.theme === THEME;
+
+  const getLayer = () => {
+    let layer = document.getElementById(LAYER_ID);
+    if (!layer) {
+      layer = document.createElement('div');
+      layer.id = LAYER_ID;
+      layer.className = 'blood-rain-layer';
+      layer.setAttribute('aria-hidden', 'true');
+      document.body.prepend(layer);
+    }
+    return layer;
+  };
+
+  const clearDrops = () => {
+    window.clearTimeout(timer);
+    timer = 0;
+    running = false;
+    const layer = document.getElementById(LAYER_ID);
+    if (layer) layer.replaceChildren();
+  };
+
+  const spawnDrop = () => {
+    if (!running || !isScarlet() || reducedMotion()) return;
+    const layer = getLayer();
+    if (layer.childElementCount >= MAX_DROPS) return;
+
+    const drop = document.createElement('i');
+    drop.className = 'blood-drop';
+
+    const size = 4 + Math.random() * 8;
+    const height = size * (1.15 + Math.random() * 0.65);
+    const duration = 1.9 + Math.random() * 3.4;
+    const drift = -34 + Math.random() * 68;
+    const opacity = 0.42 + Math.random() * 0.5;
+    const blur = Math.random() < 0.18 ? 0.7 + Math.random() * 0.9 : 0;
+
+    drop.style.left = `${Math.random() * 100}vw`;
+    drop.style.width = `${size}px`;
+    drop.style.height = `${height}px`;
+    drop.style.opacity = opacity.toFixed(2);
+    drop.style.filter = blur ? `blur(${blur.toFixed(2)}px)` : '';
+    drop.style.setProperty('--blood-fall-time', `${duration.toFixed(2)}s`);
+    drop.style.setProperty('--blood-drift', `${drift.toFixed(1)}px`);
+    drop.style.setProperty('--blood-spin', `${(-8 + Math.random() * 16).toFixed(1)}deg`);
+
+    drop.addEventListener('animationend', () => drop.remove(), { once: true });
+    layer.appendChild(drop);
+  };
+
+  const schedule = () => {
+    if (!running) return;
+    spawnDrop();
+    // Every droplet gets a new interval. Small bursts happen naturally, then gaps.
+    const burst = Math.random() < 0.20;
+    const delay = burst ? 35 + Math.random() * 85 : 95 + Math.random() * 260;
+    timer = window.setTimeout(schedule, delay);
+  };
+
+  const start = () => {
+    if (running || reducedMotion() || !isScarlet()) return;
+    running = true;
+    getLayer();
+    // Seed a few at random heights/times so switching to Scarlet never starts as a row.
+    const seedCount = 10 + Math.floor(Math.random() * 8);
+    for (let i = 0; i < seedCount; i++) {
+      window.setTimeout(() => {
+        if (!running) return;
+        spawnDrop();
+      }, Math.random() * 900);
+    }
+    schedule();
+  };
+
+  const sync = () => {
+    if (isScarlet()) start();
+    else clearDrops();
+  };
+
+  const boot = () => {
+    getLayer();
+    new MutationObserver(sync).observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme']
+    });
+    sync();
+  };
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
+  else boot();
+})();
+'''
+          Path('src/blood-rain.js').write_text(js)
+
+          index_path = Path('index.html')
+          index = index_path.read_text()
+          script_tag = '  <script defer src="./src/blood-rain.js?rev=4"></script>\n'
+          if './src/blood-rain.js' not in index:
+              needle = '  <link rel="stylesheet" href="./src/styles.css" />\n'
+              if needle not in index:
+                  raise SystemExit('Could not locate stylesheet link in index.html')
+              index = index.replace(needle, script_tag + needle, 1)
+          else:
+              import re
+              index = re.sub(r'  <script defer src="\.\/src\/blood-rain\.js[^\"]*"></script>\n', script_tag, index, count=1)
+          index_path.write_text(index)
+
+          css_path = Path('src/styles.css')
+          css = css_path.read_text()
+          for marker in ('/* SCARLET BLOOD DROPLETS V3 */', '/* SCARLET REAL RANDOM RAIN V4 */'):
+              if marker in css:
+                  css = css.split(marker, 1)[0].rstrip()
+                  break
+
+          css += r'''
+
+/* SCARLET REAL RANDOM RAIN V4 */
+/* Disable every older pseudo-element rain implementation. */
+html[data-theme="scarlet"] body::before,
+html[data-theme="scarlet"] body::after{
+  content:none!important;
+  display:none!important;
+  animation:none!important;
+  background:none!important;
+}
+.blood-rain-layer{
+  position:fixed;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  overflow:hidden;
+  contain:strict;
+}
+.blood-drop{
+  position:absolute;
+  top:-28px;
+  display:block;
+  background:radial-gradient(circle at 34% 28%,rgba(255,66,91,.86) 0 11%,rgba(183,8,42,.95) 34%,rgba(93,0,19,.98) 76%,rgba(54,0,11,.96) 100%);
+  border-radius:58% 58% 66% 66% / 42% 42% 76% 76%;
+  box-shadow:0 1px 2px rgba(255,55,78,.12),0 0 6px rgba(121,0,25,.20);
+  transform-origin:center;
+  will-change:transform;
+  animation:blood-real-fall var(--blood-fall-time,3s) linear forwards;
+}
+.blood-drop::before{
+  content:"";
+  position:absolute;
+  width:38%;
+  height:38%;
+  top:7%;
+  left:16%;
+  border-radius:50%;
+  background:rgba(255,125,139,.26);
+  filter:blur(.35px);
+}
+@keyframes blood-real-fall{
+  0%{transform:translate3d(0,-35px,0) rotate(var(--blood-spin,0deg)) scale(.84)}
+  12%{transform:translate3d(calc(var(--blood-drift,0px) * .10),12vh,0) rotate(var(--blood-spin,0deg)) scale(1)}
+  100%{transform:translate3d(var(--blood-drift,0px),calc(100vh + 70px),0) rotate(var(--blood-spin,0deg)) scale(.96)}
+}
+@media(prefers-reduced-motion:reduce){.blood-rain-layer{display:none}}
+'''
+          css_path.write_text(css + '\n')
+
+          version = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d-%H%M%SZ')
+          Path('site-version.json').write_text(json.dumps({'version': version}, separators=(',', ':')) + '\n')
+          print('Scarlet real rain installed, site version', version)
+          PY
+
+      - name: Commit real rain
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html src/styles.css src/blood-rain.js site-version.json
+          git commit -m "Make Scarlet use randomized blood droplets"
+          git pull --rebase origin main
+          git push origin HEAD:main
+
+      - name: Remove one-time workflow
+        run: |
+          git pull --rebase origin main
+          rm .github/workflows/scarlet-real-rain.yml
+          git add .github/workflows/scarlet-real-rain.yml
+          git commit -m "Remove temporary Scarlet real rain workflow"
+          git push origin HEAD:main

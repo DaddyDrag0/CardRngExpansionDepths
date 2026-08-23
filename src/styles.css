@@ -17,9 +17,61 @@ html[data-theme="scarlet"] body :is(.panel,.results-panel,.tower-cheese-card,.to
 html[data-theme="scarlet"] body :is(input,select){accent-color:var(--accent)}
 @media(max-width:520px){.theme-switcher{left:8px;right:8px;justify-content:space-between}.theme-switcher-label{display:none}.theme-options{width:100%}.theme-choice{flex:1;justify-content:center}.shell{padding-top:76px}}
 
-/* SCARLET BLOOD RAIN V2 */
-html[data-theme="scarlet"] body::before{content:"";position:fixed;inset:-260px 0 0;z-index:0;pointer-events:none;opacity:.78;background:linear-gradient(180deg,rgba(154,0,25,0) 0%,rgba(182,6,36,.42) 22%,rgba(135,0,23,.86) 72%,rgba(86,0,16,.98) 100%) 2% -210px/2px 240px repeat-y,linear-gradient(180deg,rgba(190,8,40,0) 0%,rgba(204,14,48,.48) 24%,rgba(139,0,26,.9) 76%,rgba(92,0,17,.98) 100%) 7% -80px/3px 190px repeat-y,linear-gradient(180deg,rgba(138,0,21,0) 0%,rgba(167,4,31,.45) 20%,rgba(118,0,21,.88) 70%,rgba(78,0,14,.96) 100%) 12% -170px/2px 210px repeat-y,linear-gradient(180deg,rgba(214,20,52,0) 0%,rgba(219,22,55,.45) 24%,rgba(147,0,28,.9) 74%,rgba(94,0,18,.98) 100%) 17% -120px/4px 260px repeat-y,linear-gradient(180deg,rgba(150,0,23,0) 0%,rgba(177,5,34,.42) 20%,rgba(121,0,22,.86) 72%,rgba(82,0,15,.96) 100%) 23% -240px/2px 220px repeat-y,linear-gradient(180deg,rgba(198,10,43,0) 0%,rgba(211,17,50,.46) 24%,rgba(143,0,26,.9) 72%,rgba(92,0,17,.98) 100%) 29% -90px/3px 205px repeat-y,linear-gradient(180deg,rgba(144,0,22,0) 0%,rgba(170,4,32,.44) 21%,rgba(119,0,21,.88) 72%,rgba(80,0,14,.97) 100%) 35% -185px/2px 235px repeat-y,linear-gradient(180deg,rgba(209,16,49,0) 0%,rgba(221,24,58,.46) 24%,rgba(150,0,29,.91) 74%,rgba(95,0,18,.98) 100%) 41% -130px/4px 270px repeat-y,linear-gradient(180deg,rgba(158,0,25,0) 0%,rgba(186,7,36,.43) 22%,rgba(126,0,23,.88) 72%,rgba(83,0,15,.97) 100%) 48% -225px/2px 215px repeat-y,linear-gradient(180deg,rgba(194,8,41,0) 0%,rgba(208,15,49,.46) 24%,rgba(140,0,26,.89) 74%,rgba(91,0,17,.98) 100%) 54% -105px/3px 200px repeat-y,linear-gradient(180deg,rgba(148,0,22,0) 0%,rgba(176,5,34,.44) 21%,rgba(121,0,22,.88) 72%,rgba(80,0,15,.97) 100%) 61% -255px/2px 245px repeat-y,linear-gradient(180deg,rgba(218,22,54,0) 0%,rgba(227,28,62,.46) 24%,rgba(152,0,29,.91) 74%,rgba(97,0,19,.98) 100%) 67% -140px/4px 280px repeat-y,linear-gradient(180deg,rgba(153,0,24,0) 0%,rgba(181,6,35,.43) 21%,rgba(124,0,23,.88) 72%,rgba(82,0,15,.97) 100%) 74% -205px/2px 225px repeat-y,linear-gradient(180deg,rgba(200,11,44,0) 0%,rgba(214,18,52,.46) 24%,rgba(144,0,27,.9) 74%,rgba(93,0,18,.98) 100%) 81% -115px/3px 210px repeat-y,linear-gradient(180deg,rgba(142,0,21,0) 0%,rgba(169,4,32,.44) 21%,rgba(117,0,21,.87) 72%,rgba(78,0,14,.97) 100%) 88% -235px/2px 240px repeat-y,linear-gradient(180deg,rgba(216,20,53,0) 0%,rgba(225,26,60,.45) 24%,rgba(150,0,29,.9) 74%,rgba(96,0,19,.98) 100%) 94% -100px/4px 265px repeat-y,linear-gradient(180deg,rgba(159,0,25,0) 0%,rgba(186,7,36,.43) 22%,rgba(126,0,23,.88) 72%,rgba(83,0,15,.97) 100%) 98% -190px/2px 220px repeat-y;filter:drop-shadow(0 0 3px rgba(120,0,18,.38));animation:blood-rain-fall 6.2s linear infinite}
-html[data-theme="scarlet"] body::after{content:"";position:fixed;inset:-220px 0 0;z-index:0;pointer-events:none;opacity:.64;background-image:radial-gradient(ellipse at 3% 12%,rgba(142,0,22,.95) 0 3px,transparent 4px),radial-gradient(ellipse at 8% 34%,rgba(181,7,37,.92) 0 5px,transparent 6px),radial-gradient(ellipse at 15% 19%,rgba(151,0,24,.95) 0 4px,transparent 5px),radial-gradient(ellipse at 21% 47%,rgba(201,13,44,.9) 0 6px,transparent 7px),radial-gradient(ellipse at 28% 24%,rgba(133,0,20,.94) 0 5px,transparent 6px),radial-gradient(ellipse at 34% 39%,rgba(187,8,39,.92) 0 4px,transparent 5px),radial-gradient(ellipse at 42% 16%,rgba(158,0,26,.95) 0 6px,transparent 7px),radial-gradient(ellipse at 49% 51%,rgba(210,16,48,.9) 0 5px,transparent 6px),radial-gradient(ellipse at 57% 28%,rgba(141,0,22,.94) 0 4px,transparent 5px),radial-gradient(ellipse at 64% 43%,rgba(192,10,41,.92) 0 6px,transparent 7px),radial-gradient(ellipse at 72% 20%,rgba(151,0,24,.95) 0 5px,transparent 6px),radial-gradient(ellipse at 79% 48%,rgba(205,14,46,.9) 0 4px,transparent 5px),radial-gradient(ellipse at 86% 31%,rgba(136,0,21,.95) 0 6px,transparent 7px),radial-gradient(ellipse at 92% 14%,rgba(193,10,40,.92) 0 5px,transparent 6px),radial-gradient(ellipse at 97% 45%,rgba(156,0,25,.94) 0 4px,transparent 5px);background-size:100% 360px;animation:blood-rain-drops 4.8s linear infinite}
-@keyframes blood-rain-fall{from{transform:translateY(-260px)}to{transform:translateY(260px)}}
-@keyframes blood-rain-drops{from{transform:translateY(-220px)}to{transform:translateY(380px)}}
-@media(prefers-reduced-motion:reduce){html[data-theme="scarlet"] body::before,html[data-theme="scarlet"] body::after{animation:none}}
+/* SCARLET BLOOD DROPLETS V3 */
+html[data-theme="scarlet"] body::before{
+  content:"";
+  position:fixed;
+  inset:-220px -80px -220px;
+  z-index:0;
+  pointer-events:none;
+  opacity:.72;
+  background-image:
+    radial-gradient(ellipse at 50% 42%,rgba(202,16,49,.92) 0 4px,rgba(118,0,23,.8) 4.5px,transparent 6px),
+    radial-gradient(ellipse at 50% 44%,rgba(157,2,31,.88) 0 3px,rgba(104,0,19,.75) 3.5px,transparent 5px),
+    radial-gradient(ellipse at 50% 40%,rgba(223,30,60,.85) 0 5px,rgba(126,0,26,.74) 5.5px,transparent 7px),
+    radial-gradient(ellipse at 50% 43%,rgba(177,6,38,.9) 0 3.5px,rgba(109,0,20,.76) 4px,transparent 5.5px),
+    radial-gradient(ellipse at 50% 41%,rgba(193,10,44,.87) 0 4.5px,rgba(117,0,22,.76) 5px,transparent 6.5px),
+    radial-gradient(ellipse at 50% 45%,rgba(149,0,28,.88) 0 3px,rgba(94,0,17,.74) 3.5px,transparent 5px),
+    radial-gradient(ellipse at 50% 40%,rgba(214,22,55,.88) 0 5px,rgba(124,0,24,.74) 5.5px,transparent 7px),
+    radial-gradient(ellipse at 50% 43%,rgba(168,4,35,.9) 0 3.5px,rgba(103,0,19,.75) 4px,transparent 5.5px),
+    radial-gradient(ellipse at 50% 42%,rgba(188,8,42,.88) 0 4px,rgba(112,0,21,.74) 4.5px,transparent 6px),
+    radial-gradient(ellipse at 50% 41%,rgba(227,34,65,.82) 0 5.5px,rgba(132,0,27,.72) 6px,transparent 7.5px);
+  background-size:83px 137px,127px 191px,173px 229px,109px 163px,149px 211px,197px 263px,137px 181px,229px 307px,101px 151px,181px 241px;
+  background-position:11px -43px,57px -121px,103px -177px,31px -79px,88px -149px,144px -217px,69px -101px,176px -263px,22px -61px,119px -189px;
+  filter:drop-shadow(0 0 3px rgba(98,0,18,.38));
+  animation:blood-droplets-a 7.4s linear infinite;
+}
+html[data-theme="scarlet"] body::after{
+  content:"";
+  position:fixed;
+  inset:-260px -100px -260px;
+  z-index:0;
+  pointer-events:none;
+  opacity:.58;
+  background-image:
+    radial-gradient(ellipse at 50% 43%,rgba(137,0,24,.9) 0 3px,rgba(86,0,15,.72) 3.5px,transparent 5px),
+    radial-gradient(ellipse at 50% 41%,rgba(199,13,47,.86) 0 4.5px,rgba(113,0,22,.72) 5px,transparent 6.5px),
+    radial-gradient(ellipse at 50% 45%,rgba(158,2,31,.88) 0 3.5px,rgba(96,0,18,.72) 4px,transparent 5.5px),
+    radial-gradient(ellipse at 50% 40%,rgba(219,26,59,.82) 0 5px,rgba(126,0,25,.7) 5.5px,transparent 7px),
+    radial-gradient(ellipse at 50% 44%,rgba(146,0,27,.9) 0 3px,rgba(90,0,16,.73) 3.5px,transparent 5px),
+    radial-gradient(ellipse at 50% 42%,rgba(185,8,40,.87) 0 4px,rgba(108,0,20,.72) 4.5px,transparent 6px),
+    radial-gradient(ellipse at 50% 41%,rgba(207,17,51,.84) 0 5px,rgba(119,0,23,.7) 5.5px,transparent 7px),
+    radial-gradient(ellipse at 50% 44%,rgba(151,0,29,.89) 0 3.5px,rgba(93,0,17,.72) 4px,transparent 5.5px),
+    radial-gradient(ellipse at 50% 40%,rgba(193,11,44,.86) 0 4px,rgba(112,0,21,.7) 4.5px,transparent 6px),
+    radial-gradient(ellipse at 50% 43%,rgba(226,31,64,.8) 0 5px,rgba(130,0,26,.68) 5.5px,transparent 7px);
+  background-size:113px 173px,157px 223px,89px 149px,211px 281px,139px 197px,181px 251px,101px 163px,239px 331px,167px 233px,127px 187px;
+  background-position:43px -103px,91px -171px,17px -67px,163px -237px,66px -131px,124px -199px,29px -89px,197px -291px,81px -157px,51px -113px;
+  animation:blood-droplets-b 10.6s linear infinite;
+}
+@keyframes blood-droplets-a{
+  from{background-position:11px -43px,57px -121px,103px -177px,31px -79px,88px -149px,144px -217px,69px -101px,176px -263px,22px -61px,119px -189px}
+  to{background-position:37px 731px,19px 807px,146px 695px,-12px 781px,127px 723px,96px 849px,111px 759px,132px 683px,55px 821px,81px 747px}
+}
+@keyframes blood-droplets-b{
+  from{background-position:43px -103px,91px -171px,17px -67px,163px -237px,66px -131px,124px -199px,29px -89px,197px -291px,81px -157px,51px -113px}
+  to{background-position:7px 843px,139px 757px,54px 891px,118px 709px,102px 811px,77px 739px,63px 867px,151px 681px,126px 793px,18px 829px}
+}
+@media(prefers-reduced-motion:reduce){
+  html[data-theme="scarlet"] body::before,
+  html[data-theme="scarlet"] body::after{animation:none}
+}

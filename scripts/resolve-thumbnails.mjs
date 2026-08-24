@@ -19,6 +19,7 @@ const output = {}
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
+// Resolve every current card/aura asset so newly added entries get the same cached CDN URL format as existing images.
 for (let i = 0; i < ids.length; i += 20) {
   const chunk = ids.slice(i, i + 20)
   const params = new URLSearchParams({

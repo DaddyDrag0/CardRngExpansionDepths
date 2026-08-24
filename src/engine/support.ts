@@ -46,6 +46,7 @@ export const SOURCE_ALIGNED_ABILITIES = new Set([
   'Beyond The Grave', 'Creation and Restoration', 'Dispel', 'Healing Miracle',
   'Laser Gun', 'Lotus Sutra', 'Origin', 'Outshine', 'Pandemic', 'Railgun',
   'Shiny Steal', 'Water Shield of Xuanwu', 'Constellar', "Pandora's Box",
+  'Cosmic Rivalry', 'Divine Ascension', 'Kitchen', 'Six Realms Staff',
 ])
 
 export function getDepthsAbilityCoverage() {

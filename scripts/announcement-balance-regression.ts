@@ -57,9 +57,9 @@ assert.equal(
   'Dinosaur King boosted Prehistoric cards must cap at 414% while its normal Galaxy boost stays 256%.',
 )
 assert.equal(
-  statAuraPercentForCard(desmond, auraProbe('Mother of Beasts'), galaxy),
+  statAuraPercentForCard(desmond, auraProbe('Sable The Envious'), galaxy),
   414,
-  'Desmond boosted Seven Sins cards must cap at 414% while its normal Galaxy boost stays 256%.',
+  'Desmond boosted Seven Sins cards use the source multiplier for 414% at Galaxy.',
 )
 assert.equal(statAuraPercentForCard(yggdrasil, auraProbe('Armageddon Test', 'Armageddon'), galaxy), 300, 'Yggdrasil Armageddon boost cap')
 assert.equal(statAuraPercentForCard(disease, auraProbe('Virus Test', 'Virus'), galaxy), 300, 'Disease Virus boost cap')

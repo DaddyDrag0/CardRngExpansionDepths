@@ -37,11 +37,12 @@ const BOOSTED_PACKS: Record<string, string> = {
   Shrinemaiden: 'Rising Sun',
   Shatbi: 'Egypt',
   Taoist: 'Immortal',
-  Myhts: 'Cryptid',
+  Myths: 'Cryptid',
   'Dinosaur King': 'Prehistoric',
 }
 
 const BOOSTED_WEATHERS: Record<string, string> = {
+  Mangeka: 'Manga',
   Elohim: 'Rapture',
   Yggdrasil: 'Armageddon',
   Satan: 'Blood Rain',
@@ -55,13 +56,6 @@ const BOOSTED_WEATHERS: Record<string, string> = {
   Disease: 'Virus',
 }
 
-// Aug. 24, 2026 balance pass: the normal aura boost is unchanged, but the
-// extra group-specific portion is capped for the affected high-end stat auras.
-const WEATHER_GROUP_STAT_CAP = 300
-const CARD_GROUP_STAT_CAPS: Record<string, number> = {
-  'Dinosaur King': 414,
-  'Desmond Of Despair': 414,
-}
 
 export const TOY_CARD_NAMES = new Set([
   'Toy Bear',
@@ -116,13 +110,10 @@ export function statAuraPercentForCard(
 ): number {
   const base = getStatAuraValue(aura, border)
   if (aura.name === 'General Sun Tzu') return base
-  if (!isStatAuraBoosted(aura, card)) return base
-
-  const boosted = base * Number(aura.boostMult || 1)
-  if (BOOSTED_WEATHERS[aura.name]) return Math.min(boosted, WEATHER_GROUP_STAT_CAP)
-
-  const cardGroupCap = CARD_GROUP_STAT_CAPS[aura.name]
-  return cardGroupCap == null ? boosted : Math.min(boosted, cardGroupCap)
+  if (aura.name === 'The One Ring') {
+    return !card.definition.weather && !card.definition.boss ? base : 0
+  }
+  return isStatAuraBoosted(aura, card) ? base * Number(aura.boostMult || 1) : base
 }
 
 export function applyStatAura(

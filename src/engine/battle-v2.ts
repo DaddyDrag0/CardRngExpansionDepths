@@ -80,6 +80,9 @@ const FULLY_SUPPORTED = new Set([
   'God of Trickery', 'Draconian', 'Safeguarding', 'Mother of Dragons', 'Reveal',
   'Jealousy', 'Nightmare Melody', 'Sap',
   'Bind Fate', 'Luminescent Veil', 'Ouroboros',
+  'Cosmic Rivalry', 'Divine Ascension', 'Mastered Ascension', 'Kitchen', 'Six Realms Staff',
+  'Twelve Devas Axe', 'Vajra Short Sword', 'Staff of Perfect Enlightenment', 'Shield of Ahimsa',
+  'War Scythe', 'Great Nirvana Sword - Zero',
 ])
 
 const BENCH_AFFECTING_UNSUPPORTED = new Set<string>()
@@ -93,7 +96,7 @@ const DODGE_ABILITIES = new Set([
   'Danger Sense', 'Deadly Ambush', 'Evasion', 'Untouchable', 'Guerilla Warfare',
   'The Loser', 'Invisibility', 'Limitless', 'Transcend Time', 'Snowbound',
   'Sky Drop', 'Shadow Predator', 'Run As Fast As You Can', 'Heard but not Seen',
-  'Lights Way',
+  'Lights Way', 'Mastered Ascension',
 ])
 
 const GENERAL_MOON_ZOO_ABILITY = cards.find((card) => card.name === 'General Moon Zoo')?.ability
@@ -332,6 +335,9 @@ function abilityNames(card: CombatCard | undefined): string[] {
 function activeBonusAbilities(card: CombatCard): string[] {
   const root = card.definition.ability
   if ((root === "Pandora's Box" || root === 'Heroes') && ability(card) === root) {
+    return card.bonusAbilities || []
+  }
+  if (root === 'Six Realms Staff' && ability(card) === 'Great Nirvana Sword - Zero') {
     return card.bonusAbilities || []
   }
   return []
@@ -780,6 +786,36 @@ function onEntry(runtime: Runtime, card: CombatCard) {
     }
   }
 
+  if (name === 'Six Realms Staff' && !card.flags.sixRealmsRolled) {
+    card.flags.sixRealmsRolled = true
+    const weapons = [
+      'Twelve Devas Axe', 'Vajra Short Sword', 'Staff of Perfect Enlightenment',
+      'Shield of Ahimsa', 'War Scythe', 'Great Nirvana Sword - Zero',
+    ]
+    card.abilityOverride = weapons[Math.floor(runtime.rng.next() * weapons.length)]
+    card.entered = false
+    onEntry(runtime, card)
+    return
+  }
+
+  if (name === 'Great Nirvana Sword - Zero' && !card.flags.zeroWeaponsRolled) {
+    card.flags.zeroWeaponsRolled = true
+    const pool = ['Twelve Devas Axe', 'Vajra Short Sword', 'Staff of Perfect Enlightenment', 'Shield of Ahimsa', 'War Scythe']
+    const firstIndex = Math.floor(runtime.rng.next() * pool.length)
+    const first = pool[firstIndex]
+    const remaining = pool.filter((_, index) => index !== firstIndex)
+    const second = remaining[Math.floor(runtime.rng.next() * remaining.length)]
+    card.bonusAbilities = [first, second]
+    for (const gained of card.bonusAbilities) {
+      withAbility(card, gained, () => {
+        card.entered = false
+        onEntry(runtime, card)
+      })
+    }
+    card.entered = true
+    return
+  }
+
   const entryTraceBefore = runtime.captureDebug ? captureAbilityTrace(runtime) : null
   const entryTraceEventStart = runtime.debug.events.length
 
@@ -955,7 +991,7 @@ function onEntry(runtime: Runtime, card: CombatCard) {
       break
     }
     case 'Fire World':
-      for (const target of runtime.state.teams[enemyTeam]) target.status.burn = 100
+      for (const target of runtime.state.teams[enemyTeam]) target.status.burn = 3
       break
     case 'Book of Death':
       enemy.counters.death = 2
@@ -1210,6 +1246,43 @@ function onEntry(runtime: Runtime, card: CombatCard) {
       resolveDeaths(runtime)
       break
     }
+    case 'Cosmic Rivalry':
+      performEntryAttack(runtime, card, 3)
+      break
+    case 'Kitchen': {
+      card.flags.kitchenDomain = true
+      const hits = 2 + Math.floor(runtime.rng.next() * 4)
+      for (let hit = 0; hit < hits; hit++) {
+        const target = active(runtime, enemyTeam)
+        if (!target || !alive(card)) break
+        dealDamage(runtime, card, target, 0.35, true)
+        resolveDeaths(runtime)
+      }
+      break
+    }
+    case 'War Scythe': {
+      if (card.flags.warScytheEntryUsed) break
+      card.flags.warScytheEntryUsed = true
+      const targets = runtime.state.teams[enemyTeam].filter(alive).slice(0, 2)
+      card.flags.warScytheEntry = true
+      for (const target of targets) {
+        if (!alive(card) || !alive(target)) continue
+        target.flags.suppressOnDeath = true
+        dealDamage(runtime, card, target, 1, true)
+        if (target.hp > 0) target.flags.suppressOnDeath = false
+        const deck = runtime.state.teams[target.team]
+        const index = deck.indexOf(target)
+        if (target.hp <= 0 && index > 0) {
+          deck.splice(index, 1)
+          target.dead = true
+          target.hp = 0
+          runtime.state.fallen[target.team].push(target)
+        }
+        resolveDeaths(runtime)
+      }
+      card.flags.warScytheEntry = false
+      break
+    }
     case 'First Blood':
       performEntryAttack(runtime, card, 0.5)
       break
@@ -1305,9 +1378,18 @@ function offensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
     'Dirty Claw','Heart Hunter','Chainsaw','Firepower','Rapid Blows','Behavioral Therapy',
     'Holy Wrath','Unlucky','Dragon Slayer','Frozen Wrath','Absolute Apex',
     'Dark Qi Manipulation','Chaos Destruction','ConstellarTaurus','ConstellarSagittarius','Whooping',
+    'Twelve Devas Axe','Staff of Perfect Enlightenment','Kitchen','War Scythe',
   ].includes(name)) special = true
 
   switch (name) {
+    case 'Twelve Devas Axe': damage *= 2.5; break
+    case 'Staff of Perfect Enlightenment':
+      damage *= 1.25
+      bypass = true
+      if (!statusProtected(runtime, target.team) && rand(runtime, attacker.team) < 0.25) target.status.stunned = Math.max(1, target.status.stunned)
+      break
+    case 'Kitchen': bypass = true; break
+    case 'War Scythe': if (attacker.flags.warScytheEntry) bypass = true; break
     case 'True Strike': if (rand(runtime, attacker.team) > 0.5) damage *= 2; break
     case 'Absolute Apex': damage *= 1.5; break
     case 'Whooping': if (cardAge(attacker.definition.name) > cardAge(target.definition.name)) damage *= 2; break
@@ -1474,6 +1556,20 @@ function defensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
       }
       break
     case 'Evasion': if (rand(runtime, target.team) > 0.9) damage = 0; break
+    case 'Divine Ascension': if (rand(runtime, target.team) > Math.pow(damage / target.maxHp, 2)) damage = 0; break
+    case 'Mastered Ascension':
+      target.counters.masteredAscension = ((target.counters.masteredAscension || 0) + 1) % 2
+      if (target.counters.masteredAscension === 1) damage = 0
+      break
+    case 'Vajra Short Sword':
+      if (rand(runtime, target.team) < 0.4) {
+        const reflected = Math.min(Math.max(0, attacker.hp * 0.75), Math.max(0, damage * 0.75))
+        damage = 0
+        attacker.hp -= reflected
+      }
+      break
+    case 'Shield of Ahimsa': damage *= 0.65; break
+    case 'Cosmic Rivalry': damage *= Math.max(0, 1 - Math.min(1, target.counters.cosmicRivalryDR || 0)); break
     case 'Finesse': if (damage < target.maxHp * 0.3) damage = 0; break
     case 'Last Stand':
       if (damage >= target.hp && !target.flags.lastStand) { damage = target.hp - 1; target.flags.lastStand = true }
@@ -1607,7 +1703,7 @@ function defensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
 }
 
 function tryRevive(runtime: Runtime, attacker: CombatCard, target: CombatCard): boolean {
-  if (target.hp > 0) return false
+  if (target.hp > 0 || attacker.flags.warScytheEntry) return false
   if (activeBonusAbilities(target).length) {
     for (const gained of activeBonusAbilities(target)) {
       const revived = withAbility(target, gained, () => tryRevive(runtime, attacker, target))
@@ -2315,6 +2411,19 @@ function resolveDeaths(runtime: Runtime) {
         continue
       }
 
+      if (hasAbility(runtime, card, 'Divine Ascension') && !card.flags.awakened) {
+        card.flags.awakened = true
+        card.abilityOverride = 'Mastered Ascension'
+        card.maxHp *= 1.5
+        card.damage *= 1.5
+        card.hp = card.maxHp
+        card.counters.normalDamage = (card.counters.normalDamage || card.damage / 1.5) * 1.5
+        card.counters.normalMaxHp = (card.counters.normalMaxHp || card.maxHp / 1.5) * 1.5
+        pushAbilityDebug(runtime, card, 'Divine Ascension awakened — became Mastered Ascension at 1.5× stats and full HP.')
+        changed = true
+        continue
+      }
+
       if (hasAbility(runtime, card, 'Undying')) {
         if (!card.flags.undyingActive) {
           card.flags.undyingActive = true
@@ -2549,6 +2658,21 @@ function statusEnd(runtime: Runtime, attacker: CombatCard) {
 
 function prepareTurn(runtime: Runtime, attacker: CombatCard) {
   const composer = runtime.state.boosts[attacker.team]
+
+  if (hasAbility(runtime, attacker, 'Cosmic Rivalry')) {
+    runAbilityTrace(runtime, attacker, 'Cosmic Rivalry', () => {
+      const baseDamage = attacker.counters.normalDamage || attacker.damage
+      const baseMaxHp = attacker.counters.normalMaxHp || attacker.maxHp
+      attacker.damage += baseDamage * 0.1
+      attacker.maxHp += baseMaxHp * 0.1
+      attacker.hp += baseMaxHp * 0.1
+      attacker.counters.cosmicRivalryDR = Math.min(1, (attacker.counters.cosmicRivalryDR || 0) + 0.1)
+    })
+  }
+  if (hasAbility(runtime, attacker, 'Shield of Ahimsa')) {
+    attacker.counters.ahimsaTurns = (attacker.counters.ahimsaTurns || 0) + 1
+    if (attacker.counters.ahimsaTurns % 2 === 0) attacker.status.shield += 1
+  }
   if ((composer.composerCount || 0) > 0) {
     composer.composerThreshold = Math.max(0.6, (composer.composerThreshold ?? 1) - 0.1)
     const target = active(runtime, OTHER_TEAM[attacker.team])
@@ -3026,9 +3150,17 @@ function growHiddenInDepths(runtime: Runtime, moving: BattleTeam) {
     const card = deck[index]
     if (hasAbility(runtime, card, 'Hidden in the Depths')) {
       runAbilityTrace(runtime, card, 'Hidden in the Depths', () => {
-        card.damage *= 1.1
-        card.maxHp *= 1.1
-        card.hp *= 1.1
+        const baseDamage = card.counters.normalDamage || card.damage
+        const baseMaxHp = card.counters.normalMaxHp || card.maxHp
+        const damageBonus = card.counters.hiddenDepthsBonusDamage || 0
+        const hpBonus = card.counters.hiddenDepthsBonusHp || 0
+        const addDamage = Math.min(baseDamage * 0.1, Math.max(0, baseDamage * 2 - damageBonus))
+        const addHp = Math.min(baseMaxHp * 0.1, Math.max(0, baseMaxHp * 2 - hpBonus))
+        card.damage += addDamage
+        card.maxHp += addHp
+        card.hp += addHp
+        card.counters.hiddenDepthsBonusDamage = damageBonus + addDamage
+        card.counters.hiddenDepthsBonusHp = hpBonus + addHp
       })
     }
   }

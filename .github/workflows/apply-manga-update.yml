@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - scripts/apply-manga-update.mjs
+      - scripts/apply-manga-support.mjs
       - .github/workflows/apply-manga-update.yml
 
 permissions:
@@ -22,6 +23,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: node scripts/apply-manga-update.mjs
+      - run: node scripts/apply-manga-support.mjs
       - run: npm ci
       - run: npm run check
       - run: npm run build:workers

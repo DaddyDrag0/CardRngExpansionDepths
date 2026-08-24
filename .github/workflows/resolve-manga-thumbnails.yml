@@ -1,0 +1,35 @@
+name: Resolve Manga thumbnails
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/resolve-manga-thumbnails.mjs
+      - .github/workflows/resolve-manga-thumbnails.yml
+
+permissions:
+  contents: write
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/resolve-manga-thumbnails.mjs
+      - name: Commit Manga thumbnail cache
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/data/thumbnails.json
+          if git diff --cached --quiet; then
+            echo "No thumbnail changes."
+            exit 0
+          fi
+          git commit -m "Cache Manga Roblox thumbnails"
+          git pull --rebase origin main
+          git push

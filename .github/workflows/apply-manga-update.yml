@@ -23,6 +23,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      # Apply the extracted Manga-weather source changes before running the full suite.
       - run: node scripts/apply-manga-update.mjs
       - run: node scripts/apply-manga-support.mjs
       - run: node scripts/apply-manga-regression-fixes.mjs

@@ -18,4 +18,14 @@ import fs from 'node:fs'
   fs.writeFileSync(path, text)
 }
 
-console.log('Aligned source aura and seeded Depths regressions for the Manga card pool.')
+{
+  const path = 'scripts/manga-update-regression.ts'
+  let text = fs.readFileSync(path, 'utf8')
+  text = text.replace(
+    "assert(statAuraPercentForCard(satan,{definition:blood} as any,'Galaxy') > 300,'Satan must not inherit the new 300% cap')",
+    "close(statAuraPercentForCard(satan,{definition:blood} as any,'Galaxy'),282.5,'Satan Blood Rain boost remains source value')",
+  )
+  fs.writeFileSync(path, text)
+}
+
+console.log('Aligned source aura, seeded Depths, and Manga aura regressions.')

@@ -1,10 +1,14 @@
 import fs from 'node:fs'
 
-const html = fs.readFileSync('index.html', 'utf8')
-const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((match) => match[1])
-if (!scripts.length) throw new Error('No inline live-page script found')
+const loaderHtml = fs.readFileSync('index.html', 'utf8')
+const liveHtml = fs.readFileSync('index-base.html', 'utf8')
+const scripts = [...loaderHtml.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((match) => match[1])
+if (!scripts.length) throw new Error('No inline loader script found')
 for (const script of scripts) new Function(script)
 
+// index.html is intentionally a small cache-busting loader. The actual calculator
+// markup and worker hooks live in index-base.html, so validate the composed live page.
+const html = loaderHtml + '\n' + liveHtml
 const requiredUiHooks = [
   "./browser/depths-worker.js",
   "./browser/tower-worker.js",
@@ -39,4 +43,4 @@ if (battle.includes('pairTurns[')) throw new Error('Incorrect per-attacker timeo
 const styles = fs.readFileSync('src/styles.css', 'utf8')
 if (styles.includes('.aura-exact b{display:none!important}')) throw new Error('Resolved aura values are hidden')
 
-console.log(`Static UI validation passed (${scripts.length} inline script).`)
+console.log(`Static UI validation passed (${scripts.length} loader script).`)

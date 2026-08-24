@@ -4,6 +4,9 @@ import { getAttack, getHealth } from './stats'
 import { SeededRng } from './rng'
 
 const HARD_EXCLUSIONS = new Set(['Vampire Lord', 'Parallax', 'Samurai'])
+// The live game checks `not Era2[i]` in DepthsStage, so every card defined
+// by the Era2 module is force-excluded from Depths enemy generation.
+const ERA2_DEPTHS_EXCLUSIONS = new Set(cards.filter((card) => card.pack === 'Era2').map((card) => card.name))
 export const LEGACY_DEPTHS_BANS = ['Samurai', 'Seraphim', 'Loki', 'Fuxi', 'Parallax', 'Nán Fāng Zhū Què', 'Brachiosaurus', 'Jersey Devil'] as const
 const LEGACY_DEPTHS_BAN_SET = new Set<string>(LEGACY_DEPTHS_BANS)
 
@@ -61,6 +64,7 @@ export function isDepthsSourceEligible(card: CardDefinition): boolean {
     && !card.expires
     && !card.boss
     && !HARD_EXCLUSIONS.has(card.name)
+    && !ERA2_DEPTHS_EXCLUSIONS.has(card.name)
     && card.pack !== 'Christmas'
     && card.pack !== 'Halloween'
     && card.pack !== 'Halloween2'
@@ -179,7 +183,7 @@ export const depthsMechanics = {
   enemyCount: 4,
   duplicateEnemiesAllowed: true,
   weatherWeights: WEATHER_WEIGHTS,
-  hardExclusions: [...HARD_EXCLUSIONS],
+  hardExclusions: [...HARD_EXCLUSIONS, ...ERA2_DEPTHS_EXCLUSIONS],
   legacyHardExclusions: [...LEGACY_DEPTHS_BANS],
   maxPlayerBans: MAX_DEPTH_BANS,
 }

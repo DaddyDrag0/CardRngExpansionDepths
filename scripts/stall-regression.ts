@@ -21,13 +21,14 @@ function mixSeed(runSeed: number, floor: number): number {
 const runSeed = 983450096
 const floor = 97
 const floorSeed = mixSeed(runSeed, floor)
-const enemies = generateDepthsTeam(floor, floorSeed)
+const generatedEnemies = generateDepthsTeam(floor, floorSeed)
+const anubis = cards.find((card) => card.name === 'Anubis')
+assert(anubis, 'Anubis regression card missing')
+// Keep this regression focused on the revive-chain bug instead of coupling it to
+// the exact source enemy pool, which legitimately changes when forced bans change.
+const enemies = generatedEnemies.map((enemy, index) => index === 0 || index === 2 ? { ...enemy, card: anubis } : enemy)
 const enemyNames = enemies.map((enemy) => enemy.card.name)
-
-assert(
-  JSON.stringify(enemyNames) === JSON.stringify(['Anubis', 'Darling', 'Anubis', 'Titan']),
-  `Stall regression floor changed: ${enemyNames.join(' | ')}`,
-)
+assert(enemyNames[0] === 'Anubis' && enemyNames[2] === 'Anubis', `Duplicate-Anubis setup failed: ${enemyNames.join(' | ')}`)
 
 const loadout: TeamLoadout = {
   cards: ['Behemoth', 'Tyrannodon', 'Surtr', 'Kraken'].map((cardName) => ({

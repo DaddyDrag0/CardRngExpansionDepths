@@ -67,6 +67,14 @@ function loadout(names: string[]): TeamLoadout {
   for (const name of depthsMechanics.hardExclusions) {
     assert(!getDepthsPool(floor, []).some((entry) => entry.card.name === name), `Default Depth ban ${name} must remain excluded`)
   }
+
+  // The live source excludes the entire Era2 module from DepthsStage.
+  const era2Cards = cards.filter((card) => card.pack === 'Era2')
+  assert(era2Cards.length >= 20, 'Expected the Era 2 card group to be present')
+  for (const card of era2Cards) {
+    assert(!isDepthsSourceEligible(card), `Era 2 source exclusion missing for ${card.name}`)
+    assert(!getDepthsPool(floor).some((entry) => entry.card.name === card.name), `Era 2 card leaked into Depths: ${card.name}`)
+  }
 }
 
 const dummyDefinition: CardDefinition = {
@@ -107,7 +115,7 @@ for (const card of cards) {
   representatives.set(card.ability, card)
 }
 
-assert(representatives.size >= 176, `Expected at least 176 Depths abilities, found ${representatives.size}`)
+assert(representatives.size >= 160, `Expected at least 160 source-eligible Depths abilities, found ${representatives.size}`)
 
 let executed = 0
 for (const [ability, card] of representatives) {

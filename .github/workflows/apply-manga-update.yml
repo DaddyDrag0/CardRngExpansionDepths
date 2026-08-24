@@ -6,6 +6,7 @@ on:
     paths:
       - scripts/apply-manga-update.mjs
       - scripts/apply-manga-support.mjs
+      - scripts/apply-manga-regression-fixes.mjs
       - .github/workflows/apply-manga-update.yml
 
 permissions:
@@ -24,6 +25,7 @@ jobs:
           cache: npm
       - run: node scripts/apply-manga-update.mjs
       - run: node scripts/apply-manga-support.mjs
+      - run: node scripts/apply-manga-regression-fixes.mjs
       - run: npm ci
       - run: npm run check
       - run: npm run build:workers

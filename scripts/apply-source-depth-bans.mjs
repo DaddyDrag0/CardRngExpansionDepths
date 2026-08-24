@@ -61,4 +61,14 @@ function replaceOnce(text, from, to, label) {
   fs.writeFileSync(path, text)
 }
 
+{
+  const path = 'scripts/stall-regression.ts'
+  let text = fs.readFileSync(path, 'utf8')
+  const oldBlock = `const enemies = generateDepthsTeam(floor, floorSeed)\nconst enemyNames = enemies.map((enemy) => enemy.card.name)\n\nassert(\n  JSON.stringify(enemyNames) === JSON.stringify(['Anubis', 'Darling', 'Anubis', 'Titan']),\n  \`Stall regression floor changed: \${enemyNames.join(' | ')}\`,\n)`
+  if (text.includes(oldBlock)) {
+    text = text.replace(oldBlock, `const generatedEnemies = generateDepthsTeam(floor, floorSeed)\nconst anubis = cards.find((card) => card.name === 'Anubis')\nassert(anubis, 'Anubis regression card missing')\n// Keep this regression focused on the revive-chain bug instead of coupling it to\n// the exact source enemy pool, which legitimately changes when forced bans change.\nconst enemies = generatedEnemies.map((enemy, index) => index === 0 || index === 2 ? { ...enemy, card: anubis } : enemy)\nconst enemyNames = enemies.map((enemy) => enemy.card.name)\nassert(enemyNames[0] === 'Anubis' && enemyNames[2] === 'Anubis', \`Duplicate-Anubis setup failed: \${enemyNames.join(' | ')}\`)`)
+  }
+  fs.writeFileSync(path, text)
+}
+
 console.log('Applied live-source Era 2 Depths forced exclusions.')

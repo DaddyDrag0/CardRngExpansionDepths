@@ -55,6 +55,14 @@ const BOOSTED_WEATHERS: Record<string, string> = {
   Disease: 'Virus',
 }
 
+// Aug. 24, 2026 balance pass: the normal aura boost is unchanged, but the
+// extra group-specific portion is capped for the affected high-end stat auras.
+const WEATHER_GROUP_STAT_CAP = 300
+const CARD_GROUP_STAT_CAPS: Record<string, number> = {
+  'Dinosaur King': 414,
+  'Desmond Of Despair': 414,
+}
+
 export const TOY_CARD_NAMES = new Set([
   'Toy Bear',
   'Toy Car',
@@ -108,7 +116,13 @@ export function statAuraPercentForCard(
 ): number {
   const base = getStatAuraValue(aura, border)
   if (aura.name === 'General Sun Tzu') return base
-  return isStatAuraBoosted(aura, card) ? base * Number(aura.boostMult || 1) : base
+  if (!isStatAuraBoosted(aura, card)) return base
+
+  const boosted = base * Number(aura.boostMult || 1)
+  if (BOOSTED_WEATHERS[aura.name]) return Math.min(boosted, WEATHER_GROUP_STAT_CAP)
+
+  const cardGroupCap = CARD_GROUP_STAT_CAPS[aura.name]
+  return cardGroupCap == null ? boosted : Math.min(boosted, cardGroupCap)
 }
 
 export function applyStatAura(

@@ -19,6 +19,7 @@
   const rand = (min, max) => min + Math.random() * (max - min);
   const pick = values => values[Math.floor(Math.random() * values.length)];
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+  const lerp = (from, to, amount) => from + (to - from) * amount;
 
   function ensureReactionStyles() {
     if (document.getElementById(STYLE_ID)) return;
@@ -30,11 +31,33 @@
         inset:0;
         display:block;
         transform-origin:center;
-        will-change:transform;
+        will-change:transform,transform-origin;
       }
-      .lava-reactor .lava-core{position:absolute}
-      html[data-theme="lava"] .lava-blob.pointer-impact .lava-core{
-        filter:blur(calc(var(--lava-blur,10px) * .84)) saturate(1.5) brightness(1.1);
+      .lava-reactor .lava-core{
+        position:absolute;
+        overflow:hidden;
+        isolation:isolate;
+      }
+      .lava-reactor .lava-core::after{
+        content:"";
+        position:absolute;
+        inset:-2%;
+        z-index:3;
+        pointer-events:none;
+        border-radius:inherit;
+        opacity:var(--lava-dent-strength,0);
+        background:
+          radial-gradient(circle at var(--lava-dent-x,50%) var(--lava-dent-y,50%),
+            rgba(32,0,0,.56) 0 3.5%,
+            rgba(92,5,0,.40) 6%,
+            rgba(255,112,30,.18) 10%,
+            rgba(255,185,77,.05) 14%,
+            transparent 23%);
+        filter:blur(var(--lava-dent-blur,2px));
+        transition:opacity .12s linear;
+      }
+      html[data-theme="lava"] .lava-blob.pointer-jelly .lava-core{
+        filter:blur(calc(var(--lava-blur,10px) * .92)) saturate(1.44) brightness(1.06);
       }
     `;
     document.head.appendChild(style);
@@ -96,19 +119,25 @@
     blobs.push({
       blob,
       reactor,
-      x: 0,
-      y: 0,
-      vx: 0,
-      vy: 0,
-      scaleX: 1,
-      scaleY: 1,
-      scaleVX: 0,
-      scaleVY: 0,
-      rotation: 0,
-      rotationV: 0,
-      pointerInside: false,
-      returnAt: 0,
-      impactUntil: 0,
+      core,
+      amount: 0,
+      targetAmount: 0,
+      stretch: 1,
+      targetStretch: 1,
+      squash: 1,
+      targetSquash: 1,
+      twist: 0,
+      targetTwist: 0,
+      skew: 0,
+      targetSkew: 0,
+      originX: 50,
+      originY: 50,
+      targetOriginX: 50,
+      targetOriginY: 50,
+      dentX: 50,
+      dentY: 50,
+      ripple: 0,
+      ripplePhase: rand(0, Math.PI * 2),
     });
 
     return blob;
@@ -153,130 +182,109 @@
     for (let i = 0; i < BUBBLE_COUNT; i++) layer.appendChild(makeBubble(i));
   }
 
-  function hitBlob(state, nx, ny, rect, now) {
-    const pointerSpeed = Math.hypot(pointerVX, pointerVY);
+  function calculateJellyTarget(state) {
+    state.targetAmount = 0;
+    state.targetStretch = 1;
+    state.targetSquash = 1;
+    state.targetTwist = 0;
+    state.targetSkew = 0;
+    state.targetOriginX = 50;
+    state.targetOriginY = 50;
 
-    // A real hit transfers the direction the mouse was travelling. Very slow
-    // contact still nudges the blob away from the cursor, but never continuously.
-    let hitX = nx;
-    let hitY = ny;
-    if (pointerSpeed > .65) {
-      const mx = pointerVX / pointerSpeed;
-      const my = pointerVY / pointerSpeed;
-      hitX = mx * .82 + nx * .18;
-      hitY = my * .82 + ny * .18;
-      const length = Math.hypot(hitX, hitY) || 1;
-      hitX /= length;
-      hitY /= length;
-    }
+    if (!pointerActive) return;
 
-    // Large globs feel heavier. The impulse is intentionally moderate so they
-    // visibly coast rather than teleporting away from the cursor.
-    const largestSide = Math.max(rect.width, rect.height);
-    const massFactor = clamp(260 / largestSide, .58, 1.18);
-    const impulse = clamp(3.6 + pointerSpeed * .20, 3.8, 9.5) * massFactor;
-
-    state.vx = clamp(state.vx + hitX * impulse, -12, 12);
-    state.vy = clamp(state.vy + hitY * impulse, -12, 12);
-
-    // Don't pull it home immediately. Let it travel like it was actually struck,
-    // then start a slow return after the momentum has had time to play out.
-    state.returnAt = now + 1350 + Math.min(900, pointerSpeed * 20);
-    state.impactUntil = now + 260;
-
-    const horizontal = Math.abs(hitX);
-    const vertical = Math.abs(hitY);
-    const squash = clamp(.08 + impulse * .012, .10, .21);
-    state.scaleVX += vertical * squash - horizontal * squash * .68;
-    state.scaleVY += horizontal * squash - vertical * squash * .68;
-    state.rotationV += hitX * impulse * .16;
-  }
-
-  function detectPointerHit(state, now) {
     const rect = state.blob.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2 + state.x;
-    const cy = rect.top + rect.height / 2 + state.y;
-    const dx = cx - pointerX;
-    const dy = cy - pointerY;
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const dx = pointerX - cx;
+    const dy = pointerY - cy;
     const distance = Math.hypot(dx, dy) || .001;
 
-    // This is a collision radius, not a force field. Staying inside it does not
-    // apply more force; the mouse has to leave and strike the glob again.
-    const radius = clamp(Math.min(rect.width, rect.height) * .48, 72, 235);
-    const inside = pointerActive && distance < radius;
+    // This is only an influence area. It never changes the blob's actual route.
+    const radius = clamp(Math.max(rect.width, rect.height) * .58 + 65, 145, 360);
+    if (distance >= radius) return;
 
-    if (inside && !state.pointerInside) {
-      hitBlob(state, dx / distance, dy / distance, rect, now);
-    }
-    state.pointerInside = inside;
+    const proximity = 1 - distance / radius;
+    const force = proximity * proximity * (3 - 2 * proximity);
+    const nx = dx / distance;
+    const ny = dy / distance;
+    const speed = clamp(Math.hypot(pointerVX, pointerVY), 0, 44);
+    const speedFactor = clamp(speed / 24, 0, 1);
+
+    // Keep the apparent distortion anchored near the cursor. The user sees the
+    // liquid stretch and bend around the pointer, while the outer blob keeps drifting.
+    const localX = clamp((pointerX - rect.left) / Math.max(1, rect.width) * 100, 8, 92);
+    const localY = clamp((pointerY - rect.top) / Math.max(1, rect.height) * 100, 8, 92);
+
+    state.targetAmount = force;
+    state.targetOriginX = localX;
+    state.targetOriginY = localY;
+    state.dentX = localX;
+    state.dentY = localY;
+
+    // Stretch mostly along the path of the mouse and compress across it. A slow
+    // pass feels gooey; a fast pass creates a sharper temporary twist/ripple.
+    const horizontalPass = Math.abs(pointerVX) >= Math.abs(pointerVY);
+    const stretch = force * (.10 + speedFactor * .10);
+    const squash = force * (.065 + speedFactor * .065);
+    state.targetStretch = horizontalPass ? 1 + stretch : 1 - squash;
+    state.targetSquash = horizontalPass ? 1 - squash : 1 + stretch;
+
+    const sideTwist = nx * -8.5 + ny * 5.5;
+    const motionTwist = clamp((pointerVX - pointerVY) * .15, -8, 8);
+    state.targetTwist = force * (sideTwist + motionTwist * speedFactor);
+    state.targetSkew = force * clamp((nx * ny * -18) + (pointerVX + pointerVY) * .09, -15, 15);
+
+    // Feed a little energy into a decaying after-wobble, but never into position.
+    state.ripple = Math.max(state.ripple, force * (.5 + speedFactor * .65));
   }
 
   function animateInteraction() {
     animationFrame = 0;
     if (!isLava() || reducedMotion()) return;
 
-    const now = performance.now();
+    const now = performance.now() * .001;
 
     for (const state of blobs) {
-      detectPointerHit(state, now);
+      calculateJellyTarget(state);
 
-      if (now < state.impactUntil) state.blob.classList.add('pointer-impact');
-      else state.blob.classList.remove('pointer-impact');
+      // Ease into the pointer shape quickly enough to feel responsive, then relax
+      // more slowly so the blob has a soft jelly memory after the mouse passes.
+      const entering = state.targetAmount > state.amount;
+      const response = entering ? .18 : .085;
+      state.amount = lerp(state.amount, state.targetAmount, response);
+      state.stretch = lerp(state.stretch, state.targetStretch, response);
+      state.squash = lerp(state.squash, state.targetSquash, response);
+      state.twist = lerp(state.twist, state.targetTwist, response);
+      state.skew = lerp(state.skew, state.targetSkew, response);
+      state.originX = lerp(state.originX, state.targetOriginX, .16);
+      state.originY = lerp(state.originY, state.targetOriginY, .16);
 
-      // First, coast freely with thick-liquid drag. Only after a delay does a
-      // very weak restoring force start guiding the glob toward its old route.
-      if (now >= state.returnAt) {
-        state.vx += -state.x * .0021;
-        state.vy += -state.y * .0021;
-        state.vx *= .968;
-        state.vy *= .968;
-      } else {
-        state.vx *= .976;
-        state.vy *= .976;
-      }
+      state.ripple *= state.targetAmount > .02 ? .982 : .955;
+      if (state.ripple < .002) state.ripple = 0;
+      state.ripplePhase += .14;
 
-      state.x += state.vx;
-      state.y += state.vy;
+      const wave = Math.sin(state.ripplePhase + now * 2.1) * state.ripple;
+      const crossWave = Math.cos(state.ripplePhase * .83 + now * 1.65) * state.ripple;
+      const scaleX = clamp(state.stretch + wave * .035, .78, 1.27);
+      const scaleY = clamp(state.squash - wave * .028, .78, 1.27);
+      const twist = clamp(state.twist + crossWave * 3.2, -18, 18);
+      const skew = clamp(state.skew + wave * 4.2, -18, 18);
 
-      // Give a hit enough room to actually travel. At the distant soft limit it
-      // loses energy instead of ping-ponging back and forth.
-      const maxOffset = 290;
-      if (state.x < -maxOffset || state.x > maxOffset) {
-        state.x = clamp(state.x, -maxOffset, maxOffset);
-        state.vx *= -.22;
-      }
-      if (state.y < -maxOffset || state.y > maxOffset) {
-        state.y = clamp(state.y, -maxOffset, maxOffset);
-        state.vy *= -.22;
-      }
+      state.reactor.style.transformOrigin = `${state.originX.toFixed(2)}% ${state.originY.toFixed(2)}%`;
+      state.reactor.style.transform = `rotate(${twist.toFixed(2)}deg) skew(${skew.toFixed(2)}deg,${(-skew * .34).toFixed(2)}deg) scale(${scaleX.toFixed(3)},${scaleY.toFixed(3)})`;
 
-      // Kill tiny residual oscillation near home rather than buzzing around zero.
-      if (now >= state.returnAt && Math.abs(state.x) < .7 && Math.abs(state.vx) < .07) {
-        state.x = 0;
-        state.vx = 0;
-      }
-      if (now >= state.returnAt && Math.abs(state.y) < .7 && Math.abs(state.vy) < .07) {
-        state.y = 0;
-        state.vy = 0;
-      }
+      state.core.style.setProperty('--lava-dent-x', `${state.dentX.toFixed(2)}%`);
+      state.core.style.setProperty('--lava-dent-y', `${state.dentY.toFixed(2)}%`);
+      state.core.style.setProperty('--lava-dent-strength', clamp(state.amount * .86 + state.ripple * .16, 0, .92).toFixed(3));
+      state.core.style.setProperty('--lava-dent-blur', `${(1.2 + state.amount * 2.8).toFixed(2)}px`);
 
-      // The impact deformation also settles slowly, independently of travel.
-      state.scaleVX += (1 - state.scaleX) * .045;
-      state.scaleVY += (1 - state.scaleY) * .045;
-      state.scaleVX *= .82;
-      state.scaleVY *= .82;
-      state.scaleX = clamp(state.scaleX + state.scaleVX, .74, 1.30);
-      state.scaleY = clamp(state.scaleY + state.scaleVY, .74, 1.30);
-
-      state.rotationV += -state.rotation * .025;
-      state.rotationV *= .86;
-      state.rotation = clamp(state.rotation + state.rotationV, -16, 16);
-
-      state.reactor.style.transform = `translate3d(${state.x.toFixed(2)}px,${state.y.toFixed(2)}px,0) scale(${state.scaleX.toFixed(3)},${state.scaleY.toFixed(3)}) rotate(${state.rotation.toFixed(2)}deg)`;
+      if (state.amount > .035 || state.ripple > .05) state.blob.classList.add('pointer-jelly');
+      else state.blob.classList.remove('pointer-jelly');
     }
 
-    pointerVX *= .86;
-    pointerVY *= .86;
+    pointerVX *= .83;
+    pointerVY *= .83;
     animationFrame = requestAnimationFrame(animateInteraction);
   }
 
@@ -311,9 +319,8 @@
     const oldY = pointerY;
     pointerX = event.clientX;
     pointerY = event.clientY;
-
-    pointerVX = clamp((pointerX - oldX) * (16.67 / dt), -48, 48);
-    pointerVY = clamp((pointerY - oldY) * (16.67 / dt), -48, 48);
+    pointerVX = clamp((pointerX - oldX) * (16.67 / dt), -44, 44);
+    pointerVY = clamp((pointerY - oldY) * (16.67 / dt), -44, 44);
     lastPointerTime = now;
     startInteractionLoop();
   }
@@ -322,7 +329,6 @@
     pointerActive = false;
     pointerVX = 0;
     pointerVY = 0;
-    for (const state of blobs) state.pointerInside = false;
   }
 
   function syncTheme() {

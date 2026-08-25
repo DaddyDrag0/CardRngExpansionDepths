@@ -33,6 +33,7 @@
     const y = rand(-18, 102);
     const duration = rand(28, 67);
     const morph = rand(7, 17);
+    const rotation = rand(-28, 28);
     const palette = pick(['ember', 'gold', 'crimson', 'plasma']);
 
     blob.dataset.lavaTone = palette;
@@ -51,7 +52,9 @@
     blob.style.setProperty('--lava-y2', `${rand(-20, 31).toFixed(2)}vh`);
     blob.style.setProperty('--lava-x3', `${rand(-11, 11).toFixed(2)}vw`);
     blob.style.setProperty('--lava-y3', `${rand(-33, 26).toFixed(2)}vh`);
-    blob.style.setProperty('--lava-rot', `${rand(-28, 28).toFixed(1)}deg`);
+    blob.style.setProperty('--lava-rot1', `${(rotation * .45).toFixed(1)}deg`);
+    blob.style.setProperty('--lava-rot2', `${rotation.toFixed(1)}deg`);
+    blob.style.setProperty('--lava-rot3', `${(rotation * -.4).toFixed(1)}deg`);
     blob.style.setProperty('--lava-blur', `${rand(5, 18).toFixed(1)}px`);
     return blob;
   }
@@ -62,6 +65,8 @@
     const size = rand(index < 8 ? 15 : 5, index < 8 ? 42 : 22);
     const duration = rand(14, 38);
     const rising = Math.random() > .28;
+    const drift = rand(-15, 15);
+    const travel = rising ? -rand(34, 78) : rand(30, 70);
 
     bubble.style.left = `${rand(0, 100).toFixed(2)}vw`;
     bubble.style.top = `${rand(-8, 108).toFixed(2)}vh`;
@@ -70,8 +75,11 @@
     bubble.style.opacity = rand(.18, .58).toFixed(2);
     bubble.style.setProperty('--bubble-time', `${duration.toFixed(2)}s`);
     bubble.style.setProperty('--bubble-delay', `${(-rand(0, duration)).toFixed(2)}s`);
-    bubble.style.setProperty('--bubble-drift', `${rand(-15, 15).toFixed(2)}vw`);
-    bubble.style.setProperty('--bubble-travel', `${(rising ? -rand(34, 78) : rand(30, 70)).toFixed(2)}vh`);
+    bubble.style.setProperty('--bubble-drift', `${drift.toFixed(2)}vw`);
+    bubble.style.setProperty('--bubble-drift-mid', `${(drift * .65).toFixed(2)}vw`);
+    bubble.style.setProperty('--bubble-travel', `${travel.toFixed(2)}vh`);
+    bubble.style.setProperty('--bubble-travel-38', `${(travel * .38).toFixed(2)}vh`);
+    bubble.style.setProperty('--bubble-travel-72', `${(travel * .72).toFixed(2)}vh`);
     bubble.style.setProperty('--bubble-wobble', `${rand(-28, 28).toFixed(1)}px`);
     return bubble;
   }

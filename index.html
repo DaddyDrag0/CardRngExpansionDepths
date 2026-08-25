@@ -15,8 +15,8 @@
       const response=await fetch('./index-base.html?rev=5',{cache:'no-store'});
       if(!response.ok)throw new Error(`HTTP ${response.status}`);
       let html=await response.text();
-      const rainTag='  <script defer src="./src/blood-rain.js?rev=5"></'+'script>\n';
-      html=html.replace('</head>',rainTag+'</head>');
+      const ambienceTags='  <script defer src="./src/blood-rain.js?rev=5"></'+'script>\n'+'  <script defer src="./src/lava-ambience.js?rev=1"></'+'script>\n';
+      html=html.replace('</head>',ambienceTags+'</head>');
       document.open();
       document.write(html);
       document.close();

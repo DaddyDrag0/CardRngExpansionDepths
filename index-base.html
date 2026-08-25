@@ -10,12 +10,12 @@
   <meta http-equiv="Expires" content="0" />
   <script>
   (()=>{
-    const valid=new Set(['default','scarlet','slate']);
+    const valid=new Set(['default','scarlet','slate','lava']);
     let theme='default';
     try{const saved=localStorage.getItem('crx-site-theme');if(valid.has(saved))theme=saved}catch(_){}
     document.documentElement.dataset.theme=theme;
     window.addEventListener('DOMContentLoaded',()=>{
-      const colors={default:'#080b10',scarlet:'#080406',slate:'#14191f'};
+      const colors={default:'#080b10',scarlet:'#080406',slate:'#14191f',lava:'#090202'};
       const buttons=[...document.querySelectorAll('[data-theme-choice]')];
       const apply=(next,persist=true)=>{
         if(!valid.has(next))next='default';
@@ -82,6 +82,7 @@
     <button class="theme-choice" type="button" data-theme-choice="default" aria-pressed="true"><i></i>Default</button>
     <button class="theme-choice" type="button" data-theme-choice="scarlet" aria-pressed="false"><i></i>Scarlet</button>
     <button class="theme-choice" type="button" data-theme-choice="slate" aria-pressed="false"><i></i>Slate</button>
+    <button class="theme-choice" type="button" data-theme-choice="lava" aria-pressed="false"><i></i>Lava</button>
   </div>
 </div>
 <div id="root"><div class="loading">Loading Depths calculator…</div></div>

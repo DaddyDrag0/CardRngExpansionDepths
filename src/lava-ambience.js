@@ -15,7 +15,7 @@
   const isLava = () => document.documentElement.dataset.theme === THEME;
   const rand = (min, max) => min + Math.random() * (max - min);
   const pick = values => values[Math.floor(Math.random() * values.length)];
-  const lerp = (from, to, amount) => from + (to - from) * amount;
+  const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
   function ensureReactionStyles() {
     if (document.getElementById(STYLE_ID)) return;
@@ -30,7 +30,7 @@
         will-change:transform;
       }
       .lava-reactor .lava-core{position:absolute}
-      html[data-theme="lava"] .lava-blob.pointer-vibrate .lava-core{
+      html[data-theme="lava"] .lava-blob.pointer-bounce .lava-core{
         filter:blur(calc(var(--lava-blur,10px) * .94)) saturate(1.42) brightness(1.05);
       }
     `;
@@ -65,7 +65,7 @@
     const x = rand(-10, 96);
     const y = rand(-18, 102);
 
-    // Slightly quicker than the original Lava theme without becoming frantic.
+    // Keep the slightly quicker ambient movement from the previous version.
     const duration = rand(22, 50);
     const morph = rand(5.5, 13);
     const rotation = rand(-28, 28);
@@ -95,15 +95,16 @@
     blobs.push({
       blob,
       reactor,
-      amount: 0,
-      targetAmount: 0,
-      phaseX: rand(0, Math.PI * 2),
-      phaseY: rand(0, Math.PI * 2),
-      phaseR: rand(0, Math.PI * 2),
-      speedX: rand(22, 30),
-      speedY: rand(25, 35),
-      speedR: rand(18, 25),
-      strength: rand(.8, 1.2),
+      inside: false,
+      x: 0,
+      y: 0,
+      vx: 0,
+      vy: 0,
+      scaleX: 1,
+      scaleY: 1,
+      scaleVX: 0,
+      scaleVY: 0,
+      glow: 0,
     });
 
     return blob;
@@ -148,47 +149,87 @@
     for (let i = 0; i < BUBBLE_COUNT; i++) layer.appendChild(makeBubble(i));
   }
 
-  function updateHoverTarget(state) {
-    state.targetAmount = 0;
-    if (!pointerActive) return;
+  function detectBounce(state) {
+    if (!pointerActive) {
+      state.inside = false;
+      return;
+    }
 
     const rect = state.blob.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return;
 
     const cx = rect.left + rect.width / 2;
     const cy = rect.top + rect.height / 2;
-    const rx = rect.width * .46;
-    const ry = rect.height * .46;
-    const nx = (pointerX - cx) / Math.max(1, rx);
-    const ny = (pointerY - cy) / Math.max(1, ry);
+    const rx = Math.max(1, rect.width * .46);
+    const ry = Math.max(1, rect.height * .46);
+    const ex = (pointerX - cx) / rx;
+    const ey = (pointerY - cy) / ry;
+    const inside = ex * ex + ey * ey <= 1;
 
-    if (nx * nx + ny * ny <= 1) state.targetAmount = 1;
+    // One impulse when the pointer enters. Staying over the blob does nothing else.
+    if (inside && !state.inside) {
+      let dx = cx - pointerX;
+      let dy = cy - pointerY;
+      let length = Math.hypot(dx, dy);
+      if (length < 1) {
+        const angle = rand(0, Math.PI * 2);
+        dx = Math.cos(angle);
+        dy = Math.sin(angle);
+        length = 1;
+      }
+
+      const nx = dx / length;
+      const ny = dy / length;
+      const sizeFactor = clamp(250 / Math.max(rect.width, rect.height), .65, 1.15);
+      const impulse = 5.2 * sizeFactor;
+
+      state.vx += nx * impulse;
+      state.vy += ny * impulse;
+      state.scaleVX += Math.abs(ny) * .045 - Math.abs(nx) * .025;
+      state.scaleVY += Math.abs(nx) * .045 - Math.abs(ny) * .025;
+      state.glow = 1;
+    }
+
+    state.inside = inside;
   }
 
-  function animateInteraction(timeMs) {
+  function animateInteraction() {
     animationFrame = 0;
     if (!isLava() || reducedMotion()) return;
 
-    const t = timeMs * .001;
-
     for (const state of blobs) {
-      updateHoverTarget(state);
-      state.amount = lerp(state.amount, state.targetAmount, state.targetAmount > state.amount ? .28 : .15);
+      detectBounce(state);
 
-      if (state.amount > .015) {
-        const a = state.amount * state.strength;
-        const x = Math.sin(t * state.speedX + state.phaseX) * 2.3 * a;
-        const y = Math.sin(t * state.speedY + state.phaseY) * 2.0 * a;
-        const rotation = Math.sin(t * state.speedR + state.phaseR) * .85 * a;
-        const scaleX = 1 + Math.sin(t * 28 + state.phaseX) * .010 * a;
-        const scaleY = 1 + Math.cos(t * 31 + state.phaseY) * .010 * a;
+      // Soft spring: one visible bounce outward, then a smooth return to the
+      // blob's normal animated route. This never changes the route itself.
+      state.vx += -state.x * .020;
+      state.vy += -state.y * .020;
+      state.vx *= .895;
+      state.vy *= .895;
+      state.x += state.vx;
+      state.y += state.vy;
 
-        state.reactor.style.transform = `translate3d(${x.toFixed(2)}px,${y.toFixed(2)}px,0) rotate(${rotation.toFixed(2)}deg) scale(${scaleX.toFixed(3)},${scaleY.toFixed(3)})`;
-        state.blob.classList.add('pointer-vibrate');
-      } else {
-        state.reactor.style.transform = 'none';
-        state.blob.classList.remove('pointer-vibrate');
+      if (Math.abs(state.x) < .08 && Math.abs(state.vx) < .025) {
+        state.x = 0;
+        state.vx = 0;
       }
+      if (Math.abs(state.y) < .08 && Math.abs(state.vy) < .025) {
+        state.y = 0;
+        state.vy = 0;
+      }
+
+      state.scaleVX += (1 - state.scaleX) * .075;
+      state.scaleVY += (1 - state.scaleY) * .075;
+      state.scaleVX *= .78;
+      state.scaleVY *= .78;
+      state.scaleX = clamp(state.scaleX + state.scaleVX, .92, 1.08);
+      state.scaleY = clamp(state.scaleY + state.scaleVY, .92, 1.08);
+
+      state.glow *= .91;
+      if (state.glow > .04) state.blob.classList.add('pointer-bounce');
+      else state.blob.classList.remove('pointer-bounce');
+
+      state.reactor.style.transform = `translate3d(${state.x.toFixed(2)}px,${state.y.toFixed(2)}px,0) scale(${state.scaleX.toFixed(3)},${state.scaleY.toFixed(3)})`;
     }
 
     animationFrame = requestAnimationFrame(animateInteraction);
@@ -215,6 +256,7 @@
 
   function onPointerLeave() {
     pointerActive = false;
+    for (const state of blobs) state.inside = false;
   }
 
   function syncTheme() {

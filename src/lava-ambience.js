@@ -1,23 +1,19 @@
 (() => {
   const THEME = 'lava';
   const LAYER_ID = 'lavaAmbienceLayer';
-  const STYLE_ID = 'lavaPointerReactionStyles';
+  const STYLE_ID = 'lavaDragStyles';
   const BLOB_COUNT = 16;
   const BUBBLE_COUNT = 30;
 
   const blobs = [];
-  let pointerX = 0;
-  let pointerY = 0;
-  let pointerActive = false;
-  let animationFrame = 0;
+  let activeDrag = null;
 
   const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const isLava = () => document.documentElement.dataset.theme === THEME;
   const rand = (min, max) => min + Math.random() * (max - min);
   const pick = values => values[Math.floor(Math.random() * values.length)];
-  const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
-  function ensureReactionStyles() {
+  function ensureDragStyles() {
     if (document.getElementById(STYLE_ID)) return;
     const style = document.createElement('style');
     style.id = STYLE_ID;
@@ -30,9 +26,22 @@
         will-change:transform;
       }
       .lava-reactor .lava-core{position:absolute}
-      html[data-theme="lava"] .lava-blob.pointer-bounce .lava-core{
-        filter:blur(calc(var(--lava-blur,10px) * .94)) saturate(1.42) brightness(1.05);
+      html[data-theme="lava"] .lava-blob{
+        pointer-events:auto;
+        cursor:grab;
+        touch-action:none;
+        user-select:none;
+        -webkit-user-select:none;
       }
+      html[data-theme="lava"] .lava-blob.dragging{
+        cursor:grabbing;
+        animation-play-state:paused!important;
+        z-index:20;
+      }
+      html[data-theme="lava"] .lava-blob.dragging .lava-core{
+        filter:blur(var(--lava-blur,10px)) saturate(1.38) brightness(1.05);
+      }
+      .lava-haze,.lava-bubble{pointer-events:none}
     `;
     document.head.appendChild(style);
   }
@@ -47,6 +56,55 @@
       document.body.prepend(layer);
     }
     return layer;
+  }
+
+  function renderDrag(state) {
+    state.reactor.style.transform = `translate3d(${state.offsetX.toFixed(2)}px,${state.offsetY.toFixed(2)}px,0)`;
+  }
+
+  function beginDrag(event, state) {
+    if (!isLava() || event.button !== 0) return;
+    event.preventDefault();
+
+    if (activeDrag && activeDrag !== state) finishDrag(activeDrag);
+
+    activeDrag = state;
+    state.dragging = true;
+    state.pointerId = event.pointerId;
+    state.startPointerX = event.clientX;
+    state.startPointerY = event.clientY;
+    state.startOffsetX = state.offsetX;
+    state.startOffsetY = state.offsetY;
+    state.blob.classList.add('dragging');
+
+    try { state.blob.setPointerCapture(event.pointerId); } catch (_) {}
+  }
+
+  function moveDrag(event, state) {
+    if (!state.dragging || state.pointerId !== event.pointerId) return;
+    event.preventDefault();
+
+    state.offsetX = state.startOffsetX + (event.clientX - state.startPointerX);
+    state.offsetY = state.startOffsetY + (event.clientY - state.startPointerY);
+    renderDrag(state);
+  }
+
+  function finishDrag(state, event = null) {
+    if (!state?.dragging) return;
+
+    if (event && state.pointerId !== event.pointerId) return;
+    const pointerId = state.pointerId;
+    state.dragging = false;
+    state.pointerId = null;
+    state.blob.classList.remove('dragging');
+
+    if (pointerId !== null) {
+      try {
+        if (state.blob.hasPointerCapture(pointerId)) state.blob.releasePointerCapture(pointerId);
+      } catch (_) {}
+    }
+
+    if (activeDrag === state) activeDrag = null;
   }
 
   function makeBlob(index) {
@@ -65,7 +123,7 @@
     const x = rand(-10, 96);
     const y = rand(-18, 102);
 
-    // Keep the slightly quicker ambient movement from the previous version.
+    // Keep the slightly quicker ambient movement, but dragging is the only interaction.
     const duration = rand(22, 50);
     const morph = rand(5.5, 13);
     const rotation = rand(-28, 28);
@@ -92,20 +150,25 @@
     blob.style.setProperty('--lava-rot3', `${(rotation * -.4).toFixed(1)}deg`);
     blob.style.setProperty('--lava-blur', `${rand(5, 18).toFixed(1)}px`);
 
-    blobs.push({
+    const state = {
       blob,
       reactor,
-      inside: false,
-      x: 0,
-      y: 0,
-      vx: 0,
-      vy: 0,
-      scaleX: 1,
-      scaleY: 1,
-      scaleVX: 0,
-      scaleVY: 0,
-      glow: 0,
-    });
+      offsetX: 0,
+      offsetY: 0,
+      startOffsetX: 0,
+      startOffsetY: 0,
+      startPointerX: 0,
+      startPointerY: 0,
+      pointerId: null,
+      dragging: false,
+    };
+    blobs.push(state);
+
+    blob.addEventListener('pointerdown', event => beginDrag(event, state));
+    blob.addEventListener('pointermove', event => moveDrag(event, state));
+    blob.addEventListener('pointerup', event => finishDrag(state, event));
+    blob.addEventListener('pointercancel', event => finishDrag(state, event));
+    blob.addEventListener('lostpointercapture', () => finishDrag(state));
 
     return blob;
   }
@@ -139,6 +202,7 @@
     const layer = getLayer();
     layer.replaceChildren();
     blobs.length = 0;
+    activeDrag = null;
 
     const haze = document.createElement('div');
     haze.className = 'lava-haze';
@@ -149,137 +213,23 @@
     for (let i = 0; i < BUBBLE_COUNT; i++) layer.appendChild(makeBubble(i));
   }
 
-  function detectBounce(state) {
-    if (!pointerActive) {
-      state.inside = false;
-      return;
-    }
-
-    const rect = state.blob.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) return;
-
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    const rx = Math.max(1, rect.width * .46);
-    const ry = Math.max(1, rect.height * .46);
-    const ex = (pointerX - cx) / rx;
-    const ey = (pointerY - cy) / ry;
-    const inside = ex * ex + ey * ey <= 1;
-
-    // One impulse when the pointer enters. Staying over the blob does nothing else.
-    if (inside && !state.inside) {
-      let dx = cx - pointerX;
-      let dy = cy - pointerY;
-      let length = Math.hypot(dx, dy);
-      if (length < 1) {
-        const angle = rand(0, Math.PI * 2);
-        dx = Math.cos(angle);
-        dy = Math.sin(angle);
-        length = 1;
-      }
-
-      const nx = dx / length;
-      const ny = dy / length;
-      const sizeFactor = clamp(250 / Math.max(rect.width, rect.height), .65, 1.15);
-      const impulse = 5.2 * sizeFactor;
-
-      state.vx += nx * impulse;
-      state.vy += ny * impulse;
-      state.scaleVX += Math.abs(ny) * .045 - Math.abs(nx) * .025;
-      state.scaleVY += Math.abs(nx) * .045 - Math.abs(ny) * .025;
-      state.glow = 1;
-    }
-
-    state.inside = inside;
-  }
-
-  function animateInteraction() {
-    animationFrame = 0;
-    if (!isLava() || reducedMotion()) return;
-
-    for (const state of blobs) {
-      detectBounce(state);
-
-      // Soft spring: one visible bounce outward, then a smooth return to the
-      // blob's normal animated route. This never changes the route itself.
-      state.vx += -state.x * .020;
-      state.vy += -state.y * .020;
-      state.vx *= .895;
-      state.vy *= .895;
-      state.x += state.vx;
-      state.y += state.vy;
-
-      if (Math.abs(state.x) < .08 && Math.abs(state.vx) < .025) {
-        state.x = 0;
-        state.vx = 0;
-      }
-      if (Math.abs(state.y) < .08 && Math.abs(state.vy) < .025) {
-        state.y = 0;
-        state.vy = 0;
-      }
-
-      state.scaleVX += (1 - state.scaleX) * .075;
-      state.scaleVY += (1 - state.scaleY) * .075;
-      state.scaleVX *= .78;
-      state.scaleVY *= .78;
-      state.scaleX = clamp(state.scaleX + state.scaleVX, .92, 1.08);
-      state.scaleY = clamp(state.scaleY + state.scaleVY, .92, 1.08);
-
-      state.glow *= .91;
-      if (state.glow > .04) state.blob.classList.add('pointer-bounce');
-      else state.blob.classList.remove('pointer-bounce');
-
-      state.reactor.style.transform = `translate3d(${state.x.toFixed(2)}px,${state.y.toFixed(2)}px,0) scale(${state.scaleX.toFixed(3)},${state.scaleY.toFixed(3)})`;
-    }
-
-    animationFrame = requestAnimationFrame(animateInteraction);
-  }
-
-  function startInteractionLoop() {
-    if (animationFrame || reducedMotion() || !isLava()) return;
-    animationFrame = requestAnimationFrame(animateInteraction);
-  }
-
-  function stopInteractionLoop() {
-    if (animationFrame) cancelAnimationFrame(animationFrame);
-    animationFrame = 0;
-    pointerActive = false;
-  }
-
-  function onPointerMove(event) {
-    if (!isLava() || reducedMotion()) return;
-    pointerX = event.clientX;
-    pointerY = event.clientY;
-    pointerActive = true;
-    startInteractionLoop();
-  }
-
-  function onPointerLeave() {
-    pointerActive = false;
-    for (const state of blobs) state.inside = false;
-  }
-
   function syncTheme() {
     const layer = getLayer();
     if (isLava()) {
       layer.hidden = false;
       if (layer.childElementCount <= 1) populate();
-      startInteractionLoop();
     } else {
-      stopInteractionLoop();
+      if (activeDrag) finishDrag(activeDrag);
       layer.hidden = true;
       layer.replaceChildren();
       blobs.length = 0;
+      activeDrag = null;
     }
   }
 
   function boot() {
-    ensureReactionStyles();
+    ensureDragStyles();
     getLayer().hidden = true;
-
-    window.addEventListener('pointermove', onPointerMove, { passive: true });
-    document.documentElement.addEventListener('mouseleave', onPointerLeave, { passive: true });
-    window.addEventListener('blur', onPointerLeave, { passive: true });
 
     new MutationObserver(syncTheme).observe(document.documentElement, {
       attributes: true,

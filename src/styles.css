@@ -42,3 +42,196 @@ html[data-theme="scarlet"] body::after{
   to{transform:translate3d(var(--blood-drift,0px),calc(100vh + 64px),0) rotate(var(--blood-spin,0deg))}
 }
 @media(prefers-reduced-motion:reduce){.blood-rain-layer{display:none!important}}
+
+/* LAVA — surreal living lava-lamp field */
+html[data-theme="lava"]{
+  background:#090202;
+  color:var(--text);
+  --bg:#090202;
+  --panel:#160807;
+  --line:#5d2418;
+  --text:#fff4e8;
+  --muted:#b89784;
+  --accent:#ff9a36;
+  --accent-soft:rgba(255,116,31,.15);
+  --amber:#ffd078;
+  --accent-rgb:255,116,31;
+  --accent-line:#a94b22;
+  --accent-line-soft:#71351e;
+  --accent-line-focus:#c85d28;
+  --accent-line-bright:#ed7a31;
+  --accent-line-hover:#d5682b;
+  --accent-deep:#42170c;
+  --accent-bright:#ffd6a1;
+  --accent-text:#ffe0b3;
+  --accent-text-strong:#fff0d8;
+  --accent-text-pale:#fff5e7;
+  --accent-chip:#f5be86;
+  --accent-meta:#efc39b;
+  --accent-chip-2:#ffc68e;
+  --accent-chip-3:#ffd6a6;
+  --surface-1:rgba(25,8,6,.86);
+  --surface-2:rgba(31,10,7,.82);
+  --surface-3:rgba(36,12,7,.88);
+  --surface-4:rgba(28,9,6,.88);
+  --surface-5:rgba(45,15,9,.88);
+  --surface-hover:rgba(56,19,10,.9);
+  --surface-build:rgba(23,8,7,.82);
+  --surface-button:rgba(50,16,9,.88);
+  --surface-toggle:rgba(42,13,8,.9);
+  --surface-track:#3a150e;
+  --surface-tooltip:rgba(17,5,4,.96);
+  --surface-portrait:#32140e;
+  --surface-accent-chip:rgba(50,15,8,.86);
+  --line-strong:#75301d;
+  --line-soft:#602718;
+  --line-card:#542014;
+  --line-inner:#481b12;
+  --line-metric:#552217;
+  --panel-grad-top:rgba(35,11,8,.86);
+  --panel-grad-bottom:rgba(17,6,5,.9);
+}
+html[data-theme="lava"] body{
+  background:
+    radial-gradient(circle at 50% -15%,rgba(255,111,20,.20),transparent 36%),
+    radial-gradient(circle at 4% 46%,rgba(202,20,5,.13),transparent 34%),
+    radial-gradient(circle at 96% 74%,rgba(255,164,38,.11),transparent 34%),
+    linear-gradient(180deg,#090202 0%,#100302 42%,#060101 100%);
+}
+html[data-theme="lava"] body::before,
+html[data-theme="lava"] body::after{
+  content:none!important;
+  display:none!important;
+}
+.theme-choice[data-theme-choice="lava"] i{
+  background:linear-gradient(135deg,#ffe169 0%,#ff8a24 42%,#ef2c12 72%,#8c0905 100%);
+  box-shadow:0 0 12px rgba(255,112,26,.62);
+}
+html[data-theme="lava"] body :is(.panel,.results-panel,.tower-cheese-card,.tower-search-panel,.tower-pool-panel){
+  border-color:rgba(126,48,26,.72);
+  background:linear-gradient(180deg,rgba(37,12,8,.82),rgba(15,5,4,.88));
+  box-shadow:0 20px 65px rgba(39,3,0,.38),0 0 0 1px rgba(255,111,31,.025),inset 0 1px rgba(255,191,104,.035);
+  backdrop-filter:blur(13px) saturate(1.12);
+}
+html[data-theme="lava"] body :is(input,select){accent-color:var(--accent)}
+html[data-theme="lava"] .theme-switcher{
+  border-color:rgba(120,48,28,.72);
+  background:rgba(20,6,5,.76);
+  box-shadow:0 12px 38px rgba(33,2,0,.44),0 0 28px rgba(255,92,21,.055);
+}
+html[data-theme="lava"] .sim-run,
+html[data-theme="lava"] .relic-toggle.on button{
+  background:linear-gradient(180deg,#5a1c0c,#351006);
+  box-shadow:inset 0 1px rgba(255,190,105,.08),0 0 18px rgba(255,88,20,.06);
+}
+html[data-theme="lava"] .team-row.active,
+html[data-theme="lava"] .library-list button.selected{
+  box-shadow:inset 0 0 28px rgba(255,94,20,.045);
+}
+html[data-theme="lava"] .kicker{
+  text-shadow:0 0 18px rgba(255,125,40,.22);
+}
+
+.lava-ambience-layer{
+  position:fixed;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  overflow:hidden;
+  contain:strict;
+  background:transparent;
+}
+.lava-haze{
+  position:absolute;
+  inset:-15%;
+  opacity:.82;
+  background:
+    radial-gradient(ellipse at 18% 16%,rgba(255,139,37,.12),transparent 29%),
+    radial-gradient(ellipse at 78% 31%,rgba(221,34,12,.12),transparent 31%),
+    radial-gradient(ellipse at 51% 82%,rgba(255,98,19,.10),transparent 34%),
+    radial-gradient(ellipse at 92% 92%,rgba(255,196,66,.055),transparent 26%);
+  filter:blur(24px) saturate(1.35);
+  animation:lava-haze-breathe 13s ease-in-out infinite alternate;
+}
+.lava-blob{
+  position:absolute;
+  display:block;
+  will-change:transform;
+  transform-origin:center;
+  animation:lava-float var(--lava-float-time,48s) cubic-bezier(.44,.04,.55,.96) var(--lava-delay,0s) infinite;
+}
+.lava-core{
+  position:absolute;
+  inset:4%;
+  display:block;
+  border-radius:44% 56% 61% 39% / 46% 37% 63% 54%;
+  filter:blur(var(--lava-blur,10px)) saturate(1.3);
+  will-change:transform,border-radius;
+  animation:lava-morph var(--lava-morph-time,11s) ease-in-out var(--lava-morph-delay,0s) infinite alternate;
+}
+.lava-blob[data-lava-tone="ember"] .lava-core{
+  background:radial-gradient(circle at 32% 27%,rgba(255,232,126,.96) 0 3%,rgba(255,139,32,.95) 18%,rgba(242,57,14,.91) 49%,rgba(121,7,4,.83) 76%,rgba(55,2,2,.42) 100%);
+  box-shadow:0 0 55px rgba(255,73,15,.34),0 0 120px rgba(179,12,3,.18),inset -25px -28px 44px rgba(71,0,0,.28);
+}
+.lava-blob[data-lava-tone="gold"] .lava-core{
+  background:radial-gradient(circle at 31% 25%,rgba(255,247,173,.95) 0 3%,rgba(255,190,55,.94) 21%,rgba(255,91,18,.88) 54%,rgba(113,9,3,.72) 82%,rgba(43,1,0,.32) 100%);
+  box-shadow:0 0 62px rgba(255,154,28,.29),0 0 130px rgba(255,76,13,.12),inset -30px -25px 50px rgba(93,8,0,.25);
+}
+.lava-blob[data-lava-tone="crimson"] .lava-core{
+  background:radial-gradient(circle at 34% 30%,rgba(255,147,56,.9) 0 5%,rgba(247,53,17,.91) 28%,rgba(165,8,7,.86) 58%,rgba(72,1,4,.7) 84%,rgba(30,0,2,.35) 100%);
+  box-shadow:0 0 58px rgba(222,22,8,.3),0 0 118px rgba(126,4,4,.19),inset -26px -31px 46px rgba(47,0,3,.33);
+}
+.lava-blob[data-lava-tone="plasma"] .lava-core{
+  background:radial-gradient(circle at 30% 26%,rgba(255,218,119,.9) 0 4%,rgba(255,104,31,.91) 24%,rgba(218,24,28,.84) 52%,rgba(114,8,48,.66) 78%,rgba(35,0,24,.28) 100%);
+  box-shadow:0 0 62px rgba(255,57,23,.3),0 0 115px rgba(146,6,50,.16),inset -28px -28px 45px rgba(54,0,25,.28);
+}
+.lava-core::before{
+  content:"";
+  position:absolute;
+  width:31%;
+  height:22%;
+  left:17%;
+  top:13%;
+  border-radius:50%;
+  transform:rotate(-18deg);
+  background:radial-gradient(ellipse,rgba(255,250,205,.35),rgba(255,213,117,.08) 56%,transparent 72%);
+  filter:blur(3px);
+}
+.lava-bubble{
+  position:absolute;
+  display:block;
+  border-radius:50% 45% 54% 46%;
+  background:radial-gradient(circle at 34% 28%,rgba(255,235,157,.88) 0 7%,rgba(255,136,37,.78) 29%,rgba(220,39,13,.63) 63%,rgba(96,5,3,.25) 100%);
+  box-shadow:0 0 13px rgba(255,87,20,.24),inset -4px -5px 9px rgba(79,2,0,.34);
+  filter:blur(.3px);
+  will-change:transform;
+  animation:lava-bubble-drift var(--bubble-time,24s) ease-in-out var(--bubble-delay,0s) infinite alternate;
+}
+@keyframes lava-float{
+  0%{transform:translate3d(0,0,0) rotate(0deg)}
+  28%{transform:translate3d(var(--lava-x1),var(--lava-y1),0) rotate(calc(var(--lava-rot) * .45))}
+  62%{transform:translate3d(var(--lava-x2),var(--lava-y2),0) rotate(var(--lava-rot))}
+  83%{transform:translate3d(var(--lava-x3),var(--lava-y3),0) rotate(calc(var(--lava-rot) * -.4))}
+  100%{transform:translate3d(0,0,0) rotate(0deg)}
+}
+@keyframes lava-morph{
+  0%{border-radius:44% 56% 61% 39% / 46% 37% 63% 54%;transform:scale(.84,1.12) rotate(-5deg)}
+  24%{border-radius:63% 37% 43% 57% / 36% 62% 38% 64%;transform:scale(1.08,.86) rotate(3deg)}
+  51%{border-radius:35% 65% 62% 38% / 61% 36% 64% 39%;transform:scale(.9,1.08) rotate(8deg)}
+  77%{border-radius:58% 42% 34% 66% / 43% 58% 42% 57%;transform:scale(1.11,.9) rotate(-4deg)}
+  100%{border-radius:47% 53% 68% 32% / 57% 35% 65% 43%;transform:scale(.88,1.14) rotate(5deg)}
+}
+@keyframes lava-bubble-drift{
+  0%{transform:translate3d(0,0,0) scale(.8) rotate(-8deg)}
+  35%{transform:translate3d(var(--bubble-wobble),calc(var(--bubble-travel) * .38),0) scale(1.08,.87) rotate(6deg)}
+  70%{transform:translate3d(var(--bubble-drift),calc(var(--bubble-travel) * .72),0) scale(.9,1.13) rotate(-3deg)}
+  100%{transform:translate3d(calc(var(--bubble-drift) * .65),var(--bubble-travel),0) scale(1.03,.94) rotate(9deg)}
+}
+@keyframes lava-haze-breathe{
+  from{transform:scale(1) translate3d(-1%,0,0);opacity:.62}
+  to{transform:scale(1.08) translate3d(2%,-2%,0);opacity:.92}
+}
+@media(prefers-reduced-motion:reduce){
+  .lava-blob,.lava-bubble{display:none!important}
+  .lava-haze{animation:none!important;opacity:.7}
+}

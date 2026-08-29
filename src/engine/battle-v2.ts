@@ -699,6 +699,7 @@ function performEntryAttack(runtime: Runtime, card: CombatCard, mult = 1, allEne
 function onEntry(runtime: Runtime, card: CombatCard) {
   if (card.entered || !alive(card)) return
   card.entered = true
+  card.flags.appearedOnField = true
   noteUnsupported(runtime.state, card)
   const enemyTeam = OTHER_TEAM[card.team]
   const enemy = active(runtime, enemyTeam)
@@ -2023,7 +2024,10 @@ function attackerRetroCore(runtime: Runtime, attacker: CombatCard, target: Comba
     case 'Decapitate': {
       const unholySurvives = hasAbility(runtime, target, 'Unholy Creature')
         && (!target.flags.unholyActive || (target.counters.unholyTurns || 0) > 0)
-      if (target.hp <= 0 && !unholySurvives) attacker.flags.extraTurn = true
+      if (target.hp <= 0 && !unholySurvives) {
+        boostStats(attacker, 1.2)
+        attacker.flags.extraTurn = true
+      }
       break
     }
     case 'Fury of the White Tiger': if (target.hp <= 0) { attacker.damage *= 1.35; attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.35) }; break
@@ -2053,6 +2057,9 @@ function resolveAuraFarm(runtime: Runtime, target: CombatCard, incoming: number)
   if (deck[0] !== target) return { target, damage: incoming }
   const piccolo = deck[1]
   if (!piccolo || piccolo === target || !alive(piccolo) || piccolo.definition.name !== 'Piccolo' || piccolo.flags.farmed) return { target, damage: incoming }
+  // Order of the Cosmos blocks Piccolo once Piccolo has actually appeared on-field.
+  // Live exception: an untouched bench Piccolo can still intercept with Aura Farm.
+  if ((runtime.state.boosts[piccolo.team].noAbilities || 0) > 0 && piccolo.flags.appearedOnField) return { target, damage: incoming }
   const protectedName = effectiveCardName(target) || target.definition.name
   const fatherhood = target.definition.name === 'Kid Gohan'
   piccolo.flags.farmed = true
@@ -2305,6 +2312,16 @@ function applyOnDeathCore(runtime: Runtime, dead: CombatCard, opponent: CombatCa
   }
 
   if (dead.flags.suppressOnDeath) return
+
+  // Order of the Cosmos suppresses the defeated card's death ability too.
+  // Nightmare Melody's counter decrement is cleanup for an already-created field,
+  // so keep that cleanup even while the ability itself is locked.
+  if ((runtime.state.boosts[team].noAbilities || 0) > 0) {
+    if (name === 'Nightmare Melody' && runtime.state.boosts[team].composerCount) {
+      runtime.state.boosts[team].composerCount = Math.max(0, (runtime.state.boosts[team].composerCount || 0) - 1)
+    }
+    return
+  }
 
   if (activeBonusAbilities(dead).length) {
     for (const gained of activeBonusAbilities(dead)) {

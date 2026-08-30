@@ -1,0 +1,39 @@
+name: Apply Depths 100k and Wendigo Fix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/apply-depths-100k-wendigo.mjs'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Apply Depths limit and Wendigo corrections
+        run: node scripts/apply-depths-100k-wendigo.mjs
+      - name: Run full checks
+        run: npm run check
+      - name: Build browser workers
+        run: npm run build:workers
+      - name: Remove one-time migration files
+        run: rm -f scripts/apply-depths-100k-wendigo.mjs .github/workflows/apply-depths-100k-wendigo.yml
+      - name: Publish tested corrections
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Raise Depths cap to 100000 and update Wendigo stats"
+          git pull --rebase origin main
+          git push origin HEAD:main

@@ -19,6 +19,10 @@ const requiredUiHooks = [
 for (const hook of requiredUiHooks) {
   if (!html.includes(hook)) throw new Error(`Missing live-page hook: ${hook}`)
 }
+if (!liveHtml.includes('id="towerFloor" type="number" min="1" max="100000"')) throw new Error('Tower floor input is not capped at 100,000')
+if (!liveHtml.includes('state.towerFloor=Math.min(100000,Math.max(1,Number(e.target.value)||1))')) throw new Error('Tower floor runtime clamp is not 100,000')
+if (liveHtml.includes('id="towerFloor" type="number" min="1" max="105"')) throw new Error('Old Tower 105-floor input cap returned')
+if (liveHtml.includes('state.towerFloor=Math.min(105,Math.max(1,Number(e.target.value)||1))')) throw new Error('Old Tower 105-floor runtime clamp returned')
 for (const removedHook of ['data-library-mode="bans"', 'data-library-mode="pool"', 'id="seedInput"', 'src/main.tsx']) {
   if (html.includes(removedHook)) throw new Error(`Removed/dead UI hook returned: ${removedHook}`)
 }

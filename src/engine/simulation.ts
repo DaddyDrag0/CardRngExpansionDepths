@@ -77,7 +77,7 @@ export function simulateDepthsRun(
   onProgress?: DepthsProgressCallback,
 ): DepthsRunResult {
   const startFloor = Math.max(1, Math.floor(options.startFloor ?? 1))
-  const floorCap = Math.max(startFloor, Math.floor(options.floorCap ?? 50_000))
+  const floorCap = Math.max(startFloor, Math.floor(options.floorCap ?? 100_000))
   const runSeed = options.seed ?? 1
   const unsupported = new Set<string>()
   let totalTurns = 0

@@ -19,10 +19,14 @@ const requiredUiHooks = [
 for (const hook of requiredUiHooks) {
   if (!html.includes(hook)) throw new Error(`Missing live-page hook: ${hook}`)
 }
-if (!liveHtml.includes('id="towerFloor" type="number" min="1" max="100000"')) throw new Error('Tower floor input is not capped at 100,000')
-if (!liveHtml.includes('state.towerFloor=Math.min(100000,Math.max(1,Number(e.target.value)||1))')) throw new Error('Tower floor runtime clamp is not 100,000')
-if (liveHtml.includes('id="towerFloor" type="number" min="1" max="105"')) throw new Error('Old Tower 105-floor input cap returned')
-if (liveHtml.includes('state.towerFloor=Math.min(105,Math.max(1,Number(e.target.value)||1))')) throw new Error('Old Tower 105-floor runtime clamp returned')
+if (!liveHtml.includes('id="towerFloor" type="number" min="1" max="105"')) throw new Error('Tower floor input must remain capped at 105')
+if (!liveHtml.includes('state.towerFloor=Math.min(105,Math.max(1,Number(e.target.value)||1))')) throw new Error('Tower floor runtime clamp must remain 105')
+if (!liveHtml.includes('runs:15,cap:100000,seed:1000')) throw new Error('Depths default floor cap is not 100,000')
+if (!liveHtml.includes('id="capInput" type="number" min="1" max="100000"')) throw new Error('Depths floor-cap input is not capped at 100,000')
+if (!liveHtml.includes('state.cap=Math.min(100000,Math.max(1,Number(s.cap)||100000))')) throw new Error('Depths restored floor cap is not capped at 100,000')
+if (!liveHtml.includes('state.cap=Math.min(100000,Math.max(1,Number(e.target.value)||100000))')) throw new Error('Depths floor-cap handler is not capped at 100,000')
+const simulationSource = fs.readFileSync('src/engine/simulation.ts', 'utf8')
+if (!simulationSource.includes('options.floorCap ?? 100_000')) throw new Error('Depths engine default floor cap is not 100,000')
 for (const removedHook of ['data-library-mode="bans"', 'data-library-mode="pool"', 'id="seedInput"', 'src/main.tsx']) {
   if (html.includes(removedHook)) throw new Error(`Removed/dead UI hook returned: ${removedHook}`)
 }

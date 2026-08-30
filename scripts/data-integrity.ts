@@ -33,6 +33,10 @@ function assertUniqueNames(items: Array<{ name: string }>, label: string) {
 const cards = cardBatches.flat()
 assertUniqueNames(cards, 'card')
 assert.equal(cards.filter((card) => card.name === 'Conqueror').length, 1, 'Conqueror must exist exactly once')
+const wendigo = cards.find((card) => card.name === 'Wendigo')
+assert(wendigo, 'Wendigo must exist')
+assert.equal(wendigo.rarity, 25_000_000, 'Wendigo rarity must match current game source')
+assert.equal(wendigo.statMultiplier, 1.7, 'Wendigo StatMultiplier must match current game source')
 for (const card of cards) {
   assert(Number.isFinite(card.rarity) && card.rarity >= 0, `${card.name} has invalid rarity`)
   assert(Number.isFinite(card.statMultiplier) && card.statMultiplier > 0, `${card.name} has invalid statMultiplier`)

@@ -21,6 +21,9 @@ for (const hook of requiredUiHooks) {
 }
 if (!liveHtml.includes('id="towerFloor" type="number" min="1" max="105"')) throw new Error('Tower floor input must remain capped at 105')
 if (!liveHtml.includes('state.towerFloor=Math.min(105,Math.max(1,Number(e.target.value)||1))')) throw new Error('Tower floor runtime clamp must remain 105')
+if (!liveHtml.includes("const searchKey=(v='')=>String(v).normalize('NFD')")) throw new Error('Accent-insensitive card search helper missing')
+if (!liveHtml.includes('searchKey(c.name).includes(q)')) throw new Error('Card search is not using normalized names')
+if (!liveHtml.includes('searchKey(c.name).includes(banQ)')) throw new Error('Depth ban search is not using normalized names')
 if (!liveHtml.includes('runs:15,cap:100000,seed:1000')) throw new Error('Depths fixed floor cap is not initialized to 100,000')
 if (!liveHtml.includes('id="capInput" type="number" min="100000" max="100000" value="100000" readonly')) throw new Error('Depths floor cap is not rendered as a locked 100,000 value')
 if (!liveHtml.includes('state.cap=100000;')) throw new Error('Depths restore path does not force the cap to 100,000')

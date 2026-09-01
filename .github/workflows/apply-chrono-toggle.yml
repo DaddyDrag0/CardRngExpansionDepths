@@ -1,0 +1,35 @@
+name: Apply Chrono Shard timing toggle
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-chrono-toggle.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node scripts/apply-chrono-toggle.mjs
+      - run: npm run check
+      - run: npm run build:workers
+      - name: Publish tested update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/apply-chrono-toggle.yml scripts/apply-chrono-toggle.mjs
+          git add -A
+          git commit -m "Add optional Chrono Shard timing setting"
+          git pull --rebase origin main
+          git push origin HEAD:main

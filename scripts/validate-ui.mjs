@@ -27,6 +27,8 @@ if (!liveHtml.includes('searchKey(c.name).includes(banQ)')) throw new Error('Dep
 for (const hook of ['depthBanLayouts','data-depth-ban-layout','data-depth-bans-export','data-depth-bans-import','CRB1-']) {
   if (!liveHtml.includes(hook)) throw new Error(`Ban layout/share hook missing: ${hook}`)
 }
+if (!liveHtml.includes("payload={v:2,bans:sanitizeBanList(state.depthBans)}")) throw new Error('Ban export must contain only the active layout')
+if (!liveHtml.includes('setActiveDepthBans(decodeBanLayouts(code))')) throw new Error('Ban import must target the currently viewed layout')
 if (!liveHtml.includes('runs:15,cap:100000,seed:1000')) throw new Error('Depths fixed floor cap is not initialized to 100,000')
 if (!liveHtml.includes('chronoShard:true')) throw new Error('Chrono Shard timing toggle must default on')
 if (!liveHtml.includes('data-chrono-shard')) throw new Error('Chrono Shard timing toggle is missing from the UI')

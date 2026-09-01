@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 
-const files = ['index-base.html', 'index.html']
+const files = ['index-base.html']
 
 const oldFns = `  function encodeBanLayouts(){const payload={v:1,active:state.activeDepthBanLayout,layouts:state.depthBanLayouts.map(sanitizeBanList)},bytes=new TextEncoder().encode(JSON.stringify(payload));let binary='';for(const byte of bytes)binary+=String.fromCharCode(byte);return 'CRB1-'+btoa(binary)}
   function decodeBanLayouts(code){const raw=String(code||'').trim();if(!raw.startsWith('CRB1-'))throw new Error('Ban code must start with CRB1-');let payload;try{const binary=atob(raw.slice(5)),bytes=Uint8Array.from(binary,ch=>ch.charCodeAt(0));payload=JSON.parse(new TextDecoder().decode(bytes))}catch(_){throw new Error('Invalid ban code')}if(!payload||payload.v!==1||!Array.isArray(payload.layouts))throw new Error('Unsupported ban code');const layouts=Array.from({length:4},(_,i)=>sanitizeBanList(payload.layouts[i]));const active=Math.max(0,Math.min(3,Math.floor(Number(payload.active)||0)));return{layouts,active}}`

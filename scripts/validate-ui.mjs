@@ -24,6 +24,9 @@ if (!liveHtml.includes('state.towerFloor=Math.min(105,Math.max(1,Number(e.target
 if (!liveHtml.includes("const searchKey=(v='')=>String(v).normalize('NFD')")) throw new Error('Accent-insensitive card search helper missing')
 if (!liveHtml.includes('searchKey(c.name).includes(q)')) throw new Error('Card search is not using normalized names')
 if (!liveHtml.includes('searchKey(c.name).includes(banQ)')) throw new Error('Depth ban search is not using normalized names')
+for (const hook of ['depthBanLayouts','data-depth-ban-layout','data-depth-bans-export','data-depth-bans-import','CRB1-']) {
+  if (!liveHtml.includes(hook)) throw new Error(`Ban layout/share hook missing: ${hook}`)
+}
 if (!liveHtml.includes('runs:15,cap:100000,seed:1000')) throw new Error('Depths fixed floor cap is not initialized to 100,000')
 if (!liveHtml.includes('chronoShard:true')) throw new Error('Chrono Shard timing toggle must default on')
 if (!liveHtml.includes('data-chrono-shard')) throw new Error('Chrono Shard timing toggle is missing from the UI')

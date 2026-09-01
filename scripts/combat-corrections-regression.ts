@@ -86,6 +86,59 @@ assert(triceratopsBattle.state.teams.Allies.some((entry) => entry.definition.nam
 assert(triceratopsBattle.state.fallen.Enemies.some((entry) => entry.definition.name === 'Parallax'), 'Parallax should die to Triceratops overkill')
 console.log('Triceratops overkill/Parallax regression passed')
 
+// Turn sequencing regressions: Shuten, Priest, Cosmic Pop Star.
+// These lock the live rules that extra turns carry across enemy replacement and
+// counterattacks happen inside the opponent's turn rather than consuming a turn.
+const hugeEnemy: DepthsEnemy = { card: card('Titan'), power: 1e30, attack: 1, health: 1e30 }
+
+const shutenTurnBattle = simulateBattleV2(
+  { cards: [{ cardName: 'Shuten-dōji', borders: ['Galaxy'] }] },
+  [
+    { card: card('Wizard'), power: 1, attack: 0, health: 1 },
+    hugeEnemy,
+  ],
+  8181,
+  5,
+  true,
+  true,
+)
+const shutenTurns = shutenTurnBattle.debug?.events.filter((event) => event.type === 'turn').slice(0, 2) || []
+assert(shutenTurns.length === 2, 'Shuten sequencing regression did not produce two turns')
+assert(shutenTurns[0].team === 'Allies' && shutenTurns[1].team === 'Allies', 'Shuten Decapitate kill should skip the enemy replacement turn')
+assert(shutenTurns[0].card === 'Shuten-dōji' && shutenTurns[1].card === 'Shuten-dōji', 'Shuten should keep its extra turn after defeating the front enemy')
+
+const priestTurnBattle = simulateBattleV2(
+  { cards: [{ cardName: 'Priest', borders: ['Galaxy'] }] },
+  [
+    { card: card('Wizard'), power: 1, attack: 0, health: 1 },
+    hugeEnemy,
+  ],
+  8282,
+  6,
+  true,
+  true,
+)
+const priestTurns = priestTurnBattle.debug?.events.filter((event) => event.type === 'turn').slice(0, 3) || []
+assert(priestTurns.length === 3, 'Priest sequencing regression did not produce three turns')
+assert(priestTurns[0].team === 'Allies' && priestTurns[1].team === 'Allies', 'Priest Accelerate should start with two total turns (one queued extra turn)')
+assert(priestTurns[2].team === 'Enemies', 'Priest first Accelerate cycle should end after exactly two total turns')
+
+const cosmicCounterBattle = simulateBattleV2(
+  { cards: [{ cardName: 'Wizard', borders: [] }, { cardName: 'Archer', borders: [] }] },
+  [{ card: card('Cosmic Pop Star'), power: 1e12, attack: 1e12, health: 1e30 }],
+  8383,
+  5,
+  true,
+  true,
+)
+const cosmicCounter = cosmicCounterBattle.debug?.events.find((event) => event.type === 'ability' && event.card === 'Cosmic Pop Star' && event.detail?.includes('counterattack'))
+assert(Boolean(cosmicCounter), 'Cosmic Pop Star should counterattack during the enemy turn')
+const cosmicTurns = cosmicCounterBattle.debug?.events.filter((event) => event.type === 'turn').slice(0, 2) || []
+assert(cosmicTurns.length === 2, 'Cosmic counter regression did not produce two turns')
+assert(cosmicTurns[0].team === 'Allies' && cosmicTurns[1].team === 'Enemies', 'Counterattack must not consume Cosmic Pop Star\'s following normal turn')
+assert(cosmicTurns[1].card === 'Cosmic Pop Star', 'Cosmic Pop Star should take its normal turn after a counter-kill')
+console.log('Turn sequencing regressions passed: Shuten, Priest, Cosmic Pop Star')
+
 // Calibration snapshot for the known Shuten/Desmond/Berserker deck.
 const calibration: TeamLoadout = {
   cards: [

@@ -1,0 +1,35 @@
+name: Fix Ban Import Slot
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/fix-ban-import-slot.mjs'
+      - '.github/workflows/fix-ban-import-slot.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node scripts/fix-ban-import-slot.mjs
+      - run: npm run check
+      - run: npm run build:workers
+      - name: Publish tested update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index-base.html index.html scripts/validate-ui.mjs browser/depths-worker.js browser/tower-worker.js
+          git rm scripts/fix-ban-import-slot.mjs .github/workflows/fix-ban-import-slot.yml
+          git commit -m "Make ban imports target the viewed slot"
+          git push

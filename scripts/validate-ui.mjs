@@ -25,6 +25,9 @@ if (!liveHtml.includes("const searchKey=(v='')=>String(v).normalize('NFD')")) th
 if (!liveHtml.includes('searchKey(c.name).includes(q)')) throw new Error('Card search is not using normalized names')
 if (!liveHtml.includes('searchKey(c.name).includes(banQ)')) throw new Error('Depth ban search is not using normalized names')
 if (!liveHtml.includes('runs:15,cap:100000,seed:1000')) throw new Error('Depths fixed floor cap is not initialized to 100,000')
+if (!liveHtml.includes('chronoShard:true')) throw new Error('Chrono Shard timing toggle must default on')
+if (!liveHtml.includes('data-chrono-shard')) throw new Error('Chrono Shard timing toggle is missing from the UI')
+if (!liveHtml.includes('chronoShard:state.chronoShard')) throw new Error('Chrono Shard timing setting is not sent to the worker')
 if (!liveHtml.includes('id="capInput" type="number" min="100000" max="100000" value="100000" readonly')) throw new Error('Depths floor cap is not rendered as a locked 100,000 value')
 if (!liveHtml.includes('state.cap=100000;')) throw new Error('Depths restore path does not force the cap to 100,000')
 if (liveHtml.includes('cap:state.cap')) throw new Error('Depths floor cap is still being persisted as a user setting')
@@ -36,6 +39,8 @@ for (const removedHook of ['data-library-mode="bans"', 'data-library-mode="pool"
 }
 
 const workerSource = fs.readFileSync('src/browser-worker.ts', 'utf8')
+if (!workerSource.includes('chronoShard?: boolean')) throw new Error('Browser worker Chrono Shard request field is missing')
+if (!workerSource.includes('request.chronoShard !== false')) throw new Error('Browser worker does not apply the Chrono Shard timing toggle')
 for (const removedField of ['excludedCardNames', 'selectedCardNames']) {
   if (workerSource.includes(removedField)) throw new Error(`Removed calculator-only field returned: ${removedField}`)
 }

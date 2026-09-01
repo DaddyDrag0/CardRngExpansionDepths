@@ -17,6 +17,7 @@ interface BatchRequest {
   rebanLegacyDepths?: boolean
   bountifulDepths?: boolean
   battleSpeedStructureLevel?: number
+  chronoShard?: boolean
 }
 
 interface SingleRunRequest {
@@ -44,7 +45,7 @@ function runSeed(batchSeed: number, runIndex: number): number {
   return seed
 }
 
-function summarize(results: DepthsRunResult[], bountifulDepths = false, battleSpeedStructureLevel = 0) {
+function summarize(results: DepthsRunResult[], bountifulDepths = false, battleSpeedStructureLevel = 0, chronoShard = true) {
   const unsupported = new Set<string>()
   for (const result of results) {
     for (const ability of result.unsupportedAbilities) unsupported.add(ability)
@@ -57,9 +58,9 @@ function summarize(results: DepthsRunResult[], bountifulDepths = false, battleSp
   const totalBattles = results.reduce((sum, result) => sum + result.battles, 0)
   const totalTurns = results.reduce((sum, result) => sum + result.totalTurns, 0)
   const averageTurnsPerBattle = totalBattles > 0 ? totalTurns / totalBattles : 0
-  const estimatedSecondsLow = estimateDepthClearSeconds(estimate.low, averageTurnsPerBattle, true, battleSpeedStructureLevel)
-  const estimatedSecondsMedian = estimateDepthClearSeconds(estimate.medianDepth, averageTurnsPerBattle, true, battleSpeedStructureLevel)
-  const estimatedSecondsHigh = estimateDepthClearSeconds(estimate.high, averageTurnsPerBattle, true, battleSpeedStructureLevel)
+  const estimatedSecondsLow = estimateDepthClearSeconds(estimate.low, averageTurnsPerBattle, chronoShard, battleSpeedStructureLevel)
+  const estimatedSecondsMedian = estimateDepthClearSeconds(estimate.medianDepth, averageTurnsPerBattle, chronoShard, battleSpeedStructureLevel)
+  const estimatedSecondsHigh = estimateDepthClearSeconds(estimate.high, averageTurnsPerBattle, chronoShard, battleSpeedStructureLevel)
   const auraCardsPerHour = estimatedSecondsMedian > 0 ? estimate.auraPackMedian / (estimatedSecondsMedian / 3600) : 0
   return {
     runs: results,
@@ -261,7 +262,7 @@ self.onmessage = async (event: MessageEvent<SimulationRequest>) => {
       return
     }
     const results = await simulateParallel(request)
-    self.postMessage({ id: request.id, ok: true, elapsedMs: performance.now() - started, result: summarize(results, request.bountifulDepths, request.battleSpeedStructureLevel) })
+    self.postMessage({ id: request.id, ok: true, elapsedMs: performance.now() - started, result: summarize(results, request.bountifulDepths, request.battleSpeedStructureLevel, request.chronoShard !== false) })
   } catch (error) {
     self.postMessage({
       id: request.id,

@@ -550,7 +550,10 @@ function active(runtime: Runtime, team: BattleTeam) {
 }
 
 function hasAbility(runtime: Runtime, card: CombatCard | undefined, name: string): boolean {
-  if (!card || card.dead || card.flags.sealed || (runtime.state.boosts[card.team].noAbilities || 0) > 0) return false
+  if (!card || card.dead || card.flags.sealed) return false
+  const abilityLocked = (runtime.state.boosts[card.team].noAbilities || 0) > 0
+  const friendshipPassive = name === 'Friendship' && card.definition.ability === 'Friendship'
+  if (abilityLocked && !friendshipPassive) return false
   const opposingCard = active(runtime, OTHER_TEAM[card.team])
   const ownName = effectiveCardName(card)
   const opposingName = effectiveCardName(opposingCard)

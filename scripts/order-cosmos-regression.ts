@@ -56,6 +56,24 @@ const piccoloBattle = simulateBattleV2(
 const auraFarmTriggered = piccoloBattle.debug?.events.some((e) => e.type === 'ability' && e.card === 'Piccolo' && e.detail.includes('Aura Farm protected'))
 if (!auraFarmTriggered) throw new Error('Order of the Cosmos incorrectly blocked untouched bench Piccolo Aura Farm')
 
+// Friendship is a passive stat-link exception: Fuxi does not suppress the
+// robots' Friendship stat boost even while Order of the Cosmos is active.
+const friendshipBattle = simulateBattleV2(
+  { cards: [{ cardName: 'Fuxi', borders: [] }] },
+  [
+    { card: card('A0-ON1'), power: 1000, attack: 500, health: 1000 },
+    { card: card('AK4-ON1'), power: 1000, attack: 500, health: 1000 },
+  ],
+  21,
+  20,
+  true,
+  true,
+)
+const friendshipFirstTurn = friendshipBattle.debug?.events.find((e) => e.type === 'turn')
+if (!friendshipFirstTurn?.detail.includes('defender 1800/1800 HP 900 ATK')) {
+  throw new Error('Order of the Cosmos incorrectly suppressed Friendship passive stats: ' + (friendshipFirstTurn?.detail || 'no turn event'))
+}
+
 // Shuten-dōji: a confirmed Decapitate kill grants +20% stats and the extra turn.
 const shutenBattle = simulateBattleV2(
   { cards: [{ cardName: 'Shuten-dōji', borders: ['Galaxy'] }] },
@@ -68,4 +86,4 @@ const shutenBattle = simulateBattleV2(
 const shutenGrowth = shutenBattle.debug?.events.some((e) => e.type === 'ability' && e.card === 'Shuten-dōji' && e.detail.includes('Decapitate') && e.detail.includes('ATK'))
 if (!shutenGrowth) throw new Error('Shuten-dōji did not gain +20% stats on a confirmed Decapitate kill')
 
-console.log('Order of the Cosmos + Piccolo exception + Shuten regression passed.')
+console.log('Order of the Cosmos + Piccolo/Friendship exceptions + Shuten regression passed.')

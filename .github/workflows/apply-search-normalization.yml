@@ -2,9 +2,11 @@ name: Apply accent-insensitive card search
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
     paths:
-      - '.github/workflows/apply-search-normalization.yml'
+      - scripts/apply-search-normalization.mjs
+      - .github/workflows/apply-search-normalization.yml
 
 permissions:
   contents: write
@@ -20,83 +22,14 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Patch card search normalization
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re, unicodedata
-
-          path = Path('index-base.html')
-          text = path.read_text()
-
-          helper = r'''  const searchKey=(v='')=>String(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[đð]/gi,'d').replace(/ø/gi,'o').replace(/ł/gi,'l').replace(/æ/gi,'ae').replace(/œ/gi,'oe').replace(/ß/g,'ss').replace(/þ/gi,'th').replace(/[’‘]/g,"'").replace(/[‐‑‒–—―]/g,'-').toLowerCase();
-'''
-          if 'const searchKey=' not in text:
-              text, count = re.subn(r'(^  const esc=.*\n)', lambda m: m.group(1) + helper, text, count=1, flags=re.M)
-              if count != 1:
-                  raise SystemExit(f'esc helper insertion failed ({count})')
-
-          old = """const q=String(query||'').trim().toLowerCase();
-    const pool=state.cards.filter(c=>includeUnobtainable||!c.unobtainable);
-    const matches=pool.filter(c=>!q||c.name.toLowerCase().includes(q));
-    matches.sort((a,b)=>{
-      const an=a.name.toLowerCase(),bn=b.name.toLowerCase(),as=q&&an.startsWith(q),bs=q&&bn.startsWith(q);"""
-          new = """const q=searchKey(query).trim();
-    const pool=state.cards.filter(c=>includeUnobtainable||!c.unobtainable);
-    const matches=pool.filter(c=>!q||searchKey(c.name).includes(q));
-    matches.sort((a,b)=>{
-      const an=searchKey(a.name),bn=searchKey(b.name),as=q&&an.startsWith(q),bs=q&&bn.startsWith(q);"""
-          if old not in text:
-              raise SystemExit('tower card autocomplete target not found')
-          text = text.replace(old, new, 1)
-
-          old = "const exact=state.cards.find(c=>c.name.toLowerCase()===input.value.trim().toLowerCase());"
-          new = "const exact=state.cards.find(c=>searchKey(c.name)===searchKey(input.value).trim());"
-          if old not in text:
-              raise SystemExit('tower exact card match target not found')
-          text = text.replace(old, new, 1)
-
-          old = "const team=current(),q=state.query.trim().toLowerCase(),banQ=state.depthBanQuery.trim().toLowerCase(),banCandidates=state.cards.filter(depthBanEligible).filter(c=>!state.depthBans.includes(c.name)).filter(c=>banQ&&(c.name.toLowerCase().includes(banQ)||(c.ability||'').toLowerCase().includes(banQ))).sort((a,b)=>a.name.localeCompare(b.name)).slice(0,8),shown=state.cards.filter(c=>!c.unobtainable||c.name==='Conqueror').filter(c=>!q||c.name.toLowerCase().includes(q)||(c.ability||'').toLowerCase().includes(q)).sort((a,b)=>b.rarity-a.rarity).slice(0,100)"
-          new = "const team=current(),q=searchKey(state.query).trim(),banQ=searchKey(state.depthBanQuery).trim(),banCandidates=state.cards.filter(depthBanEligible).filter(c=>!state.depthBans.includes(c.name)).filter(c=>banQ&&(searchKey(c.name).includes(banQ)||searchKey(c.ability||'').includes(banQ))).sort((a,b)=>a.name.localeCompare(b.name)).slice(0,8),shown=state.cards.filter(c=>!c.unobtainable||c.name==='Conqueror').filter(c=>!q||searchKey(c.name).includes(q)||searchKey(c.ability||'').includes(q)).sort((a,b)=>b.rarity-a.rarity).slice(0,100)"
-          if old not in text:
-              raise SystemExit('main/depth-ban search target not found')
-          text = text.replace(old, new, 1)
-          path.write_text(text)
-
-          validate = Path('scripts/validate-ui.mjs')
-          v = validate.read_text()
-          marker = "if (!liveHtml.includes('state.towerFloor=Math.min(105,Math.max(1,Number(e.target.value)||1))')) throw new Error('Tower floor runtime clamp must remain 105')\n"
-          added = marker + "if (!liveHtml.includes(\"const searchKey=(v='')=>String(v).normalize('NFD')\")) throw new Error('Accent-insensitive card search helper missing')\nif (!liveHtml.includes('searchKey(c.name).includes(q)')) throw new Error('Card search is not using normalized names')\nif (!liveHtml.includes('searchKey(c.name).includes(banQ)')) throw new Error('Depth ban search is not using normalized names')\n"
-          if 'Accent-insensitive card search helper missing' not in v:
-              if marker not in v:
-                  raise SystemExit('validate-ui insertion marker not found')
-              validate.write_text(v.replace(marker, added, 1))
-
-          def key(value):
-              s=''.join(ch for ch in unicodedata.normalize('NFD', value) if not unicodedata.combining(ch)).lower()
-              for a,b in [('đ','d'),('ð','d'),('ø','o'),('ł','l'),('æ','ae'),('œ','oe'),('ß','ss'),('þ','th')]: s=s.replace(a,b)
-              return s
-          samples = {
-              'Dōng Fāng Qīng Lóng': 'dong fang qing long',
-              'Běi Fāng Xuán Wǔ': 'bei fang xuan wu',
-              'Nán Fāng Zhū Què': 'nan fang zhu que',
-              'Nüwa': 'nuwa',
-              'Shén Lóng': 'shen long',
-              'Shuten-dōji': 'shuten-doji',
-          }
-          for original, plain in samples.items():
-              if key(original) != plain:
-                  raise SystemExit(f'normalization sanity failed: {original} -> {key(original)} != {plain}')
-          print('Accent-insensitive search patch applied and sample names verified.')
-          PY
       - run: npm ci
+      - run: node scripts/apply-search-normalization.mjs
       - run: npm run check
-      - name: Remove one-time workflow and publish
+      - name: Publish tested search update
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          rm -f .github/workflows/apply-search-normalization.yml
+          rm -f scripts/apply-search-normalization.mjs .github/workflows/apply-search-normalization.yml
           git add -A
           if git diff --cached --quiet; then
             echo "No changes to commit."

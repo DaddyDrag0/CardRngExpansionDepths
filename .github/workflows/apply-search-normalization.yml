@@ -1,0 +1,97 @@
+name: Apply accent-insensitive card search
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-search-normalization.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Patch card search normalization
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('index-base.html')
+          text = path.read_text()
+
+          esc = "  const esc=(v='')=>String(v).replace(/[&<>'\\\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',\"'\":'&#39;','\\\"':'&quot;'}[c]));\n"
+          helper = esc + "  const searchKey=(v='')=>String(v).normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/[đð]/gi,'d').replace(/ø/gi,'o').replace(/ł/gi,'l').replace(/æ/gi,'ae').replace(/œ/gi,'oe').replace(/ß/g,'ss').replace(/þ/gi,'th').replace(/[’‘]/g,\"'\").replace(/[‐‑‒–—―]/g,'-').toLowerCase();\n"
+          if 'const searchKey=' not in text:
+              if esc not in text:
+                  raise SystemExit('esc helper anchor not found')
+              text = text.replace(esc, helper, 1)
+
+          replacements = [
+              ("const q=String(query||'').trim().toLowerCase();\n    const pool=state.cards.filter(c=>includeUnobtainable||!c.unobtainable);\n    const matches=pool.filter(c=>!q||c.name.toLowerCase().includes(q));\n    matches.sort((a,b)=>{\n      const an=a.name.toLowerCase(),bn=b.name.toLowerCase(),as=q&&an.startsWith(q),bs=q&&bn.startsWith(q);",
+               "const q=searchKey(query).trim();\n    const pool=state.cards.filter(c=>includeUnobtainable||!c.unobtainable);\n    const matches=pool.filter(c=>!q||searchKey(c.name).includes(q));\n    matches.sort((a,b)=>{\n      const an=searchKey(a.name),bn=searchKey(b.name),as=q&&an.startsWith(q),bs=q&&bn.startsWith(q);"),
+              ("const exact=state.cards.find(c=>c.name.toLowerCase()===input.value.trim().toLowerCase());",
+               "const exact=state.cards.find(c=>searchKey(c.name)===searchKey(input.value).trim());"),
+              ("const team=current(),q=state.query.trim().toLowerCase(),banQ=state.depthBanQuery.trim().toLowerCase(),banCandidates=state.cards.filter(depthBanEligible).filter(c=>!state.depthBans.includes(c.name)).filter(c=>banQ&&(c.name.toLowerCase().includes(banQ)||(c.ability||'').toLowerCase().includes(banQ))).sort((a,b)=>a.name.localeCompare(b.name)).slice(0,8),shown=state.cards.filter(c=>!c.unobtainable||c.name==='Conqueror').filter(c=>!q||c.name.toLowerCase().includes(q)||(c.ability||'').toLowerCase().includes(q)).sort((a,b)=>b.rarity-a.rarity).slice(0,100)",
+               "const team=current(),q=searchKey(state.query).trim(),banQ=searchKey(state.depthBanQuery).trim(),banCandidates=state.cards.filter(depthBanEligible).filter(c=>!state.depthBans.includes(c.name)).filter(c=>banQ&&(searchKey(c.name).includes(banQ)||searchKey(c.ability||'').includes(banQ))).sort((a,b)=>a.name.localeCompare(b.name)).slice(0,8),shown=state.cards.filter(c=>!c.unobtainable||c.name==='Conqueror').filter(c=>!q||searchKey(c.name).includes(q)||searchKey(c.ability||'').includes(q)).sort((a,b)=>b.rarity-a.rarity).slice(0,100)"),
+          ]
+
+          for old, new in replacements:
+              if old not in text:
+                  raise SystemExit('search normalization target not found: ' + old[:90])
+              text = text.replace(old, new, 1)
+
+          path.write_text(text)
+
+          validate = Path('scripts/validate-ui.mjs')
+          v = validate.read_text()
+          marker = "if (!liveHtml.includes('state.towerFloor=Math.min(105,Math.max(1,Number(e.target.value)||1))')) throw new Error('Tower floor runtime clamp must remain 105')\n"
+          check = marker + "if (!liveHtml.includes(\"const searchKey=(v='')=>String(v).normalize('NFD')\")) throw new Error('Accent-insensitive card search helper missing')\nif (!liveHtml.includes('searchKey(c.name).includes(q)')) throw new Error('Main/tower card search is not using normalized names')\nif (!liveHtml.includes('searchKey(c.name).includes(banQ)')) throw new Error('Depth ban card search is not using normalized names')\n"
+          if 'Accent-insensitive card search helper missing' not in v:
+              if marker not in v:
+                  raise SystemExit('validate-ui insertion marker not found')
+              validate.write_text(v.replace(marker, check, 1))
+
+          # Direct behavior sanity checks for representative card names.
+          import unicodedata
+          def key(value):
+              s=''.join(ch for ch in unicodedata.normalize('NFD', value) if not unicodedata.combining(ch)).lower()
+              for a,b in [('đ','d'),('ð','d'),('ø','o'),('ł','l'),('æ','ae'),('œ','oe'),('ß','ss'),('þ','th')]: s=s.replace(a,b)
+              return s
+          samples = {
+              'Dōng Fāng Qīng Lóng': 'dong fang qing long',
+              'Běi Fāng Xuán Wǔ': 'bei fang xuan wu',
+              'Nán Fāng Zhū Què': 'nan fang zhu que',
+              'Nüwa': 'nuwa',
+              'Shén Lóng': 'shen long',
+              'Shuten-dōji': 'shuten-doji',
+          }
+          for original, plain in samples.items():
+              if key(original) != plain:
+                  raise SystemExit(f'normalization sanity failed: {original} -> {key(original)} != {plain}')
+          print('Accent-insensitive search patch applied and sample names verified.')
+          PY
+      - run: npm ci
+      - run: npm run check
+      - name: Remove one-time workflow and publish
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/apply-search-normalization.yml
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "Make card search accent insensitive"
+          git pull --rebase origin main
+          git push origin HEAD:main

@@ -1,5 +1,5 @@
 import { auraPackRangeForMedian, auraPacksForDepth } from '../src/engine/depths-rewards'
-import { battleSpeedStructureBonus, depthsFloorSpeedBonus, effectiveDepthsBattleSpeed, estimateBattleSeconds, inBattleAcceleration } from '../src/engine/depths-time'
+import { battleSpeedSkillTreeBonus, battleSpeedStructureBonus, depthsFloorSpeedBonus, effectiveDepthsBattleSpeed, estimateBattleSeconds, inBattleAcceleration } from '../src/engine/depths-time'
 
 function assert(condition: unknown, message: string): asserts condition { if (!condition) throw new Error(message) }
 function close(a: number, b: number, eps = 1e-9) { return Math.abs(a - b) <= eps }
@@ -8,6 +8,12 @@ assert(effectiveDepthsBattleSpeed(1, true) === 4, 'Floor 1 Battle Speed should b
 assert(effectiveDepthsBattleSpeed(100, true) === 4.25, 'Floor 100 Battle Speed should include +0.25')
 assert(battleSpeedStructureBonus(7) === 1.75, 'Max Battle Speed structure should add +1.75')
 assert(effectiveDepthsBattleSpeed(1, true, 7) === 5.75, 'Max structure Battle Speed mismatch')
+assert(battleSpeedSkillTreeBonus(0) === 0, 'Skill Tree Battle Speed level 0 mismatch')
+assert(battleSpeedSkillTreeBonus(1) === 0.5, 'Skill Tree Battle Speed level 1 mismatch')
+assert(battleSpeedSkillTreeBonus(2) === 1, 'Skill Tree Battle Speed level 2 mismatch')
+assert(battleSpeedSkillTreeBonus(3) === 1.5, 'Skill Tree Battle Speed level 3 mismatch')
+assert(battleSpeedSkillTreeBonus(4) === 2.5, 'Skill Tree Battle Speed level 4 mismatch')
+assert(effectiveDepthsBattleSpeed(1, true, 7, 4) === 8.25, 'Structure + Skill Tree + Chrono Battle Speed stack mismatch')
 assert(depthsFloorSpeedBonus(1800) === 4.5, 'Depths floor Battle Speed bonus should cap at +4.5')
 assert(effectiveDepthsBattleSpeed(5000, true) === 8.5, 'High-floor Battle Speed should cap at 8.5 with Chrono')
 assert(inBattleAcceleration(9) === 1 && inBattleAcceleration(10) === 2, '10-attack acceleration mismatch')

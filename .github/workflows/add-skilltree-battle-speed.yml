@@ -1,0 +1,47 @@
+name: Add Skill Tree Battle Speed
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/apply-skilltree-battle-speed.py"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: skilltree-battle-speed-update
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply source-backed Skill Tree Battle Speed update
+        run: python scripts/apply-skilltree-battle-speed.py
+      - name: Install dependencies
+        run: npm ci
+      - name: Rebuild browser workers
+        run: npm run build:workers
+      - name: Run full checks
+        run: npm run check
+      - name: Commit generated update
+        run: |
+          git config user.name "Deck Tools Updater"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/engine/depths-time.ts src/browser-worker.ts scripts/depths-time-regression.ts index-base.html browser/depths-worker.js site-version.json
+          if git diff --cached --quiet; then
+            echo "No Skill Tree Battle Speed changes needed."
+            exit 0
+          fi
+          git commit -m "Add Skill Tree Battle Speed to Depths calculator"
+          git push origin HEAD:main

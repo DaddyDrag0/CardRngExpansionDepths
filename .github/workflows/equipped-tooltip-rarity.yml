@@ -1,0 +1,63 @@
+name: Update equipped tooltip rarity
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/equipped-tooltip-rarity.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Make equipped tooltips use selected border rarity
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p=Path('index-base.html')
+          s=p.read_text()
+
+          old='data-tooltip-card="${esc(card.name)}"><span class="slot">0${index+1}</span>'
+          new='data-tooltip-card="${esc(card.name)}" data-tooltip-slot="${index}"><span class="slot">0${index+1}</span>'
+          if s.count(old) != 1:
+              raise SystemExit(f'equipped tooltip marker count was {s.count(old)}, expected 1')
+          s=s.replace(old,new,1)
+
+          old="function bindTooltips(){const show=el=>{const card=cardByName(el.dataset.tooltipCard);if(!card)return;const desc=state.abilities[card.ability]||'No ability description found.';tooltip.innerHTML=`<div class=\"tip-name\">${esc(card.name)}</div><div class=\"tip-ability\">${esc(card.ability||'No ability')}</div><div class=\"tip-desc\">${esc(desc)}</div><div class=\"tip-rarity\">Base rarity: 1 / ${Number(card.rarity||0).toLocaleString('en-US')}</div>`;"
+          new="function bindTooltips(){const show=el=>{const card=cardByName(el.dataset.tooltipCard);if(!card)return;const desc=state.abilities[card.ability]||'No ability description found.',slotIndex=Number(el.dataset.tooltipSlot),slot=Number.isInteger(slotIndex)&&slotIndex>=0?current().cards[slotIndex]:null,borders=slot?.cardName===card.name&&Array.isArray(slot.borders)?slot.borders:[],rarity=rarityWithBorders(card,borders),rarityLabel=borders.length?'Modified rarity':'Base rarity';tooltip.innerHTML=`<div class=\"tip-name\">${esc(card.name)}</div><div class=\"tip-ability\">${esc(card.ability||'No ability')}</div><div class=\"tip-desc\">${esc(desc)}</div><div class=\"tip-rarity\">${rarityLabel}: 1 / ${Number(rarity||0).toLocaleString('en-US')}</div>`;"
+          if s.count(old) != 1:
+              raise SystemExit(f'bindTooltips target count was {s.count(old)}, expected 1')
+          s=s.replace(old,new,1)
+          p.write_text(s)
+
+          v=Path('site-version.json')
+          v.write_text('{"version":"20260907-equipped-tooltip-rarity-1"}\n')
+          PY
+      - name: Validate UI
+        run: |
+          npm ci
+          npm run build
+          npm run test:ui
+          grep -q 'data-tooltip-slot="${index}"' index-base.html
+          grep -q "rarity=rarityWithBorders(card,borders)" index-base.html
+          grep -q "Modified rarity" index-base.html
+      - name: Publish
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/equipped-tooltip-rarity.yml
+          git add -A
+          git commit -m "Show equipped card rarity with selected borders"
+          git pull --rebase origin main
+          git push origin HEAD:main

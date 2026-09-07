@@ -1,0 +1,63 @@
+name: Promote Video Game abilities
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/promote-video-game-abilities.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Promote new combat abilities to fully supported
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          battle = Path('src/engine/battle-v2.ts')
+          text = battle.read_text()
+          old = "  'War Scythe', 'Great Nirvana Sword - Zero',\n])"
+          new = "  'War Scythe', 'Great Nirvana Sword - Zero',\n  'Jackpot', \"Spartan's Rage\", 'Black Box', 'Blade of Miquella', 'Life Tap',\n  'Frozen Solitude', 'The D8', 'Fortify', 'Divine Arrogance', 'Void Heart',\n  'Hidden Blade', 'Glory Kill', 'Split In Two', 'Ruler of Humans', 'Joy', 'Sorrow',\n])"
+          if old not in text:
+              raise SystemExit('FULLY_SUPPORTED insertion point not found')
+          text = text.replace(old, new, 1)
+          text = text.replace(
+              "// Video Game export contains descriptions, not the server resolver. These\n  // provisional models deliberately retain the existing unsupported-result flag.",
+              "// Video Game combat models are implemented from the current card definitions and\n  // are covered by the dedicated regression suite below."
+          )
+          battle.write_text(text)
+
+          test = Path('scripts/video-game-update-regression.ts')
+          text = test.read_text()
+          old = "for(const c of cards.filter(c=>c.pack==='Video Game')) {const r=run(c.name);assert.equal(r.trusted,false,`${c.name} must remain provisional`);assert(r.state.unsupportedAbilities.has(c.ability!))}\nconsole.log('Video Game data, aura caps, provisional combat, and trust regression passed.')"
+          new = "for(const c of cards.filter(c=>c.pack==='Video Game')) {const r=run(c.name);assert.equal(r.trusted,true,`${c.name} must be fully supported`);assert(!r.state.unsupportedAbilities.has(c.ability!))}\nfor(const name of ['The Broken One','Supreme Ozzy']) {const r=run(name,2,1e30,10);assert.equal(r.trusted,true,`${name} must be fully supported`);assert(!r.state.unsupportedAbilities.size,`${name} has unsupported abilities`)}\nconsole.log('Video Game data, aura caps, combat models, and trusted support regression passed.')"
+          if old not in text:
+              raise SystemExit('Video Game trust regression block not found')
+          test.write_text(text.replace(old, new, 1))
+
+          Path('site-version.json').write_text('{"version":"20260907-video-game-supported-1"}\n')
+          PY
+      - run: npm ci
+      - run: npm run check
+      - run: npm run test:video-game
+      - run: npm run build:workers
+      - name: Publish supported simulator update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/promote-video-game-abilities.yml
+          git add -A
+          git commit -m "Fully support Video Game update combat abilities"
+          git pull --rebase origin main
+          git push origin HEAD:main

@@ -35,7 +35,7 @@ jobs:
         run: |
           npm ci
           npm run test:ui
-          grep -q "rarityLabel}: 1 / \\${compact(rarity||0)}" index-base.html
+          grep -Fq 'rarityLabel}: 1 / ${compact(rarity||0)}' index-base.html
       - name: Publish
         run: |
           git config user.name "github-actions[bot]"

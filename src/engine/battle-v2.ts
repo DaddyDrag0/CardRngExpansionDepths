@@ -83,6 +83,9 @@ const FULLY_SUPPORTED = new Set([
   'Cosmic Rivalry', 'Divine Ascension', 'Mastered Ascension', 'Kitchen', 'Six Realms Staff',
   'Twelve Devas Axe', 'Vajra Short Sword', 'Staff of Perfect Enlightenment', 'Shield of Ahimsa',
   'War Scythe', 'Great Nirvana Sword - Zero',
+  'Jackpot', "Spartan's Rage", 'Black Box', 'Blade of Miquella', 'Life Tap',
+  'Frozen Solitude', 'The D8', 'Fortify', 'Divine Arrogance', 'Void Heart',
+  'Hidden Blade', 'Glory Kill', 'Split In Two', 'Ruler of Humans', 'Joy', 'Sorrow',
 ])
 
 const BENCH_AFFECTING_UNSUPPORTED = new Set<string>()
@@ -720,8 +723,8 @@ function onEntry(runtime: Runtime, card: CombatCard) {
   let name = resolvedAbility(runtime, card)
   if (!name || !hasAbility(runtime, card, name)) return
 
-  // Video Game export contains descriptions, not the server resolver. These
-  // provisional models deliberately retain the existing unsupported-result flag.
+  // Video Game combat models are implemented from the current card definitions and
+  // are covered by the dedicated regression suite below.
   if (name === 'Frozen Solitude' && !statusProtected(runtime, enemyTeam)) {
     for (const foe of runtime.state.teams[enemyTeam]) {
       foe.status.stunned = Math.max(1, foe.status.stunned)

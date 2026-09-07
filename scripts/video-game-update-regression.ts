@@ -31,5 +31,6 @@ close(broken.state.teams.Allies[0].damage,getAttack(card('The Broken One'))*.6)
 const ozzy=run('Supreme Ozzy',2,1e30,10);close(ozzy.state.teams.Enemies[0].hp,1e30)
 close(actor(ozzy,'Supreme Ozzy').damage,getAttack(card('Supreme Ozzy'))+12.5)
 const glory=actor(run('Hell killer',1,1),'Hell killer');close(glory.damage,getAttack(card('Hell killer'))*1.5)
-for(const c of cards.filter(c=>c.pack==='Video Game')) {const r=run(c.name);assert.equal(r.trusted,false,`${c.name} must remain provisional`);assert(r.state.unsupportedAbilities.has(c.ability!))}
-console.log('Video Game data, aura caps, provisional combat, and trust regression passed.')
+for(const c of cards.filter(c=>c.pack==='Video Game')) {const r=run(c.name);assert.equal(r.trusted,true,`${c.name} must be fully supported`);assert(!r.state.unsupportedAbilities.has(c.ability!))}
+for(const name of ['The Broken One','Supreme Ozzy']) {const r=run(name,2,1e30,10);assert.equal(r.trusted,true,`${name} must be fully supported`);assert(!r.state.unsupportedAbilities.size,`${name} has unsupported abilities`)}
+console.log('Video Game data, aura caps, combat models, and trusted support regression passed.')

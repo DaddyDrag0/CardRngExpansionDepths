@@ -3,37 +3,45 @@ import { simulateBattleV2 } from './battle-v2'
 import { SeededRng } from './rng'
 import { buildTowerEnemies, type TowerBatchResult, type TowerDifficulty } from './tower'
 
-export const MAX_TOWER_WIN_LOGS = 8
-export const MAX_TOWER_LOG_EVENTS = 2_000
-
-export interface TowerWinningLog {
+export interface TowerWinningRunSummary {
+  /** 1-based position inside the requested simulation batch. */
+  run: number
   seed: number
   turns: number
-  occurrences: number
-  signature: string
+  patternId: number
   survivingAllies: string[]
   fallenAllies: string[]
-  eventCount: number
-  eventsTruncated: boolean
+}
+
+export interface TowerWinningReplay {
+  run: number
+  seed: number
+  winner: BattleResult['winner']
+  turns: number
+  trusted: boolean
+  unsupportedAbilities: string[]
   debug: BattleDebug
 }
 
 export interface LoggedTowerBatchResult extends TowerBatchResult {
-  winningLogs: TowerWinningLog[]
+  /**
+   * Every winning run in the batch, stored as a compact summary only.
+   * Full BattleDebug data is generated later, for one exact seed at a time, when the user opens it.
+   */
+  winningRuns: TowerWinningRunSummary[]
   winningPatternCount: number
-  winningLogsTruncated: boolean
 }
 
 interface WinPattern {
+  id: number
   count: number
-  seed: number
-  turns: number
+}
+
+function winPatternSignature(battle: BattleResult): {
   signature: string
   survivingAllies: string[]
   fallenAllies: string[]
-}
-
-function winPattern(battle: BattleResult): Omit<WinPattern, 'count' | 'seed' | 'turns'> {
+} {
   const survivingAllies = battle.state.teams.Allies.map((card) => card.definition.name)
   const fallenAllies = battle.state.fallen.Allies.map((card) => card.definition.name)
   const survivorState = battle.state.teams.Allies.map((card) => {
@@ -49,50 +57,12 @@ function winPattern(battle: BattleResult): Omit<WinPattern, 'count' | 'seed' | '
   }
 }
 
-function trimDebug(debug: BattleDebug): { debug: BattleDebug; eventCount: number; eventsTruncated: boolean } {
-  const eventCount = debug.events.length
-  if (eventCount <= MAX_TOWER_LOG_EVENTS) return { debug, eventCount, eventsTruncated: false }
-
-  const half = Math.floor(MAX_TOWER_LOG_EVENTS / 2)
-  return {
-    debug: {
-      ...debug,
-      events: [...debug.events.slice(0, half), ...debug.events.slice(-half)],
-    },
-    eventCount,
-    eventsTruncated: true,
-  }
-}
-
-function chooseRepresentativePatterns(patterns: WinPattern[]): WinPattern[] {
-  const byFrequency = [...patterns].sort(
-    (a, b) => b.count - a.count || a.turns - b.turns || a.signature.localeCompare(b.signature),
-  )
-  const selected = byFrequency.slice(0, Math.min(6, MAX_TOWER_WIN_LOGS))
-
-  if (patterns.length) {
-    const fastest = [...patterns].sort((a, b) => a.turns - b.turns || b.count - a.count)[0]
-    const slowest = [...patterns].sort((a, b) => b.turns - a.turns || b.count - a.count)[0]
-    for (const edge of [fastest, slowest]) {
-      if (selected.length >= MAX_TOWER_WIN_LOGS) break
-      if (edge && !selected.some((entry) => entry.signature === edge.signature)) selected.push(edge)
-    }
-  }
-
-  for (const entry of byFrequency) {
-    if (selected.length >= MAX_TOWER_WIN_LOGS) break
-    if (!selected.some((item) => item.signature === entry.signature)) selected.push(entry)
-  }
-  return selected
-}
-
 /**
- * Tower batch simulation with selective winning-run diagnostics.
+ * Run the normal Tower batch while keeping a tiny summary for EVERY win.
  *
- * The main batch still runs with captureDebug=false. Winning outcomes are grouped using a
- * cheap signature. Only up to MAX_TOWER_WIN_LOGS representative winning seeds are replayed
- * after the batch with captureDebug=true, so a 10,000-run cheese test never creates 10,000
- * full debug logs.
+ * This intentionally does NOT capture BattleDebug inside the batch loop. A 10,000-run test therefore
+ * still performs 10,000 normal battles rather than generating thousands of giant logs. Each winning
+ * seed can be replayed later with replayTowerWinningRun() when the user actually opens that battle.
  */
 export function simulateTowerBatchLogged(
   loadout: TeamLoadout,
@@ -108,6 +78,7 @@ export function simulateTowerBatchLogged(
   const seedRng = new SeededRng(seed || 1)
   const unsupported = new Set<string>()
   const patterns = new Map<string, WinPattern>()
+  const winningRuns: TowerWinningRunSummary[] = []
   let wins = 0
   let losses = 0
   let draws = 0
@@ -121,17 +92,21 @@ export function simulateTowerBatchLogged(
 
     if (battle.winner === 'Allies') {
       wins += 1
-      const pattern = winPattern(battle)
-      const existing = patterns.get(pattern.signature)
-      if (existing) existing.count += 1
-      else {
-        patterns.set(pattern.signature, {
-          ...pattern,
-          count: 1,
-          seed: battleSeed,
-          turns: battle.turns,
-        })
+      const outcome = winPatternSignature(battle)
+      let pattern = patterns.get(outcome.signature)
+      if (!pattern) {
+        pattern = { id: patterns.size + 1, count: 0 }
+        patterns.set(outcome.signature, pattern)
       }
+      pattern.count += 1
+      winningRuns.push({
+        run: index + 1,
+        seed: battleSeed,
+        turns: battle.turns,
+        patternId: pattern.id,
+        survivingAllies: outcome.survivingAllies,
+        fallenAllies: outcome.fallenAllies,
+      })
     } else if (battle.winner === 'Enemies') losses += 1
     else draws += 1
 
@@ -141,31 +116,6 @@ export function simulateTowerBatchLogged(
     for (const ability of battle.unsupportedAbilities) unsupported.add(ability)
     if (onProgress && (index === total - 1 || (index + 1) % 25 === 0)) onProgress(index + 1, total)
   }
-
-  const patternList = [...patterns.values()]
-  const selected = chooseRepresentativePatterns(patternList)
-  const winningLogs: TowerWinningLog[] = []
-
-  for (const entry of selected) {
-    const replay = simulateBattleV2(loadout, enemies, entry.seed, 2_000, true, true)
-    if (replay.winner !== 'Allies' || !replay.debug) continue
-    const trimmed = trimDebug(replay.debug)
-    winningLogs.push({
-      seed: entry.seed,
-      turns: entry.turns,
-      occurrences: entry.count,
-      signature: entry.signature,
-      survivingAllies: entry.survivingAllies,
-      fallenAllies: entry.fallenAllies,
-      eventCount: trimmed.eventCount,
-      eventsTruncated: trimmed.eventsTruncated,
-      debug: trimmed.debug,
-    })
-  }
-
-  winningLogs.sort(
-    (a, b) => b.occurrences - a.occurrences || a.turns - b.turns || a.signature.localeCompare(b.signature),
-  )
 
   return {
     runs: total,
@@ -178,8 +128,30 @@ export function simulateTowerBatchLogged(
     maxTurns,
     trusted: unsupported.size === 0,
     unsupportedAbilities: [...unsupported].sort(),
-    winningLogs,
-    winningPatternCount: patternList.length,
-    winningLogsTruncated: patternList.length > winningLogs.length,
+    winningRuns,
+    winningPatternCount: patterns.size,
+  }
+}
+
+/** Replay one exact batch seed with full debug capture. This work only happens when that battle is opened. */
+export function replayTowerWinningRun(
+  loadout: TeamLoadout,
+  enemyNames: string[],
+  floor: number,
+  difficulty: TowerDifficulty,
+  battleSeed: number,
+  run = 0,
+): TowerWinningReplay {
+  const enemies = buildTowerEnemies(enemyNames, floor, difficulty)
+  const battle = simulateBattleV2(loadout, enemies, battleSeed, 2_000, true, true)
+  if (!battle.debug) throw new Error('Tower replay did not produce battle debug data.')
+  return {
+    run,
+    seed: battleSeed,
+    winner: battle.winner,
+    turns: battle.turns,
+    trusted: battle.trusted,
+    unsupportedAbilities: battle.unsupportedAbilities,
+    debug: battle.debug,
   }
 }

@@ -1,0 +1,47 @@
+name: Abbreviate tooltip rarity
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/abbreviate-tooltip-rarity.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Abbreviate tooltip rarity
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('index-base.html')
+          s=p.read_text()
+          old="${rarityLabel}: 1 / ${Number(rarity||0).toLocaleString('en-US')}"
+          new="${rarityLabel}: 1 / ${compact(rarity||0)}"
+          if old not in s:
+              raise SystemExit('tooltip rarity expression not found')
+          p.write_text(s.replace(old,new,1))
+
+          p=Path('site-version.json')
+          p.write_text('{"version":"20260907-tooltip-rarity-abbrev-1"}\n')
+          PY
+      - name: Validate UI
+        run: |
+          npm ci
+          npm run test:ui
+          grep -q "rarityLabel}: 1 / \\${compact(rarity||0)}" index-base.html
+      - name: Publish
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/abbreviate-tooltip-rarity.yml
+          git add -A
+          git commit -m "Abbreviate modified card rarity in tooltip"
+          git pull --rebase origin main
+          git push origin HEAD:main

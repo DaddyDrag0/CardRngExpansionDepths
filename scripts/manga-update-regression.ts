@@ -27,7 +27,7 @@ close(statAuraPercentForCard(oneRing, { definition:card('Arthur') } as any, 'Gal
 close(statAuraPercentForCard(oneRing, { definition:card('Limitless Rivals') } as any, 'Galaxy'),0,'One Ring excludes weather')
 close(statAuraPercentForCard(aura('Dinosaur King'), { definition:card('Ankylosaurus') } as any, 'Galaxy'),414,'Dino exact group multiplier')
 close(statAuraPercentForCard(aura('Elohim'), { definition:cards.find(c=>c.weather==='Rapture')! } as any, 'Galaxy'),300,'Elohim exact group multiplier')
-const satan=aura('Satan'); const blood=cards.find(c=>c.weather==='Blood Rain'); assert(blood); close(statAuraPercentForCard(satan,{definition:blood} as any,'Galaxy'),282.5,'Satan Blood Rain boost remains source value')
+const satan=aura('Satan'); const blood=cards.find(c=>c.weather==='Blood Rain'); assert(blood); close(statAuraPercentForCard(satan,{definition:blood} as any,'Galaxy'),226,'Satan Blood Rain boost matches Video Game source')
 
 const brawler=card('Ultimate Brawler')
 const brawl=simulateBattleV2({cards:[{cardName:'Ultimate Brawler',borders:[]}]},[enemy('Shining Armor',1e30,1e30)],81123,2,false,true)

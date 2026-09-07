@@ -12,7 +12,18 @@
   <script>
   (async()=>{
     try{
-      const response=await fetch('./index-base.html?rev=5',{cache:'no-store'});
+      const url=new URL(location.href);
+      if(url.searchParams.has('v')){
+        url.searchParams.delete('v');
+        history.replaceState(history.state,'',url.pathname+url.search+url.hash);
+      }
+      let version='boot-'+Date.now();
+      try{
+        const marker=await fetch('./site-version.json',{cache:'no-store'});
+        if(marker.ok)version=String((await marker.json()).version||version);
+      }catch(_){}
+      window.__CRX_SITE_VERSION=version;
+      const response=await fetch('./index-base.html?v='+encodeURIComponent(version),{cache:'no-store'});
       if(!response.ok)throw new Error(`HTTP ${response.status}`);
       let html=await response.text();
       const ambienceTags='  <script defer src="./src/blood-rain.js?rev=5"></'+'script>\n'+'  <script defer src="./src/lava-ambience.js?rev=7"></'+'script>\n';

@@ -39,11 +39,9 @@
         const data=await response.json();
         const version=String(data.version||'').trim();
         if(!version)return;
-        const url=new URL(location.href);
-        if(url.searchParams.get('v')===version)return;
-        try{if('caches' in window){for(const key of await caches.keys())await caches.delete(key)}}catch(_){}
-        url.searchParams.set('v',version);
-        location.replace(url.toString());
+        if(!window.__CRX_SITE_VERSION){window.__CRX_SITE_VERSION=version;return;}
+        if(window.__CRX_SITE_VERSION===version)return;
+        location.reload();
       }catch(_){}
     };
     check();
@@ -90,7 +88,12 @@
 <script>
 (() => {
   const root=document.getElementById('root'),tooltip=document.getElementById('cardTooltip');
-  const SITE_VERSION=new URL(location.href).searchParams.get('v')||'';
+  const visibleUrl=new URL(location.href);
+  if(visibleUrl.searchParams.has('v')){
+    visibleUrl.searchParams.delete('v');
+    history.replaceState(history.state,'',visibleUrl.pathname+visibleUrl.search+visibleUrl.hash);
+  }
+  const SITE_VERSION=window.__CRX_SITE_VERSION||'';
   const versioned=path=>SITE_VERSION?`${path}${path.includes('?')?'&':'?'}v=${encodeURIComponent(SITE_VERSION)}`:path;
   const styleLink=document.querySelector('link[rel="stylesheet"]');if(styleLink&&SITE_VERSION)styleLink.href=versioned('./src/styles.css');
   const CARD_BORDER_MULT={Platinum:100,Crystal:10000,Ruby:100000,Galaxy:1000000},CARD_BORDERS=Object.keys(CARD_BORDER_MULT);
@@ -99,7 +102,7 @@
   const MAX_DEPTH_BANS=14;
   const DEPTHS_DEFAULT_BANS=new Set(['Vampire Lord','Parallax','Samurai']);
   const depthBanEligible=c=>Boolean(c&&!c.unobtainable&&!c.expires&&!c.boss&&!DEPTHS_DEFAULT_BANS.has(c.name)&&c.pack!=='Christmas'&&c.pack!=='Halloween'&&c.pack!=='Halloween2');
-  const AURA_PACK={Neko:'Anime',Shrinemaiden:'Rising Sun',Shatbi:'Egypt',Taoist:'Immortal',Myhts:'Cryptid','Dinosaur King':'Prehistoric'};
+  const AURA_PACK={Neko:'Anime',Shrinemaiden:'Rising Sun',Shatbi:'Egypt',Taoist:'Immortal',Myths:'Cryptid',Gamer:'Video Game','Dinosaur King':'Prehistoric'};
   const AURA_WEATHER={Elohim:'Rapture',Yggdrasil:'Armageddon',Satan:'Blood Rain','Eclipse Chaser':'Eclipse',Kala:'Time Storm',Stormcaller:'Storm',Iris:'Aurora',Niflheim:'Shroud',Khione:'Snow',Astrologist:'Meteor Shower',Disease:'Virus'};
   const STORAGE='card-rng-expansion-depths-v2';
   const blankTeam=()=>({cards:Array.from({length:4},()=>({cardName:'',borders:[]})),statAura:'',statAuraBorder:'',abilityAura:'',abilityAuraBorder:'',result:null,elapsedMs:0,lastError:''});
@@ -401,7 +404,7 @@
   }
   for(const name of listed)if(!scopes.includes(name))scopes.push(name);
   let out=`<div class="aura-stat-grid"><div class="aura-stat"><span>All allied cards</span><b>+${pct(value)}%</b><small>HP & ATK</small></div>`;
-  if(boost&&scopes.length)out+=`<div class="aura-stat boosted"><span>Extra boost group</span><b>+${pct(value*boost)}%</b><small>HP & ATK</small></div>`;
+  if(boost&&scopes.length)out+=`<div class="aura-stat boosted"><span>Extra boost group</span><b>+${pct(['The Sequel','Myths','Gamer'].includes(aura.name)?Math.min(300,value*boost):value*boost)}%</b><small>HP & ATK</small></div>`;
   out+='</div>';
   if(boost&&scopes.length)out+=`<div class="aura-scope"><span>Extra stat buff applies to</span><b>${scopes.map(esc).join(' · ')}</b></div>`;
   return out;

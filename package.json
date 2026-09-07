@@ -13,7 +13,8 @@
     "test:player": "tsx scripts/player-coverage.ts",
     "test:ui": "node scripts/validate-ui.mjs",
     "check": "npm run build && npm run test:data && npm run test:engine && npm run test:depths && npm run test:player && npm run test:ui",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:video-game": "node --import tsx scripts/video-game-update-regression.ts"
   },
   "devDependencies": {
     "esbuild": "latest",

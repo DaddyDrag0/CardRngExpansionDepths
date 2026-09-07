@@ -1,0 +1,58 @@
+name: Fix rarity suffix abbreviations
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-rarity-suffixes.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Add game-style rarity suffixes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('index-base.html')
+          s=p.read_text()
+          old="const compact=n=>Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:2}).format(n),full=n=>Math.round(n).toLocaleString('en-US'),one=n=>Number(n).toLocaleString('en-US',{maximumFractionDigits:1}),pct=n=>Number.isInteger(n)?String(n):Number(n.toFixed(2)).toString();"
+          new="const compact=n=>Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:2}).format(n),full=n=>Math.round(n).toLocaleString('en-US'),one=n=>Number(n).toLocaleString('en-US',{maximumFractionDigits:1}),pct=n=>Number.isInteger(n)?String(n):Number(n.toFixed(2)).toString();\n  const RARITY_SUFFIXES=[[1e33,'Dc'],[1e30,'No'],[1e27,'Oc'],[1e24,'Sp'],[1e21,'Sx'],[1e18,'Qi'],[1e15,'Qa'],[1e12,'T'],[1e9,'B'],[1e6,'M'],[1e3,'K']];\n  const rarityCompact=n=>{const value=Number(n)||0;for(const [size,suffix] of RARITY_SUFFIXES)if(Math.abs(value)>=size)return `${Number((value/size).toFixed(2))}${suffix}`;return Number.isInteger(value)?String(value):Number(value.toFixed(2)).toString()};"
+          if old not in s:
+              raise SystemExit('compact formatter line not found')
+          s=s.replace(old,new,1)
+          old_tool="${rarityLabel}: 1 / ${compact(rarity||0)}"
+          new_tool="${rarityLabel}: 1 / ${rarityCompact(rarity||0)}"
+          if old_tool not in s:
+              raise SystemExit('tooltip compact call not found')
+          p.write_text(s.replace(old_tool,new_tool,1))
+
+          Path('site-version.json').write_text('{"version":"20260907-tooltip-rarity-qi-1"}\n')
+          PY
+      - name: Validate UI and suffix math
+        run: |
+          npm ci
+          npm run test:ui
+          grep -Fq "[1e18,'Qi']" index-base.html
+          grep -Fq '${rarityLabel}: 1 / ${rarityCompact(rarity||0)}' index-base.html
+          node - <<'NODE'
+          const suffixes=[[1e33,'Dc'],[1e30,'No'],[1e27,'Oc'],[1e24,'Sp'],[1e21,'Sx'],[1e18,'Qi'],[1e15,'Qa'],[1e12,'T'],[1e9,'B'],[1e6,'M'],[1e3,'K']];
+          const f=n=>{for(const [size,suffix] of suffixes)if(Math.abs(n)>=size)return `${Number((n/size).toFixed(2))}${suffix}`;return String(n)};
+          if(f(4110000000000000000)!=='4.11Qi') throw new Error(f(4110000000000000000));
+          console.log('4.11e18 ->',f(4110000000000000000));
+          NODE
+      - name: Publish
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/fix-rarity-suffixes.yml
+          git add -A
+          git commit -m "Use Qi and higher rarity suffixes in equipped tooltip"
+          git pull --rebase origin main
+          git push origin HEAD:main

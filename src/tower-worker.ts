@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
 import { searchTowerCheese, searchTowerCheeseIntensive, type TowerCheeseSearchProgress, type TowerDifficulty } from './engine/tower'
-import { simulateTowerBatchLogged } from './engine/tower-logged'
+import { replayTowerWinningRun, simulateTowerBatchLogged } from './engine/tower-logged'
 import type { TeamLoadout } from './types'
 
 interface TowerSimulationRequest {
@@ -13,6 +13,17 @@ interface TowerSimulationRequest {
   difficulty: TowerDifficulty
   runs: number
   seed: number
+}
+
+interface TowerWinDebugRequest {
+  id: number
+  kind: 'tower-win-debug'
+  loadout: TeamLoadout
+  enemyNames: string[]
+  floor: number
+  difficulty: TowerDifficulty
+  seed: number
+  run: number
 }
 
 interface TowerCheeseSearchRequest {
@@ -30,7 +41,7 @@ interface TowerCheeseSearchRequest {
   shardCount?: number
 }
 
-type TowerRequest = TowerSimulationRequest | TowerCheeseSearchRequest
+type TowerRequest = TowerSimulationRequest | TowerWinDebugRequest | TowerCheeseSearchRequest
 
 self.onmessage = (event: MessageEvent<TowerRequest>) => {
   const request = event.data
@@ -49,6 +60,25 @@ self.onmessage = (event: MessageEvent<TowerRequest>) => {
       self.postMessage({
         id: request.id,
         kind: 'tower-cheese-result',
+        ok: true,
+        elapsedMs: performance.now() - started,
+        result,
+      })
+      return
+    }
+
+    if (request.kind === 'tower-win-debug') {
+      const result = replayTowerWinningRun(
+        request.loadout,
+        request.enemyNames,
+        request.floor,
+        request.difficulty,
+        request.seed,
+        request.run,
+      )
+      self.postMessage({
+        id: request.id,
+        kind: 'tower-win-debug-result',
         ok: true,
         elapsedMs: performance.now() - started,
         result,
@@ -75,9 +105,14 @@ self.onmessage = (event: MessageEvent<TowerRequest>) => {
       result,
     })
   } catch (error) {
+    const kind = request.kind === 'tower-cheese-search'
+      ? 'tower-cheese-result'
+      : request.kind === 'tower-win-debug'
+        ? 'tower-win-debug-result'
+        : 'tower-result'
     self.postMessage({
       id: request.id,
-      kind: request.kind === 'tower-cheese-search' ? 'tower-cheese-result' : 'tower-result',
+      kind,
       ok: false,
       elapsedMs: performance.now() - started,
       error: error instanceof Error ? error.message : String(error),

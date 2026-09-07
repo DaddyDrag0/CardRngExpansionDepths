@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 
-import { searchTowerCheese, searchTowerCheeseIntensive, simulateTowerBatch, type TowerCheeseSearchProgress, type TowerDifficulty } from './engine/tower'
+import { searchTowerCheese, searchTowerCheeseIntensive, type TowerCheeseSearchProgress, type TowerDifficulty } from './engine/tower'
+import { simulateTowerBatchLogged } from './engine/tower-logged'
 import type { TeamLoadout } from './types'
 
 interface TowerSimulationRequest {
@@ -55,7 +56,7 @@ self.onmessage = (event: MessageEvent<TowerRequest>) => {
       return
     }
 
-    const result = simulateTowerBatch(
+    const result = simulateTowerBatchLogged(
       request.loadout,
       request.enemyNames,
       request.floor,

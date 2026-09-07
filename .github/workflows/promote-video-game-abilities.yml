@@ -25,6 +25,12 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
 
+          abilities = [
+              'Jackpot', "Spartan's Rage", 'Black Box', 'Blade of Miquella', 'Life Tap',
+              'Frozen Solitude', 'The D8', 'Fortify', 'Divine Arrogance', 'Void Heart',
+              'Hidden Blade', 'Glory Kill', 'Split In Two', 'Ruler of Humans', 'Joy', 'Sorrow',
+          ]
+
           battle = Path('src/engine/battle-v2.ts')
           text = battle.read_text()
           old = "  'War Scythe', 'Great Nirvana Sword - Zero',\n])"
@@ -37,6 +43,14 @@ jobs:
               "// Video Game combat models are implemented from the current card definitions and\n  // are covered by the dedicated regression suite below."
           )
           battle.write_text(text)
+
+          support = Path('src/engine/support.ts')
+          text = support.read_text()
+          old = "  'Cosmic Rivalry', 'Divine Ascension', 'Kitchen', 'Six Realms Staff',\n])"
+          new = "  'Cosmic Rivalry', 'Divine Ascension', 'Kitchen', 'Six Realms Staff',\n  'Jackpot', \"Spartan's Rage\", 'Black Box', 'Blade of Miquella', 'Life Tap',\n  'Frozen Solitude', 'The D8', 'Fortify', 'Divine Arrogance', 'Void Heart',\n  'Hidden Blade', 'Glory Kill',\n])"
+          if old not in text:
+              raise SystemExit('SOURCE_ALIGNED_ABILITIES insertion point not found')
+          support.write_text(text.replace(old, new, 1))
 
           test = Path('scripts/video-game-update-regression.ts')
           text = test.read_text()

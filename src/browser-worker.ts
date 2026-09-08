@@ -2,7 +2,7 @@
 
 import { simulateDepthsRun, type DepthsRunResult } from './engine/simulation'
 import { SeededRng } from './engine/rng'
-import { auraPackRangeForMedian, potionDropRangeForMedian } from './engine/depths-rewards'
+import { auraPacksForDepth, potionDropsForDepth } from './engine/depths-rewards'
 import { estimateDepthClearSeconds } from './engine/depths-time'
 import type { TeamLoadout } from './types'
 
@@ -60,8 +60,26 @@ function summarize(
   const floors = results.map((result) => result.deathFloor).sort((a, b) => a - b)
   const middle = Math.floor(floors.length / 2)
   const medianFloor = floors.length % 2 ? floors[middle] : (floors[middle - 1] + floors[middle]) / 2
-  const estimate = auraPackRangeForMedian(medianFloor)
-  const potionRewards = potionDropRangeForMedian(medianFloor, 0.15, bountifulDepths)
+  const observedMinFloor = floors[0]
+  const observedMaxFloor = floors[floors.length - 1]
+  const medianDepth = Math.max(1, Math.round(medianFloor))
+  const estimatedFloorLow = Math.max(observedMinFloor, Math.max(1, Math.round(medianFloor * 0.9)))
+  const estimatedFloorHigh = Math.min(observedMaxFloor, Math.max(1, Math.round(medianFloor * 1.1)))
+  const estimate = {
+    low: estimatedFloorLow,
+    high: estimatedFloorHigh,
+    medianDepth,
+    auraPackLow: auraPacksForDepth(estimatedFloorLow),
+    auraPackMedian: auraPacksForDepth(medianDepth),
+    auraPackHigh: auraPacksForDepth(estimatedFloorHigh),
+  }
+  const potionRewards = {
+    low: potionDropsForDepth(estimatedFloorLow, bountifulDepths),
+    median: potionDropsForDepth(medianDepth, bountifulDepths),
+    high: potionDropsForDepth(estimatedFloorHigh, bountifulDepths),
+    medianDepth,
+    bountiful: bountifulDepths,
+  }
   const totalBattles = results.reduce((sum, result) => sum + result.battles, 0)
   const totalTurns = results.reduce((sum, result) => sum + result.totalTurns, 0)
   const averageTurnsPerBattle = totalBattles > 0 ? totalTurns / totalBattles : 0

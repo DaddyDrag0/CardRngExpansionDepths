@@ -1,0 +1,182 @@
+name: Fix JD cheese interactions and Tower logs v2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-cheese-jd-logs-search-v2.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch combat, logs, and cheese search
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def rep(path, old, new, count=1):
+              p=Path(path); s=p.read_text()
+              if old not in s: raise SystemExit(f'anchor missing in {path}: {old[:120]!r}')
+              p.write_text(s.replace(old,new,count))
+
+          p='src/engine/battle-v2.ts'
+
+          rep(p,
+          "function luminescentVeilCanAffect(attacker: CombatCard): boolean {\n  const name = effectiveCardName(attacker) || attacker.definition.name\n  return name !== 'Kira' && name !== 'Judgment Day'\n}\n",
+          "function luminescentVeilCanAffect(attacker: CombatCard): boolean {\n  const name = effectiveCardName(attacker) || attacker.definition.name\n  return name !== 'Kira' && name !== 'Judgment Day'\n}\n\n// Judgment Day cannot receive shields, blocks, lethal dodges, redirects, or other\n// teammate-granted protection.\nfunction canReceiveExternalProtection(card: CombatCard): boolean {\n  return (effectiveCardName(card) || card.definition.name) !== 'Judgment Day'\n}\n")
+
+          rep(p,
+          "function resolveAuraFarm(runtime: Runtime, target: CombatCard, incoming: number): { target: CombatCard; damage: number } {\n  if (incoming < target.hp) return { target, damage: incoming }",
+          "function resolveAuraFarm(runtime: Runtime, target: CombatCard, incoming: number): { target: CombatCard; damage: number } {\n  if (!canReceiveExternalProtection(target)) return { target, damage: incoming }\n  if (incoming < target.hp) return { target, damage: incoming }")
+
+          # True Prophet / Hathor cannot pass protection to Judgment Day.
+          rep(p, "if (name === 'Destiny Sight') {\n    next.flags.dodgeLethal = true", "if (name === 'Destiny Sight' && canReceiveExternalProtection(next)) {\n    next.flags.dodgeLethal = true")
+          rep(p, "if (name === 'Eternal Devotion') {\n    next.flags.eternalDevotion = true", "if (name === 'Eternal Devotion' && canReceiveExternalProtection(next)) {\n    next.flags.eternalDevotion = true")
+          rep(p, "    next.status.shield += 1\n  }", "    if (canReceiveExternalProtection(next)) next.status.shield += 1\n  }", 1)
+
+          rep(p,
+          "function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: CombatCard, mult = 1, bypass = false): number {\n  let target = originalTarget",
+          "function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: CombatCard, mult = 1, bypass = false): number {\n  attacker.flags.armageddonLethalThisHit = false\n  let target = originalTarget")
+
+          rep(p,
+          "    case 'Armageddon': {\n      const success = rand(runtime, attacker.team) > 0.5\n      if (success) damage = Number.POSITIVE_INFINITY\n      pushAbilityDebug(runtime, attacker, `Armageddon ${success ? 'succeeded — this hit became lethal' : 'failed — normal attack damage only'}.`)\n      break\n    }",
+          "    case 'Armageddon': {\n      const inheritedLethal = Boolean(attacker.flags.forceArmageddonLethal)\n      attacker.flags.forceArmageddonLethal = false\n      const success = inheritedLethal || rand(runtime, attacker.team) > 0.5\n      attacker.flags.armageddonLethalThisHit = success\n      if (success) damage = Number.POSITIVE_INFINITY\n      pushAbilityDebug(runtime, attacker, inheritedLethal\n        ? 'Armageddon stayed lethal through Overcharge — 50% of infinite damage is still lethal.'\n        : `Armageddon ${success ? 'succeeded — this hit became lethal' : 'failed — normal attack damage only'}.`)\n      break\n    }")
+
+          rep(p,
+          "      const dealt = dealDamage(runtime, attacker, target, dance ? 0.5 : critical ? 1.5 : 1)\n      if (hasAbility(runtime, attacker, 'Fortify') && alive(attacker)) {",
+          "      const dealt = dealDamage(runtime, attacker, target, dance ? 0.5 : critical ? 1.5 : 1)\n      const armageddonLethal = Boolean(attacker.flags.armageddonLethalThisHit)\n      if (hasAbility(runtime, attacker, 'Fortify') && alive(attacker)) {")
+
+          rep(p,
+          "      // Live behavior: Overcharge does not roll onto the next enemy when the\n      // primary attack killed the card it originally struck.\n      if (stormSpirit && stormTarget && alive(attacker) && alive(target) && runtime.rng.next() * 100 < stormSpirit) {\n        pushAbilityDebug(runtime, attacker, 'Storm Spirit triggered — immediately attacking again at 50% damage.')\n        const stormDamage = dealDamage(runtime, attacker, stormTarget, 0.5)",
+          "      // Judgment Day may Overcharge after an infinite Armageddon kill. Since 50% of\n      // Infinity is still Infinity, that immediate follow-up keeps the lethal damage result.\n      if (stormSpirit && stormTarget && alive(attacker) && (alive(target) || armageddonLethal) && runtime.rng.next() * 100 < stormSpirit) {\n        pushAbilityDebug(runtime, attacker, 'Storm Spirit triggered — immediately attacking again at 50% damage.')\n        if (armageddonLethal) attacker.flags.forceArmageddonLethal = true\n        const stormDamage = dealDamage(runtime, attacker, stormTarget, 0.5)")
+
+          rep(p,
+          "  const beforeDefense = damage\n  if (!bypass && target.flags.eternalDevotion) {",
+          "  const beforeDefense = damage\n  const externalProtectionAllowed = canReceiveExternalProtection(target)\n  if (!externalProtectionAllowed) {\n    target.flags.eternalDevotion = false\n    target.flags.dodgeLethal = false\n    target.status.shield = 0\n    target.counters.hpShield = 0\n  }\n  if (!bypass && externalProtectionAllowed && target.flags.eternalDevotion) {")
+          rep(p, "  else if (!bypass && target.flags.dodgeLethal) {", "  else if (!bypass && externalProtectionAllowed && target.flags.dodgeLethal) {")
+          rep(p, "    if (veilHolder && luminescentVeilCanAffect(attacker) && successfulEvades < 2) {", "    if (externalProtectionAllowed && veilHolder && luminescentVeilCanAffect(attacker) && successfulEvades < 2) {")
+          rep(p, "  if (target.status.shield > 0 && damage > 0) {", "  if (externalProtectionAllowed && target.status.shield > 0 && damage > 0) {")
+          rep(p, "  if ((target.counters.hpShield || 0) > 0 && damage > 0) {", "  if (externalProtectionAllowed && (target.counters.hpShield || 0) > 0 && damage > 0) {")
+          rep(p, "  const xuanwu = damage > 0 ? waterShield(runtime, target.team, target) : undefined", "  const xuanwu = damage > 0 && externalProtectionAllowed ? waterShield(runtime, target.team, target) : undefined")
+
+          # Aura-aware progressive cheese search.
+          p='src/engine/tower.ts'
+          rep(p,
+          "const CHEESE_AURAS = [null, 'End Times', 'Flame Wizard', 'Storm Spirit', 'Guardian Angel', 'Executioner', 'Mirror Knight', 'Final Testament'] as const",
+          "const CHEESE_AURAS = [null, 'End Times', 'Flame Wizard', 'Storm Spirit', 'Guardian Angel', 'Executioner', 'Mirror Knight', 'Final Testament'] as const\nconst DISCOVERY_AURAS = [null, 'Storm Spirit', 'End Times', 'Flame Wizard'] as const")
+          rep(p,
+          "  const stageRng = new SeededRng(seed || 1)\n  const nextSeed = () => Math.floor(stageRng.next() * 0x7fffffff) || 1\n\n  // Stage 1:",
+          "  const stageRng = new SeededRng(seed || 1)\n  const nextSeed = () => Math.floor(stageRng.next() * 0x7fffffff) || 1\n  const discoveryAuras = poolOptions.hasEndTimes === false\n    ? DISCOVERY_AURAS.filter((auraName) => auraName !== 'End Times')\n    : DISCOVERY_AURAS\n  const quickSeed = nextSeed()\n\n  // Stage 1:")
+          rep(p,
+          "    for (const order of orders) {\n      const loadout = loadoutFor(order, null)\n      const score = sampleLoadout(loadout, enemies, 4, nextSeed(), simulations)\n      if (!best || compareSamples(score, best.score) < 0) best = { loadout, score }\n    }",
+          "    for (const order of orders) {\n      for (const auraName of discoveryAuras) {\n        const loadout = loadoutFor(order, auraName)\n        const score = sampleLoadout(loadout, enemies, 3, quickSeed, simulations)\n        if (!best || compareSamples(score, best.score) < 0) best = { loadout, score }\n      }\n    }")
+          rep(p,
+          "  // Stage 2: fully optimize order for the strongest candidate multisets.\n  const orderPool = quick.slice(0, Math.min(60, quick.length))",
+          "  // Stage 2: optimize both order and high-impact discovery aura for a wider survivor pool.\n  const orderSeed = nextSeed()\n  const orderPool = quick.slice(0, Math.min(90, quick.length))")
+          rep(p,
+          "    for (const order of uniquePermutations(entry.names)) {\n      const loadout = loadoutFor(order, null)\n      const score = sampleLoadout(loadout, enemies, 6, nextSeed(), simulations)\n      if (!best || compareSamples(score, best.score) < 0) best = { loadout, score }\n    }",
+          "    for (const order of uniquePermutations(entry.names)) {\n      for (const auraName of discoveryAuras) {\n        const loadout = loadoutFor(order, auraName)\n        const score = sampleLoadout(loadout, enemies, 4, orderSeed, simulations)\n        if (!best || compareSamples(score, best.score) < 0) best = { loadout, score }\n      }\n    }")
+          rep(p,
+          "  const auraPool = ordered.slice(0, Math.min(30, ordered.length))",
+          "  const auraSeed = nextSeed()\n  const auraPool = ordered.slice(0, Math.min(48, ordered.length))")
+          rep(p, "      const score = sampleLoadout(loadout, enemies, 12, nextSeed(), simulations)", "      const score = sampleLoadout(loadout, enemies, 16, auraSeed, simulations)")
+          rep(p,
+          "  const finalPool = auraOptimized.slice(0, Math.min(12, auraOptimized.length))",
+          "  const finalSeed = nextSeed()\n  const finalPool = auraOptimized.slice(0, Math.min(16, auraOptimized.length))")
+          rep(p, "    const score = sampleLoadout(entry.loadout, enemies, 100, nextSeed(), simulations)", "    const score = sampleLoadout(entry.loadout, enemies, 250, finalSeed, simulations)")
+
+          # Stop the log UI from observing and rerendering itself forever.
+          p='src/tower-win-logs-ui.js'
+          rep(p,
+          "  new MutationObserver(queueRender).observe(document.documentElement,{childList:true,subtree:true});\n  queueRender();",
+          "  const observer=new MutationObserver((mutations)=>{\n    const relevant=mutations.some((mutation)=>{\n      const target=mutation.target;\n      return !(target instanceof Element && target.closest('#tower-winning-log-panel,.tower-winlog-dialog'));\n    });\n    if(relevant)queueRender();\n  });\n  observer.observe(document.documentElement,{childList:true,subtree:true});\n  queueRender();")
+
+          rep('index.html','./src/tower-win-logs-ui.js?rev=2','./src/tower-win-logs-ui.js?rev=3')
+          Path('site-version.json').write_text('{"version":"20260907-cheese-jd-log-search-fix-1"}\n')
+
+          # Permanent regression checks.
+          Path('scripts/tower-cheese-corrections-regression.ts').write_text(r'''import assert from 'node:assert/strict'
+          import { readFileSync } from 'node:fs'
+          import { simulateBattleV2 } from '../src/engine/battle-v2'
+          import { buildTowerEnemies } from '../src/engine/tower'
+
+          const battleSource = readFileSync('src/engine/battle-v2.ts', 'utf8')
+          const towerSource = readFileSync('src/engine/tower.ts', 'utf8')
+          const logUiSource = readFileSync('src/tower-win-logs-ui.js', 'utf8')
+          assert.match(battleSource, /canReceiveExternalProtection/)
+          assert.match(battleSource, /name === 'Destiny Sight' && canReceiveExternalProtection\(next\)/)
+          assert.match(battleSource, /name === 'Eternal Devotion' && canReceiveExternalProtection\(next\)/)
+          assert.match(battleSource, /50% of infinite damage is still lethal/)
+          assert.match(towerSource, /DISCOVERY_AURAS/)
+          assert.match(towerSource, /const quickSeed = nextSeed\(\)/)
+          assert.match(towerSource, /250, finalSeed/)
+          assert.doesNotMatch(logUiSource, /new MutationObserver\(queueRender\)/)
+
+          const enemies = buildTowerEnemies(['Baby Skeleton','Baby Skeleton','Baby Skeleton','Baby Skeleton'],1,'Normal')
+          const loadout:any = {
+            cards:[
+              {cardName:'Judgment Day',borders:[]},
+              {cardName:'Robin Hood',borders:[]},
+              {cardName:'Robin Hood',borders:[]},
+              {cardName:'Robin Hood',borders:[]},
+            ],
+            statAura:null,
+            abilityAura:{auraName:'Storm Spirit',border:null},
+          }
+          let found=false
+          for(let seed=1;seed<=600&&!found;seed++){
+            const battle=simulateBattleV2(loadout,enemies,seed,100,true,true)
+            const details=(battle.debug?.events||[]).map((event)=>event.detail).join('\n')
+            found=details.includes('Armageddon succeeded — this hit became lethal')
+              && details.includes('Storm Spirit triggered')
+              && details.includes('50% of infinite damage is still lethal')
+              && battle.state.fallen.Enemies.length>=2
+          }
+          assert.ok(found,'Judgment Day infinite Armageddon should carry through Overcharge')
+          console.log('Tower cheese corrections passed.')
+          '''.replace('          ','').lstrip())
+
+          pkg=Path('package.json'); s=pkg.read_text()
+          old='tsx scripts/tower-cheese-search-regression.ts && tsx scripts/new-aura-regression.ts'
+          new='tsx scripts/tower-cheese-search-regression.ts && tsx scripts/tower-cheese-corrections-regression.ts && tsx scripts/new-aura-regression.ts'
+          if old not in s: raise SystemExit('package regression anchor missing')
+          pkg.write_text(s.replace(old,new,1))
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate full project
+        run: |
+          npm run check
+          npm run test:video-game
+          node --check src/tower-win-logs-ui.js
+
+      - name: Build workers
+        run: npm run build:workers
+
+      - name: Verify generated output
+        run: |
+          grep -q "forceArmageddonLethal" browser/tower-worker.js
+          grep -q "DISCOVERY_AURAS" src/engine/tower.ts
+          grep -q "tower-win-logs-ui.js?rev=3" index.html
+          grep -q "cheese-jd-log-search-fix-1" site-version.json
+          ! grep -q "new MutationObserver(queueRender)" src/tower-win-logs-ui.js
+
+      - name: Publish
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/fix-cheese-jd-logs-search.yml .github/workflows/fix-cheese-jd-logs-search-v2.yml
+          git add -A
+          git commit -m "Fix Judgment Day cheese interactions, search, and logs"
+          git pull --rebase origin main
+          git push origin HEAD:main

@@ -2,7 +2,7 @@ import type { BattleDebug, TeamLoadout } from '../types'
 import { generateDepthsTeam } from './depths'
 import { SeededRng } from './rng'
 import { simulateBattleV2 } from './battle-v2'
-import { auraPackRangeForMedian } from './depths-rewards'
+import { auraPacksForDepth } from './depths-rewards'
 import { estimateDepthClearSeconds } from './depths-time'
 
 export interface DepthsRunResult {
@@ -176,7 +176,19 @@ export function simulateDepthsBatch(
   const medianFloor = floors.length % 2
     ? floors[middle]
     : (floors[middle - 1] + floors[middle]) / 2
-  const estimate = auraPackRangeForMedian(medianFloor)
+  const observedMinFloor = floors[0]
+  const observedMaxFloor = floors[floors.length - 1]
+  const medianDepth = Math.max(1, Math.round(medianFloor))
+  const estimatedFloorLow = Math.max(observedMinFloor, Math.max(1, Math.round(medianFloor * 0.9)))
+  const estimatedFloorHigh = Math.min(observedMaxFloor, Math.max(1, Math.round(medianFloor * 1.1)))
+  const estimate = {
+    low: estimatedFloorLow,
+    high: estimatedFloorHigh,
+    medianDepth,
+    auraPackLow: auraPacksForDepth(estimatedFloorLow),
+    auraPackMedian: auraPacksForDepth(medianDepth),
+    auraPackHigh: auraPacksForDepth(estimatedFloorHigh),
+  }
   const totalBattles = results.reduce((sum, result) => sum + result.battles, 0)
   const allTurns = results.reduce((sum, result) => sum + result.totalTurns, 0)
   const averageTurnsPerBattle = totalBattles > 0 ? allTurns / totalBattles : 0

@@ -1,0 +1,98 @@
+name: Remove cheese log sorters
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/remove-cheese-log-sorters.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Simplify winning battle log UI
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          p=Path('src/tower-win-logs-ui.js')
+          s=p.read_text()
+
+          s=s.replace("  let sortMode='run';\n","")
+          s=s.replace("    sortMode='run';\n","")
+          s=s.replace("      `Outcome pattern: ${full(run.patternId||0)}`,\n","")
+          s=s.replace(" · pattern ${full(run.patternId||0)}","")
+          s=s.replace("<div><span>Pattern</span><b>${full(run.patternId||0)}</b></div>","")
+          s=s.replace(" · pattern ${run.patternId}","")
+          s=s.replace("    const patterns=Number(result.winningPatternCount||0);\n","")
+
+          old_func="""  function filteredAndSortedRuns(runs){
+    const query=searchQuery.trim().toLowerCase();
+    let output=query?runs.filter((run)=>{
+      const haystack=[run.run,run.seed,run.turns,run.patternId,...(run.survivingAllies||[]),...(run.fallenAllies||[])].join(' ').toLowerCase();
+      return haystack.includes(query);
+    }):[...runs];
+    if(sortMode==='fastest')output.sort((a,b)=>a.turns-b.turns||a.run-b.run);
+    else if(sortMode==='slowest')output.sort((a,b)=>b.turns-a.turns||a.run-b.run);
+    else if(sortMode==='pattern')output.sort((a,b)=>a.patternId-b.patternId||a.run-b.run);
+    else output.sort((a,b)=>a.run-b.run);
+    return output;
+  }
+"""
+          new_func="""  function filteredAndSortedRuns(runs){
+    const query=searchQuery.trim().toLowerCase();
+    const output=query?runs.filter((run)=>{
+      const haystack=[run.run,run.seed,run.turns,...(run.survivingAllies||[]),...(run.fallenAllies||[])].join(' ').toLowerCase();
+      return haystack.includes(query);
+    }):[...runs];
+    output.sort((a,b)=>a.run-b.run);
+    return output;
+  }
+"""
+          if old_func not in s:
+              raise SystemExit('sort function anchor missing')
+          s=s.replace(old_func,new_func,1)
+
+          old_toolbar="""<div class=\"tower-winlog-toolbar\"><label><span>Find battle</span><input type=\"search\" data-win-search value=\"${esc(searchQuery)}\" placeholder=\"Run #, seed, card, pattern…\"></label><label><span>Sort</span><select data-win-sort><option value=\"run\" ${sortMode==='run'?'selected':''}>Run order</option><option value=\"fastest\" ${sortMode==='fastest'?'selected':''}>Fastest wins</option><option value=\"slowest\" ${sortMode==='slowest'?'selected':''}>Slowest wins</option><option value=\"pattern\" ${sortMode==='pattern'?'selected':''}>Outcome pattern</option></select></label></div>"""
+          new_toolbar="""<div class=\"tower-winlog-toolbar\"><label><span>Find battle</span><input type=\"search\" data-win-search value=\"${esc(searchQuery)}\" placeholder=\"Run #, seed, card…\"></label></div>"""
+          if old_toolbar not in s:
+              raise SystemExit('toolbar anchor missing')
+          s=s.replace(old_toolbar,new_toolbar,1)
+
+          s=s.replace("${result.wins?`${full(runs.length)} individual winning battle${runs.length===1?'':'s'} recorded · ${full(patterns)} outcome pattern${patterns===1?'':'s'}`:'No wins to log'}","${result.wins?`${full(runs.length)} individual winning battle${runs.length===1?'':'s'} recorded`:'No wins to log'}")
+          s=s.replace("<i>Pattern ${full(run.patternId||0)} · survivors: ${esc((run.survivingAllies||[]).join(' / ')||'none')}</i>","<i>Survivors: ${esc((run.survivingAllies||[]).join(' / ')||'none')} · fallen: ${esc((run.fallenAllies||[]).join(' / ')||'none')}</i>")
+          s=s.replace("panel.querySelector('[data-win-sort]')?.addEventListener('change',(event)=>{sortMode=event.target.value;currentPage=0;renderPanel();});\n","")
+
+          p.write_text(s)
+
+          idx=Path('index.html')
+          html=idx.read_text().replace('tower-win-logs-ui.js?rev=3','tower-win-logs-ui.js?rev=4')
+          idx.write_text(html)
+          Path('site-version.json').write_text('{"version":"20260907-cheese-logs-interactions-1"}\n')
+          PY
+      - name: Validate UI
+        run: |
+          node --check src/tower-win-logs-ui.js
+          ! grep -q "data-win-sort" src/tower-win-logs-ui.js
+          ! grep -q "sortMode" src/tower-win-logs-ui.js
+          ! grep -q "Fastest wins" src/tower-win-logs-ui.js
+          ! grep -q "Slowest wins" src/tower-win-logs-ui.js
+          ! grep -q "Outcome pattern" src/tower-win-logs-ui.js
+          grep -q "fallen:" src/tower-win-logs-ui.js
+          grep -q "tower-win-logs-ui.js?rev=4" index.html
+      - name: Publish
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/remove-cheese-log-sorters.yml
+          git add -A
+          git commit -m "Simplify cheese winning battle logs"
+          git pull --rebase origin main
+          git push origin HEAD:main

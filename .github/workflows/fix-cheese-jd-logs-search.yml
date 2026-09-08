@@ -1,0 +1,383 @@
+name: Fix JD cheese interactions and Tower logs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-cheese-jd-logs-search.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch combat, logs, and cheese search
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new, count=1):
+              p=Path(path)
+              s=p.read_text()
+              if old not in s:
+                  raise SystemExit(f'patch anchor missing in {path}: {old[:100]!r}')
+              p.write_text(s.replace(old,new,count))
+
+          # --- Judgment Day / Overcharge combat corrections ---
+          path='src/engine/battle-v2.ts'
+
+          replace(path,
+          """function luminescentVeilCanAffect(attacker: CombatCard): boolean {
+            const name = effectiveCardName(attacker) || attacker.definition.name
+            return name !== 'Kira' && name !== 'Judgment Day'
+          }
+
+          function clearSkillAura""",
+          """function luminescentVeilCanAffect(attacker: CombatCard): boolean {
+            const name = effectiveCardName(attacker) || attacker.definition.name
+            return name !== 'Kira' && name !== 'Judgment Day'
+          }
+
+          // Judgment Day cannot receive shields, blocks, lethal dodges, redirects, or other
+          // teammate-granted protection. Its own offensive behavior is otherwise unchanged.
+          function canReceiveExternalProtection(card: CombatCard): boolean {
+            return (effectiveCardName(card) || card.definition.name) !== 'Judgment Day'
+          }
+
+          function clearSkillAura""")
+
+          replace(path,
+          """function resolveAuraFarm(runtime: Runtime, target: CombatCard, incoming: number): { target: CombatCard; damage: number } {
+            if (incoming < target.hp) return { target, damage: incoming }""",
+          """function resolveAuraFarm(runtime: Runtime, target: CombatCard, incoming: number): { target: CombatCard; damage: number } {
+            if (!canReceiveExternalProtection(target)) return { target, damage: incoming }
+            if (incoming < target.hp) return { target, damage: incoming }""")
+
+          replace(path,
+          """  if (name === 'Destiny Sight') {
+            next.flags.dodgeLethal = true
+            pushAbilityDebug(runtime, dead, `Destiny Sight passed a lethal dodge to ${effectiveCardName(next) || next.definition.name}.`)
+          }
+          if (name === \"Housewife's Blessing\") { boostStats(next, 2); next.status.stunned = 2 }
+          if (name === 'Eternal Devotion') {
+            next.flags.eternalDevotion = true
+            pushAbilityDebug(runtime, dead, `Eternal Devotion gave ${effectiveCardName(next) || next.definition.name} a one-attack shield after death.`)
+          }
+          if (name === 'Final Stand') {
+            next.damage += dead.damage * 0.25
+            next.maxHp += dead.maxHp * 0.25
+            next.hp += dead.maxHp * 0.25
+            next.status.shield += 1
+          }""",
+          """  if (name === 'Destiny Sight') {
+            if (canReceiveExternalProtection(next)) {
+              next.flags.dodgeLethal = true
+              pushAbilityDebug(runtime, dead, `Destiny Sight passed a lethal dodge to ${effectiveCardName(next) || next.definition.name}.`)
+            } else pushAbilityDebug(runtime, dead, 'Destiny Sight could not protect Judgment Day.')
+          }
+          if (name === \"Housewife's Blessing\") { boostStats(next, 2); next.status.stunned = 2 }
+          if (name === 'Eternal Devotion') {
+            if (canReceiveExternalProtection(next)) {
+              next.flags.eternalDevotion = true
+              pushAbilityDebug(runtime, dead, `Eternal Devotion gave ${effectiveCardName(next) || next.definition.name} a one-attack shield after death.`)
+            } else pushAbilityDebug(runtime, dead, 'Eternal Devotion could not shield Judgment Day.')
+          }
+          if (name === 'Final Stand') {
+            next.damage += dead.damage * 0.25
+            next.maxHp += dead.maxHp * 0.25
+            next.hp += dead.maxHp * 0.25
+            if (canReceiveExternalProtection(next)) next.status.shield += 1
+          }""")
+
+          replace(path,
+          """function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: CombatCard, mult = 1, bypass = false): number {
+            let target = originalTarget""",
+          """function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: CombatCard, mult = 1, bypass = false): number {
+            attacker.flags.armageddonLethalThisHit = false
+            let target = originalTarget""")
+
+          replace(path,
+          """    case 'Armageddon': {
+                const success = rand(runtime, attacker.team) > 0.5
+                if (success) damage = Number.POSITIVE_INFINITY
+                pushAbilityDebug(runtime, attacker, `Armageddon ${success ? 'succeeded — this hit became lethal' : 'failed — normal attack damage only'}.`)
+                break
+              }""",
+          """    case 'Armageddon': {
+                const inheritedLethal = Boolean(attacker.flags.forceArmageddonLethal)
+                attacker.flags.forceArmageddonLethal = false
+                const success = inheritedLethal || rand(runtime, attacker.team) > 0.5
+                attacker.flags.armageddonLethalThisHit = success
+                if (success) damage = Number.POSITIVE_INFINITY
+                pushAbilityDebug(runtime, attacker, inheritedLethal
+                  ? 'Armageddon stayed lethal through Overcharge — 50% of infinite damage is still lethal.'
+                  : `Armageddon ${success ? 'succeeded — this hit became lethal' : 'failed — normal attack damage only'}.`)
+                break
+              }""")
+
+          replace(path,
+          """      const dealt = dealDamage(runtime, attacker, target, dance ? 0.5 : critical ? 1.5 : 1)
+                if (hasAbility(runtime, attacker, 'Fortify') && alive(attacker)) {""",
+          """      const dealt = dealDamage(runtime, attacker, target, dance ? 0.5 : critical ? 1.5 : 1)
+                const armageddonLethal = Boolean(attacker.flags.armageddonLethalThisHit)
+                if (hasAbility(runtime, attacker, 'Fortify') && alive(attacker)) {""")
+
+          replace(path,
+          """      const stormSpirit = runtime.state.boosts[attacker.team].stormSpirit
+                const stormTarget = active(runtime, enemyTeam)
+                // Live behavior: Overcharge does not roll onto the next enemy when the
+                // primary attack killed the card it originally struck.
+                if (stormSpirit && stormTarget && alive(attacker) && alive(target) && runtime.rng.next() * 100 < stormSpirit) {
+                  pushAbilityDebug(runtime, attacker, 'Storm Spirit triggered — immediately attacking again at 50% damage.')
+                  const stormDamage = dealDamage(runtime, attacker, stormTarget, 0.5)""",
+          """      const stormSpirit = runtime.state.boosts[attacker.team].stormSpirit
+                const stormTarget = active(runtime, enemyTeam)
+                // Normally Overcharge stays on a surviving target. Judgment Day is the exception:
+                // when Armageddon produced infinite/lethal damage, Overcharge may continue to the
+                // next enemy and 50% of that infinite damage remains lethal.
+                if (stormSpirit && stormTarget && alive(attacker) && (alive(target) || armageddonLethal) && runtime.rng.next() * 100 < stormSpirit) {
+                  pushAbilityDebug(runtime, attacker, 'Storm Spirit triggered — immediately attacking again at 50% damage.')
+                  if (armageddonLethal) attacker.flags.forceArmageddonLethal = true
+                  const stormDamage = dealDamage(runtime, attacker, stormTarget, 0.5)""")
+
+          replace(path,
+          """  const beforeDefense = damage
+            if (!bypass && target.flags.eternalDevotion) {""",
+          """  const beforeDefense = damage
+            const externalProtectionAllowed = canReceiveExternalProtection(target)
+            if (!externalProtectionAllowed) {
+              target.flags.eternalDevotion = false
+              target.flags.dodgeLethal = false
+              target.status.shield = 0
+              target.counters.hpShield = 0
+            }
+            if (!bypass && externalProtectionAllowed && target.flags.eternalDevotion) {""")
+
+          replace(path,
+          """  else if (!bypass && target.flags.dodgeLethal) {""",
+          """  else if (!bypass && externalProtectionAllowed && target.flags.dodgeLethal) {""")
+
+          replace(path,
+          """    if (veilHolder && luminescentVeilCanAffect(attacker) && successfulEvades < 2) {""",
+          """    if (externalProtectionAllowed && veilHolder && luminescentVeilCanAffect(attacker) && successfulEvades < 2) {""")
+
+          replace(path,
+          """  if (target.status.shield > 0 && damage > 0) {""",
+          """  if (externalProtectionAllowed && target.status.shield > 0 && damage > 0) {""")
+
+          replace(path,
+          """  if ((target.counters.hpShield || 0) > 0 && damage > 0) {""",
+          """  if (externalProtectionAllowed && (target.counters.hpShield || 0) > 0 && damage > 0) {""")
+
+          replace(path,
+          """  const xuanwu = damage > 0 ? waterShield(runtime, target.team, target) : undefined""",
+          """  const xuanwu = damage > 0 && externalProtectionAllowed ? waterShield(runtime, target.team, target) : undefined""")
+
+          # --- Smarter quick cheese search: aura-aware discovery + common seeds + stronger verification ---
+          path='src/engine/tower.ts'
+          replace(path,
+          """const CHEESE_AURAS = [null, 'End Times', 'Flame Wizard', 'Storm Spirit', 'Guardian Angel', 'Executioner', 'Mirror Knight', 'Final Testament'] as const""",
+          """const CHEESE_AURAS = [null, 'End Times', 'Flame Wizard', 'Storm Spirit', 'Guardian Angel', 'Executioner', 'Mirror Knight', 'Final Testament'] as const
+          // These high-impact auras are included from the FIRST discovery pass. Previously a
+          // Storm Spirit/End Times team could be discarded before its required aura was ever tried.
+          const DISCOVERY_AURAS = [null, 'Storm Spirit', 'End Times', 'Flame Wizard'] as const""")
+
+          replace(path,
+          """  const stageRng = new SeededRng(seed || 1)
+            const nextSeed = () => Math.floor(stageRng.next() * 0x7fffffff) || 1
+
+            // Stage 1:""",
+          """  const stageRng = new SeededRng(seed || 1)
+            const nextSeed = () => Math.floor(stageRng.next() * 0x7fffffff) || 1
+            const discoveryAuras = poolOptions.hasEndTimes === false
+              ? DISCOVERY_AURAS.filter((auraName) => auraName !== 'End Times')
+              : DISCOVERY_AURAS
+            // Common random numbers: every candidate in a stage starts from the same batch seed.
+            // This makes head-to-head ranking much less dependent on a lucky four-run sample.
+            const quickSeed = nextSeed()
+
+            // Stage 1:""")
+
+          replace(path,
+          """    for (const order of orders) {
+                const loadout = loadoutFor(order, null)
+                const score = sampleLoadout(loadout, enemies, 4, nextSeed(), simulations)
+                if (!best || compareSamples(score, best.score) < 0) best = { loadout, score }
+              }""",
+          """    for (const order of orders) {
+                for (const auraName of discoveryAuras) {
+                  const loadout = loadoutFor(order, auraName)
+                  const score = sampleLoadout(loadout, enemies, 3, quickSeed, simulations)
+                  if (!best || compareSamples(score, best.score) < 0) best = { loadout, score }
+                }
+              }""")
+
+          replace(path,
+          """  // Stage 2: fully optimize order for the strongest candidate multisets.
+            const orderPool = quick.slice(0, Math.min(60, quick.length))
+            const ordered: Array<{ loadout: TeamLoadout; score: SampleScore }> = []""",
+          """  // Stage 2: fully optimize order + discovery aura for a wider set of survivors.
+            const orderSeed = nextSeed()
+            const orderPool = quick.slice(0, Math.min(90, quick.length))
+            const ordered: Array<{ loadout: TeamLoadout; score: SampleScore }> = []""")
+
+          replace(path,
+          """    for (const order of uniquePermutations(entry.names)) {
+                const loadout = loadoutFor(order, null)
+                const score = sampleLoadout(loadout, enemies, 6, nextSeed(), simulations)
+                if (!best || compareSamples(score, best.score) < 0) best = { loadout, score }
+              }""",
+          """    for (const order of uniquePermutations(entry.names)) {
+                for (const auraName of discoveryAuras) {
+                  const loadout = loadoutFor(order, auraName)
+                  const score = sampleLoadout(loadout, enemies, 4, orderSeed, simulations)
+                  if (!best || compareSamples(score, best.score) < 0) best = { loadout, score }
+                }
+              }""")
+
+          replace(path,
+          """  const auraPool = ordered.slice(0, Math.min(30, ordered.length))
+            const auraOptimized: Array<{ loadout: TeamLoadout; score: SampleScore }> = []""",
+          """  const auraSeed = nextSeed()
+            const auraPool = ordered.slice(0, Math.min(48, ordered.length))
+            const auraOptimized: Array<{ loadout: TeamLoadout; score: SampleScore }> = []""")
+
+          replace(path,
+          """      const score = sampleLoadout(loadout, enemies, 12, nextSeed(), simulations)""",
+          """      const score = sampleLoadout(loadout, enemies, 16, auraSeed, simulations)""")
+
+          replace(path,
+          """  const finalPool = auraOptimized.slice(0, Math.min(12, auraOptimized.length))
+            const recommendations: TowerCheeseCandidate[] = []""",
+          """  const finalSeed = nextSeed()
+            const finalPool = auraOptimized.slice(0, Math.min(16, auraOptimized.length))
+            const recommendations: TowerCheeseCandidate[] = []""")
+
+          replace(path,
+          """    const score = sampleLoadout(entry.loadout, enemies, 100, nextSeed(), simulations)""",
+          """    const score = sampleLoadout(entry.loadout, enemies, 250, finalSeed, simulations)""")
+
+          # --- Fix winning-log UI self-rerender freeze ---
+          path='src/tower-win-logs-ui.js'
+          replace(path,
+          """  new MutationObserver(queueRender).observe(document.documentElement,{childList:true,subtree:true});
+            queueRender();""",
+          """  // Watch the calculator for host/view changes, but ignore mutations created by this
+            // log panel itself. The old observer watched its own innerHTML updates and continuously
+            // replaced its buttons every animation frame, making the battle list feel frozen.
+            const observer=new MutationObserver((mutations)=>{
+              const relevant=mutations.some((mutation)=>{
+                const target=mutation.target;
+                return !(target instanceof Element && target.closest('#tower-winning-log-panel,.tower-winlog-dialog'));
+              });
+              if(relevant)queueRender();
+            });
+            observer.observe(document.documentElement,{childList:true,subtree:true});
+            queueRender();""")
+
+          # Version/cache bumps.
+          replace('index.html','./src/tower-win-logs-ui.js?rev=2','./src/tower-win-logs-ui.js?rev=3')
+          Path('site-version.json').write_text('{"version":"20260907-cheese-jd-log-search-fix-1"}\n')
+
+          # Permanent regression coverage.
+          regression = r'''import assert from 'node:assert/strict'
+          import { readFileSync } from 'node:fs'
+          import { simulateBattleV2 } from '../src/engine/battle-v2'
+          import { buildTowerEnemies } from '../src/engine/tower'
+
+          const battleSource = readFileSync('src/engine/battle-v2.ts', 'utf8')
+          const towerSource = readFileSync('src/engine/tower.ts', 'utf8')
+          const logUiSource = readFileSync('src/tower-win-logs-ui.js', 'utf8')
+
+          assert.match(battleSource, /function canReceiveExternalProtection\(card: CombatCard\)/)
+          assert.match(battleSource, /Destiny Sight could not protect Judgment Day/)
+          assert.match(battleSource, /Eternal Devotion could not shield Judgment Day/)
+          assert.match(battleSource, /if \(!canReceiveExternalProtection\(target\)\) return \{ target, damage: incoming \}/)
+          assert.match(battleSource, /damage > 0 && externalProtectionAllowed \? waterShield/)
+          assert.match(battleSource, /50% of infinite damage is still lethal/)
+
+          assert.match(towerSource, /const DISCOVERY_AURAS = \[null, 'Storm Spirit', 'End Times', 'Flame Wizard'\]/)
+          assert.match(towerSource, /const quickSeed = nextSeed\(\)/)
+          assert.match(towerSource, /const finalSeed = nextSeed\(\)/)
+          assert.match(towerSource, /sampleLoadout\(entry\.loadout, enemies, 250, finalSeed, simulations\)/)
+
+          assert.doesNotMatch(logUiSource, /new MutationObserver\(queueRender\)/)
+          assert.match(logUiSource, /#tower-winning-log-panel,\.tower-winlog-dialog/)
+
+          const enemies = buildTowerEnemies(
+            ['Baby Skeleton', 'Baby Skeleton', 'Baby Skeleton', 'Baby Skeleton'],
+            1,
+            'Normal',
+          )
+          const loadout = {
+            cards: [
+              { cardName: 'Judgment Day', borders: [] },
+              { cardName: 'Robin Hood', borders: [] },
+              { cardName: 'Robin Hood', borders: [] },
+              { cardName: 'Robin Hood', borders: [] },
+            ],
+            statAura: null,
+            abilityAura: { auraName: 'Storm Spirit', border: null },
+          } as const
+
+          let inheritedOvercharge = false
+          for (let seed = 1; seed <= 600 && !inheritedOvercharge; seed++) {
+            const battle = simulateBattleV2(loadout as any, enemies, seed, 100, true, true)
+            const details = (battle.debug?.events || []).map((event) => event.detail).join('\n')
+            if (
+              details.includes('Armageddon succeeded — this hit became lethal')
+              && details.includes('Storm Spirit triggered')
+              && details.includes('50% of infinite damage is still lethal')
+              && battle.state.fallen.Enemies.length >= 2
+            ) inheritedOvercharge = true
+          }
+          assert.ok(inheritedOvercharge, 'Judgment Day should be able to Overcharge an infinite Armageddon hit into the next enemy')
+
+          console.log('Tower/Judgment Day corrections passed: Overcharge infinity, JD protection rules, smarter cheese discovery, and responsive logs.')
+          '''
+          regression='\n'.join(line[10:] if line.startswith('          ') else line for line in regression.splitlines())+'\n'
+          Path('scripts/tower-cheese-corrections-regression.ts').write_text(regression)
+
+          package=Path('package.json')
+          s=package.read_text()
+          old='tsx scripts/tower-cheese-search-regression.ts && tsx scripts/new-aura-regression.ts'
+          new='tsx scripts/tower-cheese-search-regression.ts && tsx scripts/tower-cheese-corrections-regression.ts && tsx scripts/new-aura-regression.ts'
+          if old not in s: raise SystemExit('package test anchor missing')
+          package.write_text(s.replace(old,new,1))
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate full project
+        run: |
+          npm run check
+          npm run test:video-game
+          node --check src/tower-win-logs-ui.js
+
+      - name: Build workers
+        run: npm run build:workers
+
+      - name: Verify fixes in generated site
+        run: |
+          grep -q "forceArmageddonLethal" browser/tower-worker.js
+          grep -q "DISCOVERY_AURAS" src/engine/tower.ts
+          grep -q "tower-win-logs-ui.js?rev=3" index.html
+          grep -q "cheese-jd-log-search-fix-1" site-version.json
+          ! grep -q "new MutationObserver(queueRender)" src/tower-win-logs-ui.js
+
+      - name: Publish
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/fix-cheese-jd-logs-search.yml
+          git add -A
+          git commit -m "Fix Judgment Day cheese interactions and Tower logs"
+          git pull --rebase origin main
+          git push origin HEAD:main

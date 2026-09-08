@@ -1,0 +1,36 @@
+name: Remove cheese log sorters v2
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/remove-cheese-log-sorters-v2.yml'
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch UI
+        run: echo 'ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCmltcG9ydCByZQoKcCA9IFBhdGgoInNyYy90b3dlci13aW4tbG9ncy11aS5qcyIpCnMgPSBwLnJlYWRfdGV4dCgpCgpzID0gcy5yZXBsYWNlKCIgIGxldCBzb3J0TW9kZT0ncnVuJztcbiIsICIiKQpzID0gcy5yZXBsYWNlKCIgICAgc29ydE1vZGU9J3J1bic7XG4iLCAiIikKcyA9IHMu cmVwbGFjZSgiICAgICAgYE91dGNvbWUgcGF0dGVybjogJHtmdWxsKHJ1bi5wYXR0ZXJuSWR8fDApfWAsXG4iLCAiIikKcyA9IHMu cmVwbGFjZSgiIMK3IHBhdHRlcm4gJHtmdWxsKHJ1bi5wYXR0ZXJuSWR8fDApfSIsICIiKQpzID0gcy5yZXBsYWNlKCI8ZGl2PjxzcGFuPlBhdHRlcm48L3NwYW4+PGI+JHtmdWxsKHJ1bi5wYXR0ZXJuSWR8fDApfTwvYj48L2Rpdj4iLCAiIikKcyA9IHMu cmVwbGFjZSgiICAgIGNvbnN0IHBhdHRlcm5zPU51bWJlcihyZXN1bHQud2lubmluZ1BhdHRlcm5Db3VudHx8MCk7XG4iLCAiIikKCm9sZF9mdW5jID0gIiIiICBmdW5jdGlvbiBmaWx0ZXJlZEFuZFNvcnRlZFJ1bnMocnVucyl7CiAgICBjb25zdCBxdWVyeT1zZWFyY2hRdWVyeS50cmltKCkudG9Mb3dlckNhc2UoKTsKICAgIGxldCBvdXRwdXQ9cXVlcnk/cnVucy5maWx0ZXIoKHJ1bik9PnsKICAgICAgY29uc3QgaGF5c3RhY2s9W3J1bi5ydW4scnVuLnNlZWQscnVuLnR1cm5zLHJ1bi5wYXR0ZXJuSWQsLi4uKHJ1bi5zdXJ2aXZpbmdBbGxpZXN8fFtdKSw...KHJ1bi5mYWxsZW5BbGxpZXN8fFtdKV0uam9pbignICcpLnRvTG93ZXJDYXNlKCk7CiAgICAgIHJldHVybiBoYXlzdGFjay5pbmNsdWRlcyhxdWVyeSk7CiAgICB9KTpbLi4ucnVuc107CiAgICBpZihzb3J0TW9kZT09PSdmYXN0ZXN0JylvdXRwdXQuc29ydCgoYSxiKT0+YS50dXJucy1iLnR1cm5zfHxhLnJ1bi1iLnJ1bik7CiAgICBlbHNlIGlmKHNvcnRNb2RlPT09J3Nsb3dlc3QnKW91dHB1dC5zb3J0KChhLGIpPT5iLnR1cm5zLWEudHVybnN8fGEucnVuLWIucnVuKTsKICAgIGVsc2UgaWYoc29ydE1vZGU9PT0ncGF0dGVybicpb3V0cHV0LnNvcnQoKGEsYik9PmEucGF0dGVybklkLWIucGF0dGVybklkfHxhLnJ1bi1iLnJ1bik7CiAgICBlbHNlIG91dHB1dC5zb3J0KChhLGIpPT5hLnJ1bi1iLnJ1bik7CiAgICByZXR1cm4gb3V0cHV0OwogIH0KIiIiCm5ld19mdW5jID0gIiIiICBmdW5jdGlvbiBmaWx0ZXJlZEFuZFNvcnRlZFJ1bnMocnVucyl7CiAgICBjb25zdCBxdWVyeT1zZWFyY2hRdWVyeS50cmltKCkudG9Mb3dlckNhc2UoKTsKICAgIGNvbnN0IG91dHB1dD1xdWVyeT9ydW5zLmZpbHRlcigocnVuKT0+ewogICAgICBjb25zdCBoYXlzdGFjaz1bcnVuLnJ1bixydW4uc2VlZCxydW4udHVybnMsLi4uKHJ1bi5zdXJ2aXZpbmdBbGxpZXN8fFtdKSwuLi4ocnVuLmZhbGxlbkFsbGllc3x8W10pXS5qb2luKCcgJykudG9Mb3dlckNhc2UoKTsKICAgICAgcmV0dXJuIGhheXN0YWNrLmluY2x1ZGVzKHF1ZXJ5KTsKICAgIH0pOlsuLi5ydW5zXTsKICAgIG91dHB1dC5zb3J0KChhLGIpPT5hLnJ1bi1iLnJ1bik7CiAgICByZXR1cm4gb3V0cHV0OwogIH0KIiIiCmlmIG9sZF9mdW5jIG5vdCBpbiBzOgogICAgcmFpc2UgU3lzdGVtRXhpdCgic29ydCBmdW5jdGlvbiBhbmNob3IgbWlzc2luZyIpCnMgPSBzLnJlcGxhY2Uob2xkX2Z1bmMsIG5ld19mdW5jLCAxKQoKcyA9IHMu cmVwbGFjZSgicmV0dXJuIHJ1bnMubWFwKChydW4pPT5gQmF0dGxlICMke3J1bi5ydW59IMK3IHNlZWQgJHtydW4uc2VlZH0gwrcgJHtydW4udHVybnN9IHR1cm5zIMK3IHBhdHRlcm4gJHtydW4ucGF0dGVybklkfSDCt yBzdXJ2aXZvcnMgJHsocnVuLnN1cnZpdmluZ0FsbGllc3x8W10pLmpvaW4oJyAvICcpfHwnbm9uZSd9YCkuam9pbignXFxuJyk7IiwKICAgICAgICAgICAgICAicmV0dXJuIHJ1bnMubWFwKChydW4pPT5gQmF0dGxlICMke3J1bi5ydW59IMK3IHNlZWQgJHtydW4uc2VlZH0gwrcgJHtydW4udHVybnN9IHR1cm5zIMK3IHN1cnZpdm9ycyAkeyhydW4uc3Vydml2aW5nQWxsaWVzfHxbXSkuam9pbignIC8gJyl8fCdub25lJ30gwrcgZmFsbGVuICR7KHJ1bi5mYWxsZW5BbGxpZXN8fFtdKS5qb2luKCcgLyAnKXx8J25vbmUnfWApLmpvaW4oJ1xc bicpOyIpCgpzID0gcy5yZXBsYWNlKCIke3Jlc3VsdC53aW5zP2Ake2Z1bGwocnVucy5sZW5ndGgpfSBpbmRpdmlkdWFsIHdpbm5pbmcgYmF0dGxlJHtydW5zLmxlbmd0aD09PTE/Jyc6J3MnfSByZWNvcmRlZCDCtyAke2Z1bGwocGF0dGVybnMpfSBvdXRjb21lIHBhdHRlcm4ke3BhdHRlcm5zPT09MT8nJzoncyd9YD onOk5vIHdpbnMgdG8gbG9nJ30iLAogICAgICAgICAgICAgICIke3Jlc3VsdC53aW5zP2Ake2Z1bGwocnVucy5sZW5ndGgpfSBpbmRpdmlkdWFsIHdpbm5pbmcgYmF0dGxlJHtydW5zLmxlbmd0aD09PTE/Jyc6J3MnfSByZWNvcmRlZGA6J05vIHdpbnMgdG8gbG9nJ30iKQoKb2xkX3NvcnRfbGFiZWwgPSAiIiI8bGFiZWw+PHNwYW4+U29ydDwvc3Bhbj48c2VsZWN0IGRhdGEtd2luLXNvcnQ+PG9wdGlvbiB2YWx1ZT0icnVuIiAke3NvcnRNb2RlPT09J3J1bic/J3NlbGVjdGVkJzonJ30+UnVuIG9yZGVyPC9vcHRpb24+PG9wdGlvbiB2YWx1ZT0iZmFzdGVzdCIgJHt zb3J0TW9kZT09PSdmYXN0ZXN0Jz8nc2VsZWN0ZWQnOicnfT5GYXN0ZXN0IHdpbnM8L29wdGlvbj48b3B0aW9uIHZhbHVlPSJzbG93ZXN0IiAke3NvcnRNb2RlPT09J3Nsb3dlc3QnPydzZWxlY3RlZCc6Jyd9PlNsb3dlc3Qgd2luczwvb3B0aW9uPjxvcHRpb24gdmFsdWU9InBhdHRlcm4iICR7c29ydE1vZGU9PT0ncGF0dGVybic/J3NlbGVjdGVkJzonJ30+T3V0Y29tZSBwYXR0ZXJuPC9vcHRpb24+PC9zZWxlY3Q+PC9sYWJlbD4iIiIKaWYgb2xkX3NvcnRfbGFiZWwgbm90IGluIHM6CiAgICByYWlzZSBTeXN0ZW1FeGl0KCJzb3J0IFVJIGFuY2hvciBtaXNzaW5nIikKcyA9IHMucmVwbGFjZShvbGRfc29ydF9sYWJlbCwgIiIsIDEpCnMgPSBzLnJlcGxhY2UoJ3BsYWNlaG9sZGVyPSJSdW4gIywgc2VlZCwgY2FyZCwgcGF0dGVybuKApiInLCAncGxhY2Vob2xkZXI9IlJ1biAjLCBzZWVkLCBjYXJk4oCmIicpCnMgPSBzLnJlcGxhY2UoIjxpPlBhdHRlcm4gJHtmdWxsKHJ1bi5wYXR0ZXJuSWR8fDApfSDCtyBzdXJ2aXZvcnM6ICR7ZXNjKChydW4uc3Vydml2aW5nQWxsaWVzfHxbXSkuam9pbignIC8gJyl8fCdub25lJyl9PC9pPiIsCiAgICAgICAgICAgICAgIjxpPlN1cnZpdm9yczogJHtlc2MoKHJ1bi5zdXJ2aXZpbmdBbGxpZXN8fFtdKS5qb2luKCcgLyAnKXx8J25vbmUnKX0gwrcgZmFsbGVuOiAke2VzYygocnVuLmZhbGxlbkFsbGllc3x8W10pLmpvaW4oJyAvICcpfHwnbm9uZScpfTwvaT4iKQpzID0gcy5yZXBsYWNlKCIgICAgcGFuZWwucXVlcnlTZWxlY3RvcignW2RhdGEtd2luLXNvcnRdJyk/LmFkZEV2ZW50TGlzdGVuZXIoJ2NoYW5nZScsKGV2ZW50KT0+e3NvcnRNb2RlPWV2ZW50LnRhcmdldC52YWx1ZTtjdXJyZW50UGFnZT0wO3JlbmRlclBhbmVsKCk7fSk7XG4iLCAiIikKcyA9IHMu cmVwbGFjZSgiLnRvd2VyLXdpbmxvZy10b29sYmFye2Rpc3BsYXk6Z3JpZDt ncmlkLXRlbXBsYXRlLWNvbHVtbnM6bWlubWF4KDIyMHB4LDFmcikgMTgwcHg7IiwgIi50b3dlci13aW5sb2ctdG9vbGJhcntkaXNwbGF5OmdyaWQ7Z3JpZC10ZW1wbGF0ZS1jb2x1bW5zOjFm cjsiKQoKcC53cml0ZV90ZXh0KHMpCgppZHggPSBQYXRoKCJpbmRleC5odG1sIikKaHRtbCA9IGlkeC5yZWFkX3RleHQoKS5yZXBsYWNlKCJ0b3dlci13aW4tbG9ncy11aS5qcz9yZXY9MyIsICJ0b3dlci13aW4tbG9ncy11aS5qcz9yZXY9NCIpCmlkeC53cml0ZV90ZXh0KGh0bCkKClBhdGgoInNpdGUtdmVyc2lvbi5qc29uIikud3JpdGVfdGV4dCgneyJ2ZXJzaW9uIjoiMjAyNjA5MDctY2hlZXNlLWxvZ3MtaW50ZXJhY3Rpb25zLTEifVxuJykK' | tr -d ' ' | base64 -d | python3
+      - name: Validate
+        run: |
+          node --check src/tower-win-logs-ui.js
+          test "$(grep -c 'data-win-sort' src/tower-win-logs-ui.js || true)" = "0"
+          test "$(grep -c 'sortMode' src/tower-win-logs-ui.js || true)" = "0"
+          test "$(grep -c 'Fastest wins' src/tower-win-logs-ui.js || true)" = "0"
+          test "$(grep -c 'Slowest wins' src/tower-win-logs-ui.js || true)" = "0"
+          test "$(grep -c 'Outcome pattern' src/tower-win-logs-ui.js || true)" = "0"
+          grep -q 'fallen:' src/tower-win-logs-ui.js
+          grep -q 'tower-win-logs-ui.js?rev=4' index.html
+      - name: Publish
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/remove-cheese-log-sorters.yml .github/workflows/remove-cheese-log-sorters-v2.yml
+          git add -A
+          git commit -m "Simplify cheese winning battle logs"
+          git pull --rebase origin main
+          git push origin HEAD:main

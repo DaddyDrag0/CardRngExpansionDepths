@@ -9,7 +9,7 @@ const logUiSource = readFileSync('src/tower-win-logs-ui.js', 'utf8')
 assert.match(battleSource, /canReceiveExternalProtection/)
 assert.match(battleSource, /name === 'Destiny Sight' && canReceiveExternalProtection\(next\)/)
 assert.match(battleSource, /name === 'Eternal Devotion' && canReceiveExternalProtection\(next\)/)
-assert.match(battleSource, /50% of infinite damage is still lethal/)
+assert.match(battleSource, /Armageddon did not carry into the next enemy/)
 assert.match(towerSource, /DISCOVERY_AURAS/)
 assert.match(towerSource, /const quickSeed = nextSeed\(\)/)
 assert.match(towerSource, /250, finalSeed/)
@@ -27,13 +27,12 @@ const loadout:any = {
   abilityAura:{auraName:'Storm Spirit',border:null},
 }
 let found=false
-for(let seed=1;seed<=600&&!found;seed++){
+for(let seed=1;seed<=1200&&!found;seed++){
   const battle=simulateBattleV2(loadout,enemies,seed,100,true,true)
   const details=(battle.debug?.events||[]).map((event)=>event.detail).join('\n')
   found=details.includes('Armageddon succeeded — this hit became lethal')
     && details.includes('Storm Spirit triggered')
-    && details.includes('50% of infinite damage is still lethal')
-    && battle.state.fallen.Enemies.length>=2
+    && details.includes('Armageddon did not carry into the next enemy')
 }
-assert.ok(found,'Judgment Day infinite Armageddon should carry through Overcharge')
+assert.ok(found,'Judgment Day Overcharge after a lethal Armageddon should use half normal card damage instead of carrying infinity')
 console.log('Tower cheese corrections passed.')

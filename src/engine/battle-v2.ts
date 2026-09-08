@@ -1467,14 +1467,16 @@ function offensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
       break
     case 'Judgment': damage += (attacker.maxHp - attacker.hp) * 0.7; break
     case 'Armageddon': {
-      const inheritedLethal = Boolean(attacker.flags.forceArmageddonLethal)
-      attacker.flags.forceArmageddonLethal = false
-      const success = inheritedLethal || rand(runtime, attacker.team) > 0.5
+      if (attacker.flags.suppressArmageddonOnce) {
+        attacker.flags.suppressArmageddonOnce = false
+        attacker.flags.armageddonLethalThisHit = false
+        pushAbilityDebug(runtime, attacker, 'Overcharge follow-up used 50% of Judgment Day card damage; Armageddon did not carry into the next enemy.')
+        break
+      }
+      const success = rand(runtime, attacker.team) > 0.5
       attacker.flags.armageddonLethalThisHit = success
       if (success) damage = Number.POSITIVE_INFINITY
-      pushAbilityDebug(runtime, attacker, inheritedLethal
-        ? 'Armageddon stayed lethal through Overcharge — 50% of infinite damage is still lethal.'
-        : `Armageddon ${success ? 'succeeded — this hit became lethal' : 'failed — normal attack damage only'}.`)
+      pushAbilityDebug(runtime, attacker, `Armageddon ${success ? 'succeeded — this hit became lethal' : 'failed — normal attack damage only'}.`)
       break
     }
     case 'Draconic Heart':
@@ -3188,11 +3190,12 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
 
       const stormSpirit = runtime.state.boosts[attacker.team].stormSpirit
       const stormTarget = active(runtime, enemyTeam)
-      // Judgment Day may Overcharge after an infinite Armageddon kill. Since 50% of
-      // Infinity is still Infinity, that immediate follow-up keeps the lethal damage result.
+      // Judgment Day may still Overcharge after an Armageddon kill, but the lethal/infinite
+      // result does NOT transfer. The follow-up into the next enemy is exactly 50% of JD's
+      // normal card damage, so Armageddon is suppressed for that one follow-up hit.
       if (stormSpirit && stormTarget && alive(attacker) && (alive(target) || armageddonLethal) && runtime.rng.next() * 100 < stormSpirit) {
         pushAbilityDebug(runtime, attacker, 'Storm Spirit triggered — immediately attacking again at 50% damage.')
-        if (armageddonLethal) attacker.flags.forceArmageddonLethal = true
+        if (armageddonLethal && !alive(target)) attacker.flags.suppressArmageddonOnce = true
         const stormDamage = dealDamage(runtime, attacker, stormTarget, 0.5)
         applyCollateralAfterHit(runtime, attacker, stormTarget, stormDamage)
         resolveDeaths(runtime)

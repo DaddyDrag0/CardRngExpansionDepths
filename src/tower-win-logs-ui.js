@@ -273,6 +273,13 @@
   `;
   document.head.appendChild(style);
 
-  new MutationObserver(queueRender).observe(document.documentElement,{childList:true,subtree:true});
+  const observer=new MutationObserver((mutations)=>{
+    const relevant=mutations.some((mutation)=>{
+      const target=mutation.target;
+      return !(target instanceof Element && target.closest('#tower-winning-log-panel,.tower-winlog-dialog'));
+    });
+    if(relevant)queueRender();
+  });
+  observer.observe(document.documentElement,{childList:true,subtree:true});
   queueRender();
 })();

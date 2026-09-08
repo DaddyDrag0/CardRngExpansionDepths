@@ -436,6 +436,12 @@ function luminescentVeilCanAffect(attacker: CombatCard): boolean {
   return name !== 'Kira' && name !== 'Judgment Day'
 }
 
+// Judgment Day cannot receive shields, blocks, lethal dodges, redirects, or other
+// teammate-granted protection.
+function canReceiveExternalProtection(card: CombatCard): boolean {
+  return (effectiveCardName(card) || card.definition.name) !== 'Judgment Day'
+}
+
 function clearSkillAura(runtime: Runtime, team: BattleTeam) {
   const boosts = runtime.state.boosts[team]
   runtime.state.boosts[team] = {
@@ -1461,9 +1467,14 @@ function offensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
       break
     case 'Judgment': damage += (attacker.maxHp - attacker.hp) * 0.7; break
     case 'Armageddon': {
-      const success = rand(runtime, attacker.team) > 0.5
+      const inheritedLethal = Boolean(attacker.flags.forceArmageddonLethal)
+      attacker.flags.forceArmageddonLethal = false
+      const success = inheritedLethal || rand(runtime, attacker.team) > 0.5
+      attacker.flags.armageddonLethalThisHit = success
       if (success) damage = Number.POSITIVE_INFINITY
-      pushAbilityDebug(runtime, attacker, `Armageddon ${success ? 'succeeded — this hit became lethal' : 'failed — normal attack damage only'}.`)
+      pushAbilityDebug(runtime, attacker, inheritedLethal
+        ? 'Armageddon stayed lethal through Overcharge — 50% of infinite damage is still lethal.'
+        : `Armageddon ${success ? 'succeeded — this hit became lethal' : 'failed — normal attack damage only'}.`)
       break
     }
     case 'Draconic Heart':
@@ -2113,6 +2124,7 @@ function attackerRetro(runtime: Runtime, attacker: CombatCard, target: CombatCar
 }
 
 function resolveAuraFarm(runtime: Runtime, target: CombatCard, incoming: number): { target: CombatCard; damage: number } {
+  if (!canReceiveExternalProtection(target)) return { target, damage: incoming }
   if (incoming < target.hp) return { target, damage: incoming }
   const deck = runtime.state.teams[target.team]
   // Aura Farm only protects the active card directly ahead of Piccolo.
@@ -2140,6 +2152,7 @@ function resolveAuraFarm(runtime: Runtime, target: CombatCard, incoming: number)
 }
 
 function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: CombatCard, mult = 1, bypass = false): number {
+  attacker.flags.armageddonLethalThisHit = false
   let target = originalTarget
   const confused = attacker.status.confused > 0 || attacker.flags.eternalConfusion
   const confusionSelfHit = confused && runtime.rng.next() < 0.5
@@ -2182,12 +2195,19 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
 
   target.flags.evadedThisHit = false
   const beforeDefense = damage
-  if (!bypass && target.flags.eternalDevotion) {
+  const externalProtectionAllowed = canReceiveExternalProtection(target)
+  if (!externalProtectionAllowed) {
+    target.flags.eternalDevotion = false
+    target.flags.dodgeLethal = false
+    target.status.shield = 0
+    target.counters.hpShield = 0
+  }
+  if (!bypass && externalProtectionAllowed && target.flags.eternalDevotion) {
     target.flags.eternalDevotion = false
     damage = 0
     pushAbilityDebug(runtime, target, `Eternal Devotion blocked the incoming attack from ${effectiveCardName(attacker) || attacker.definition.name}.`)
   }
-  else if (!bypass && target.flags.dodgeLethal) {
+  else if (!bypass && externalProtectionAllowed && target.flags.dodgeLethal) {
     target.flags.dodgeLethal = false
     damage = 0
     pushAbilityDebug(runtime, target, `Destiny Sight dodged the incoming lethal attack from ${effectiveCardName(attacker) || attacker.definition.name}.`)
@@ -2195,7 +2215,7 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   else if (!bypass) {
     const veilHolder = luminescentVeilHolder(runtime, target.team)
     const successfulEvades = target.counters.luminescentEvades || 0
-    if (veilHolder && luminescentVeilCanAffect(attacker) && successfulEvades < 2) {
+    if (externalProtectionAllowed && veilHolder && luminescentVeilCanAffect(attacker) && successfulEvades < 2) {
       const chance = Math.max(0.2, 0.4 - successfulEvades * 0.1)
       if (rand(runtime, target.team) < chance) {
         target.counters.luminescentEvades = successfulEvades + 1
@@ -2222,18 +2242,18 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   if (threshold && target.definition.weather === 'Time Storm') threshold *= 1.5
   if (threshold && damage < target.maxHp * threshold / 100) damage = 0
 
-  if (target.status.shield > 0 && damage > 0) { const beforeShield = target.status.shield; target.status.shield -= 1; damage = 0; pushAbilityDebug(runtime, target, 'Shield blocked the attack; shields ' + beforeShield + ' → ' + target.status.shield + '.') }
+  if (externalProtectionAllowed && target.status.shield > 0 && damage > 0) { const beforeShield = target.status.shield; target.status.shield -= 1; damage = 0; pushAbilityDebug(runtime, target, 'Shield blocked the attack; shields ' + beforeShield + ' → ' + target.status.shield + '.') }
   if (damage < 0) damage = Math.max(-(target.maxHp - target.hp), damage)
   damage = Number.isFinite(damage) ? Math.ceil(damage) : target.hp
 
-  if ((target.counters.hpShield || 0) > 0 && damage > 0) {
+  if (externalProtectionAllowed && (target.counters.hpShield || 0) > 0 && damage > 0) {
     const absorbed = Math.min(target.counters.hpShield, damage)
     target.counters.hpShield -= absorbed
     damage -= absorbed
     pushAbilityDebug(runtime, target, 'ConstellarVirgo HP shield absorbed ' + compactDebugNumber(absorbed) + ' damage; ' + compactDebugNumber(target.counters.hpShield) + ' shield remains.')
   }
 
-  const xuanwu = damage > 0 ? waterShield(runtime, target.team, target) : undefined
+  const xuanwu = damage > 0 && externalProtectionAllowed ? waterShield(runtime, target.team, target) : undefined
   if (xuanwu) {
     const redirected = Math.ceil(damage * 0.5)
     damage -= redirected
@@ -2472,12 +2492,12 @@ function applyOnDeathCore(runtime: Runtime, dead: CombatCard, opponent: CombatCa
     next.maxHp += dead.maxHp * 0.5
     next.hp += dead.maxHp * 0.5
   }
-  if (name === 'Destiny Sight') {
+  if (name === 'Destiny Sight' && canReceiveExternalProtection(next)) {
     next.flags.dodgeLethal = true
     pushAbilityDebug(runtime, dead, `Destiny Sight passed a lethal dodge to ${effectiveCardName(next) || next.definition.name}.`)
   }
   if (name === "Housewife's Blessing") { boostStats(next, 2); next.status.stunned = 2 }
-  if (name === 'Eternal Devotion') {
+  if (name === 'Eternal Devotion' && canReceiveExternalProtection(next)) {
     next.flags.eternalDevotion = true
     pushAbilityDebug(runtime, dead, `Eternal Devotion gave ${effectiveCardName(next) || next.definition.name} a one-attack shield after death.`)
   }
@@ -2485,7 +2505,7 @@ function applyOnDeathCore(runtime: Runtime, dead: CombatCard, opponent: CombatCa
     next.damage += dead.damage * 0.25
     next.maxHp += dead.maxHp * 0.25
     next.hp += dead.maxHp * 0.25
-    next.status.shield += 1
+    if (canReceiveExternalProtection(next)) next.status.shield += 1
   }
 }
 
@@ -3134,6 +3154,7 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
       if (!target || !alive(attacker)) break
       const critical = hasAbility(runtime, attacker, 'Jackpot') && rand(runtime, attacker.team) < 0.3
       const dealt = dealDamage(runtime, attacker, target, dance ? 0.5 : critical ? 1.5 : 1)
+      const armageddonLethal = Boolean(attacker.flags.armageddonLethalThisHit)
       if (hasAbility(runtime, attacker, 'Fortify') && alive(attacker)) {
         const block = attacker.maxHp * 0.4
         const remaining = attacker.counters.blockHp || 0
@@ -3167,10 +3188,11 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
 
       const stormSpirit = runtime.state.boosts[attacker.team].stormSpirit
       const stormTarget = active(runtime, enemyTeam)
-      // Live behavior: Overcharge does not roll onto the next enemy when the
-      // primary attack killed the card it originally struck.
-      if (stormSpirit && stormTarget && alive(attacker) && alive(target) && runtime.rng.next() * 100 < stormSpirit) {
+      // Judgment Day may Overcharge after an infinite Armageddon kill. Since 50% of
+      // Infinity is still Infinity, that immediate follow-up keeps the lethal damage result.
+      if (stormSpirit && stormTarget && alive(attacker) && (alive(target) || armageddonLethal) && runtime.rng.next() * 100 < stormSpirit) {
         pushAbilityDebug(runtime, attacker, 'Storm Spirit triggered — immediately attacking again at 50% damage.')
+        if (armageddonLethal) attacker.flags.forceArmageddonLethal = true
         const stormDamage = dealDamage(runtime, attacker, stormTarget, 0.5)
         applyCollateralAfterHit(runtime, attacker, stormTarget, stormDamage)
         resolveDeaths(runtime)

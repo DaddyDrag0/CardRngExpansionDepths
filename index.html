@@ -26,7 +26,7 @@
       const response=await fetch('./index-base.html?v='+encodeURIComponent(version),{cache:'no-store'});
       if(!response.ok)throw new Error(`HTTP ${response.status}`);
       let html=await response.text();
-      const ambienceTags='  <script src="./src/tower-win-logs-ui.js?rev=2"></'+'script>\n'+'  <script defer src="./src/blood-rain.js?rev=5"></'+'script>\n'+'  <script defer src="./src/lava-ambience.js?rev=7"></'+'script>\n';
+      const ambienceTags='  <script src="./src/tower-win-logs-ui.js?rev=3"></'+'script>\n'+'  <script defer src="./src/blood-rain.js?rev=5"></'+'script>\n'+'  <script defer src="./src/lava-ambience.js?rev=7"></'+'script>\n';
       html=html.replace('</head>',ambienceTags+'</head>');
       document.open();
       document.write(html);

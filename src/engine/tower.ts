@@ -38,6 +38,7 @@ const CHEESE_CARD_ALIASES = [
 ] as const
 
 const CHEESE_AURAS = [null, 'End Times', 'Flame Wizard', 'Storm Spirit', 'Guardian Angel', 'Executioner', 'Mirror Knight', 'Final Testament'] as const
+const DISCOVERY_AURAS = [null, 'Storm Spirit', 'End Times', 'Flame Wizard'] as const
 
 export interface TowerBatchResult {
   runs: number
@@ -367,6 +368,10 @@ export function searchTowerCheese(
   const simulations = { value: 0 }
   const stageRng = new SeededRng(seed || 1)
   const nextSeed = () => Math.floor(stageRng.next() * 0x7fffffff) || 1
+  const discoveryAuras = poolOptions.hasEndTimes === false
+    ? DISCOVERY_AURAS.filter((auraName) => auraName !== 'End Times')
+    : DISCOVERY_AURAS
+  const quickSeed = nextSeed()
 
   // Stage 1: every multiset gets several different orders. This avoids eliminating a team only
   // because its first arbitrary order was bad, while keeping the exhaustive pass affordable.
@@ -376,9 +381,11 @@ export function searchTowerCheese(
     const orders = uniquePermutations(names).slice(0, 4)
     let best: { loadout: TeamLoadout; score: SampleScore } | null = null
     for (const order of orders) {
-      const loadout = loadoutFor(order, null)
-      const score = sampleLoadout(loadout, enemies, 4, nextSeed(), simulations)
-      if (!best || compareSamples(score, best.score) < 0) best = { loadout, score }
+      for (const auraName of discoveryAuras) {
+        const loadout = loadoutFor(order, auraName)
+        const score = sampleLoadout(loadout, enemies, 3, quickSeed, simulations)
+        if (!best || compareSamples(score, best.score) < 0) best = { loadout, score }
+      }
     }
     if (best) quick.push({ names, ...best })
     if (index % 10 === 0 || index + 1 === uniqueTeams.length) {
@@ -387,16 +394,19 @@ export function searchTowerCheese(
   }
   quick.sort((a, b) => compareSamples(a.score, b.score))
 
-  // Stage 2: fully optimize order for the strongest candidate multisets.
-  const orderPool = quick.slice(0, Math.min(60, quick.length))
+  // Stage 2: optimize both order and high-impact discovery aura for a wider survivor pool.
+  const orderSeed = nextSeed()
+  const orderPool = quick.slice(0, Math.min(90, quick.length))
   const ordered: Array<{ loadout: TeamLoadout; score: SampleScore }> = []
   for (let index = 0; index < orderPool.length; index++) {
     const entry = orderPool[index]
     let best: { loadout: TeamLoadout; score: SampleScore } | null = null
     for (const order of uniquePermutations(entry.names)) {
-      const loadout = loadoutFor(order, null)
-      const score = sampleLoadout(loadout, enemies, 6, nextSeed(), simulations)
-      if (!best || compareSamples(score, best.score) < 0) best = { loadout, score }
+      for (const auraName of discoveryAuras) {
+        const loadout = loadoutFor(order, auraName)
+        const score = sampleLoadout(loadout, enemies, 4, orderSeed, simulations)
+        if (!best || compareSamples(score, best.score) < 0) best = { loadout, score }
+      }
     }
     if (best) ordered.push(best)
     onProgress?.({ phase: 'order', completed: index + 1, total: orderPool.length, battleSimulations: simulations.value })
@@ -405,7 +415,8 @@ export function searchTowerCheese(
 
   // Stage 3: test the curated cheese auras plus no aura. Aura choice is allowed to rescue a team
   // that looked mediocre without one, especially the Hells/Kuchi/Control + Flame Wizard family.
-  const auraPool = ordered.slice(0, Math.min(30, ordered.length))
+  const auraSeed = nextSeed()
+  const auraPool = ordered.slice(0, Math.min(48, ordered.length))
   const auraOptimized: Array<{ loadout: TeamLoadout; score: SampleScore }> = []
   for (let index = 0; index < auraPool.length; index++) {
     const entry = auraPool[index]
@@ -413,7 +424,7 @@ export function searchTowerCheese(
     const quickAuras = poolOptions.hasEndTimes === false ? CHEESE_AURAS.filter((auraName) => auraName !== 'End Times') : CHEESE_AURAS
     for (const auraName of quickAuras) {
       const loadout = { ...entry.loadout, abilityAura: auraName ? { auraName, border: null } : null }
-      const score = sampleLoadout(loadout, enemies, 12, nextSeed(), simulations)
+      const score = sampleLoadout(loadout, enemies, 16, auraSeed, simulations)
       if (!best || compareSamples(score, best.score) < 0) best = { loadout, score }
     }
     if (best) auraOptimized.push(best)
@@ -423,11 +434,12 @@ export function searchTowerCheese(
 
   // Stage 4: independent verification batch. Final results are intentionally a shortlist rather
   // than a claimed perfect ranking; the existing 10,000-run button remains the final verifier.
-  const finalPool = auraOptimized.slice(0, Math.min(12, auraOptimized.length))
+  const finalSeed = nextSeed()
+  const finalPool = auraOptimized.slice(0, Math.min(16, auraOptimized.length))
   const recommendations: TowerCheeseCandidate[] = []
   for (let index = 0; index < finalPool.length; index++) {
     const entry = finalPool[index]
-    const score = sampleLoadout(entry.loadout, enemies, 100, nextSeed(), simulations)
+    const score = sampleLoadout(entry.loadout, enemies, 250, finalSeed, simulations)
     recommendations.push(candidate(entry.loadout, score))
     onProgress?.({ phase: 'final', completed: index + 1, total: finalPool.length, battleSimulations: simulations.value })
   }

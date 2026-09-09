@@ -36,7 +36,7 @@ jobs:
           comment = "// Sacred Judgment must finish the snapshotted AoE even if Seraphim dies mid-cast.\n      "
           after = after.replace("const targets = [...runtime.state.teams[enemyTeam]]", comment + "const targets = [...runtime.state.teams[enemyTeam]]", 1)
           p.write_text(before + marker + after)
-          Path('site-version.json').write_text('{"version":"20260908-sacred-judgment-full-resolution-1"}\n')
+          Path('site-version.json').write_text('{"version":"20260908-sacred-judgment-full-resolution-2"}\n')
           PY
       - run: npx tsx scripts/sacred-judgment-regression.ts
       - run: npm run check

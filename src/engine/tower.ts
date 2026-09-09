@@ -27,6 +27,8 @@ const CHEESE_CARD_ALIASES = [
   'Judgment Day',
   'Robin Hood',
   'Parallax',
+  'Ice King',
+  'Piccolo',
   'Pandora',
   'Kuchisake-onna',
   'Fate Seamstress',

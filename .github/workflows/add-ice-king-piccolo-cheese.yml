@@ -1,0 +1,119 @@
+name: Add Ice King and Piccolo to cheese finder
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/add-ice-king-piccolo-cheese.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: add-ice-king-piccolo-cheese
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Add Ice King and Piccolo to default cheese pool
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          tower = Path('src/engine/tower.ts')
+          s = tower.read_text()
+          old = "  'Parallax',\n  'Pandora',"
+          new = "  'Parallax',\n  'Ice King',\n  'Piccolo',\n  'Pandora',"
+          if old not in s and "  'Ice King',\n  'Piccolo'," not in s:
+              raise SystemExit('Could not locate engine cheese pool insertion point')
+          if "  'Ice King',\n  'Piccolo'," not in s:
+              s = s.replace(old, new, 1)
+          tower.write_text(s)
+
+          html = Path('index-base.html')
+          h = html.read_text()
+          old = "const TOWER_DEFAULT_CHEESE_CARDS=['Judgment Day','Robin Hood','Parallax','Pandora'"
+          new = "const TOWER_DEFAULT_CHEESE_CARDS=['Judgment Day','Robin Hood','Parallax','Ice King','Piccolo','Pandora'"
+          if old not in h and new not in h:
+              raise SystemExit('Could not locate UI default cheese pool')
+          h = h.replace(old, new, 1)
+          html.write_text(h)
+
+          test = Path('scripts/tower-cheese-search-regression.ts')
+          t = test.read_text()
+          old = "['Judgment Day', 'Robin Hood', 'Parallax', 'Pandora',"
+          new = "['Judgment Day', 'Robin Hood', 'Parallax', 'Ice King', 'Piccolo', 'Pandora',"
+          if old not in t and new not in t:
+              raise SystemExit('Could not locate cheese regression expected list')
+          t = t.replace(old, new, 1)
+          marker = "assert.equal(pool.includes('True Prophet'), false, 'True Prophet must not be offered by the cheese finder')"
+          extra = "assert.equal(pool.includes('Ice King'), true, 'Ice King must be in the default cheese pool')\nassert.equal(pool.includes('Piccolo'), true, 'Piccolo must be in the default cheese pool')\n"
+          if extra.strip() not in t:
+              t = t.replace(marker, extra + marker, 1)
+          test.write_text(t)
+
+          Path('site-version.json').write_text(json.dumps({'version':'20260909-ice-king-piccolo-cheese-1'}, separators=(',', ':')) + '\n')
+          PY
+      - name: Verify Ice King + Piccolo interaction in simulator
+        run: |
+          cat > scripts/.tmp-ice-piccolo-regression.ts <<'TS'
+          import cards from '../src/data/cards'
+          import { simulateBattleV2 } from '../src/engine/battle-v2'
+          import type { DepthsEnemy, TeamLoadout } from '../src/types'
+
+          const getCard = (name: string) => {
+            const found = cards.find((card) => card.name === name)
+            if (!found) throw new Error(`Missing ${name}`)
+            return found
+          }
+
+          const loadout: TeamLoadout = {
+            cards: [
+              { cardName: 'Ice King', borders: [] },
+              { cardName: 'Piccolo', borders: [] },
+              { cardName: 'Parallax', borders: [] },
+              { cardName: 'Kira', borders: [] },
+            ],
+          }
+          const enemies: DepthsEnemy[] = [
+            { card: getCard('Good Boy'), power: 1e12, attack: 1e12, health: 1e15 },
+          ]
+          const battle = simulateBattleV2(loadout, enemies, 12345, 8, true, true)
+          const farm = battle.debug.events.find((event) => event.detail?.includes('Aura Farm protected Ice King from a lethal hit'))
+          if (!farm) throw new Error('Expected Piccolo to intercept a lethal hit aimed at Ice King')
+          console.log('Ice King + Piccolo synergy regression passed:', farm.detail)
+          TS
+          node --import tsx scripts/.tmp-ice-piccolo-regression.ts
+          rm scripts/.tmp-ice-piccolo-regression.ts
+      - name: Run full checks
+        run: npm run check
+      - name: Rebuild browser workers
+        run: npm run build:workers
+      - name: Verify default pool update
+        run: |
+          grep -q "'Ice King'" src/engine/tower.ts
+          grep -q "'Piccolo'" src/engine/tower.ts
+          grep -q "'Ice King','Piccolo'" index-base.html
+          grep -q "Ice King" browser/tower-worker.js
+          grep -q "Piccolo" browser/tower-worker.js
+      - name: Publish update
+        run: |
+          rm -f .github/workflows/add-ice-king-piccolo-cheese.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/engine/tower.ts index-base.html scripts/tower-cheese-search-regression.ts site-version.json browser/depths-worker.js browser/tower-worker.js .github/workflows/add-ice-king-piccolo-cheese.yml
+          git commit -m "Add Ice King and Piccolo to Tower cheese finder"
+          git push origin HEAD:main

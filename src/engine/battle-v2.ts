@@ -1357,9 +1357,10 @@ function onEntry(runtime: Runtime, card: CombatCard) {
       if (name === 'Heart Hunter' && active(runtime, enemyTeam)) active(runtime, enemyTeam)!.counters.bleed = 100
       break
     case 'Sacred Judgment': {
+      // Sacred Judgment must finish the snapshotted AoE even if Seraphim dies mid-cast.
       const targets = [...runtime.state.teams[enemyTeam]]
       for (const target of targets) {
-        if (!alive(card) || !alive(target)) continue
+        if (!alive(target)) continue
         dealDamage(runtime, card, target)
         resolveDeaths(runtime)
       }

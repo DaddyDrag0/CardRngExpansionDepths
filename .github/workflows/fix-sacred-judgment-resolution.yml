@@ -1,4 +1,4 @@
-name: Fix Seraphim Sacred Judgment resolution
+name: Apply Sacred Judgment fix
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 jobs:
-  fix:
+  apply:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,86 +21,32 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Fix Sacred Judgment full resolution
+      - name: Patch Sacred Judgment
         run: |
           python3 - <<'PY'
           from pathlib import Path
-
           p = Path('src/engine/battle-v2.ts')
           s = p.read_text()
-          old = """    case 'Sacred Judgment': {
-      const targets = [...runtime.state.teams[enemyTeam]]
-      for (const target of targets) {
-        if (!alive(card) || !alive(target)) continue
-        dealDamage(runtime, card, target)
-        resolveDeaths(runtime)
-      }
-      break
-    }"""
-          new = """    case 'Sacred Judgment': {
-      // Sacred Judgment snapshots the living enemy lineup when the entry cast starts.
-      // Once the cast has begun it resolves against every target even if Seraphim is
-      // killed by an interaction from an earlier hit (for example Paradox).
-      const targets = [...runtime.state.teams[enemyTeam]].filter(alive)
-      for (const target of targets) {
-        if (!alive(target)) continue
-        dealDamage(runtime, card, target)
-        resolveDeaths(runtime)
-      }
-      break
-    }"""
-          if old not in s:
-              raise SystemExit('Sacred Judgment block not found')
-          p.write_text(s.replace(old, new, 1))
-
-          r = Path('scripts/tower-cheese-corrections-regression.ts')
-          t = r.read_text()
-          anchor = "assert.match(battleSource, /Armageddon did not carry into the next enemy/)\n"
-          if anchor not in t:
-              raise SystemExit('regression source anchor missing')
-          t = t.replace(anchor, anchor + "assert.match(battleSource, /Sacred Judgment snapshots the living enemy lineup/)\n", 1)
-
-          marker = "console.log('Tower cheese corrections passed.')\n"
-          if marker not in t:
-              raise SystemExit('regression end marker missing')
-          test = r"""
-
-// Sacred Judgment must finish its already-started AoE even if Paradox kills
-// Seraphim on the first target. The later cards in the snapshotted lineup still
-// receive their Sacred Judgment hit.
-const sacredEnemies = buildTowerEnemies(['Parallax','Baby Skeleton','Baby Skeleton','Baby Skeleton'],1,'Normal')
-const sacredLoadout:any = {
-  cards:[{cardName:'Seraphim',borders:[]}],
-  statAura:null,
-  abilityAura:null,
-}
-const sacredBattle = simulateBattleV2(sacredLoadout,sacredEnemies,1,100,true,true)
-const sacredDetails = (sacredBattle.debug?.events||[]).map((event)=>event.detail).join('\n')
-assert.match(sacredDetails, /Paradox activated/)
-assert.equal(sacredBattle.debug?.finalEnemies.length, 1, 'Sacred Judgment should still hit the cards behind Parallax after Seraphim dies')
-assert.equal(sacredBattle.debug?.finalEnemies[0]?.name, 'Parallax', 'Parallax should be the only enemy left after consuming Paradox')
-const sacredEnemyDeaths = (sacredBattle.debug?.events||[]).filter((event)=>event.type==='death' && event.team==='Enemies' && event.card==='Baby Skeleton').length
-assert.equal(sacredEnemyDeaths, 3, 'all three cards behind Parallax should still be defeated by the already-started Sacred Judgment')
-"""
-          t = t.replace(marker, test + "\n" + marker, 1)
-          r.write_text(t)
-
+          marker = "case 'Sacred Judgment': {"
+          before, after = s.split(marker, 1)
+          old = "if (!alive(card) || !alive(target)) continue"
+          if old not in after:
+              raise SystemExit('Sacred Judgment guard not found')
+          after = after.replace(old, "if (!alive(target)) continue", 1)
+          comment = "// Sacred Judgment must finish the snapshotted AoE even if Seraphim dies mid-cast.\n      "
+          after = after.replace("const targets = [...runtime.state.teams[enemyTeam]]", comment + "const targets = [...runtime.state.teams[enemyTeam]]", 1)
+          p.write_text(before + marker + after)
           Path('site-version.json').write_text('{"version":"20260908-sacred-judgment-full-resolution-1"}\n')
           PY
-      - name: Validate full project
-        run: npm run check
-      - name: Build browser workers
-        run: npm run build:workers
-      - name: Verify bundled fix
-        run: |
-          grep -q "Sacred Judgment snapshots the living enemy lineup" src/engine/battle-v2.ts
-          grep -q "Sacred Judgment" browser/tower-worker.js
+      - run: npx tsx scripts/sacred-judgment-regression.ts
+      - run: npm run check
+      - run: npm run build:workers
       - name: Publish
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           rm -f .github/workflows/fix-sacred-judgment-resolution.yml
           git add -A
-          git commit -m "Fix Seraphim Sacred Judgment resolving after death"
+          git commit -m "Fix Seraphim Sacred Judgment full resolution"
           git pull --rebase origin main
           git push origin HEAD:main

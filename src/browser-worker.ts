@@ -11,6 +11,7 @@ interface BatchRequest {
   id: number
   loadout: TeamLoadout
   runs: number
+  startFloor?: number
   floorCap: number
   seed: number
   bannedCardNames?: string[]
@@ -25,6 +26,7 @@ interface SingleRunRequest {
   kind: 'single-run'
   id: number
   loadout: TeamLoadout
+  startFloor?: number
   floorCap: number
   batchSeed: number
   runIndex: number
@@ -36,6 +38,10 @@ type SimulationRequest = BatchRequest | SingleRunRequest
 
 const STALL_WATCHDOG_MS = 20_000
 const LIVE_BATTLE_TURN_CAP = 10_000
+
+function normalizeStartFloor(value: number | undefined): number {
+  return Math.min(40_000, Math.max(1, Math.floor(Number(value) || 1)))
+}
 
 function runSeed(batchSeed: number, runIndex: number): number {
   const rng = new SeededRng(batchSeed)
@@ -111,6 +117,7 @@ function summarize(
 
 function simulateOne(request: SingleRunRequest, onProgress?: (floor: number, battleTurn?: number, enemyNames?: string[]) => void): DepthsRunResult {
   return simulateDepthsRun(request.loadout, {
+    startFloor: normalizeStartFloor(request.startFloor),
     floorCap: request.floorCap,
     seed: runSeed(request.batchSeed, request.runIndex),
     battleTurnCap: LIVE_BATTLE_TURN_CAP,
@@ -126,7 +133,8 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
   const workerCount = Math.min(runs, Math.max(1, Math.min(12, hardware - 1 || 1)))
   const results = new Array<DepthsRunResult>(runs)
   const workers: Worker[] = []
-  const runFloors = new Array<number>(runs).fill(1)
+  const startFloor = normalizeStartFloor(request.startFloor)
+  const runFloors = new Array<number>(runs).fill(startFloor)
   const runBattleTurns = new Array<number>(runs).fill(0)
   const activeRuns = new Set<number>()
   let nextRun = 0
@@ -159,7 +167,7 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
 
       const runIndex = nextRun++
       activeRuns.add(runIndex)
-      let lastFloor = 1
+      let lastFloor = startFloor
       let lastBattleTurn = 0
       let lastEnemies: string[] = []
       let lastForwardedAt = 0
@@ -248,6 +256,7 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
         kind: 'single-run',
         id: request.id,
         loadout: request.loadout,
+        startFloor,
         floorCap: request.floorCap,
         batchSeed: request.seed,
         runIndex,

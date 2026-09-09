@@ -103,6 +103,25 @@ index = replace_once(
 )
 index_path.write_text(index, encoding='utf-8')
 
+
+# Keep the static UI validation aligned with the new start-floor control while preserving
+# the locked 100,000 Depths floor cap checks.
+validate_path = Path('scripts/validate-ui.mjs')
+validate = validate_path.read_text(encoding='utf-8')
+validate = replace_once(
+    validate,
+    "if (!liveHtml.includes('runs:15,cap:100000,seed:1000')) throw new Error('Depths fixed floor cap is not initialized to 100,000')",
+    "if (!liveHtml.includes('runs:15,startFloor:1,cap:100000,seed:1000')) throw new Error('Depths start floor/default floor cap state is not initialized correctly')\nif (!liveHtml.includes('id=\"startFloorInput\" type=\"number\" min=\"1\" max=\"40000\"')) throw new Error('Depths Start Floor input must be limited to 1-40,000')\nif (!liveHtml.includes('state.startFloor=Math.min(40000,Math.max(1,Math.floor(Number(s.startFloor)||1)))')) throw new Error('Depths Start Floor restore path must clamp to 1-40,000')\nif (!liveHtml.includes('startFloor:state.startFloor')) throw new Error('Depths Start Floor is not sent to the simulation worker')",
+    'static UI startFloor expectations',
+)
+validate = replace_once(
+    validate,
+    "if (!workerSource.includes('chronoShard?: boolean')) throw new Error('Browser worker Chrono Shard request field is missing')",
+    "if (!workerSource.includes('chronoShard?: boolean')) throw new Error('Browser worker Chrono Shard request field is missing')\nif (!workerSource.includes('startFloor?: number')) throw new Error('Browser worker Start Floor request field is missing')\nif (!workerSource.includes('Math.min(40_000, Math.max(1')) throw new Error('Browser worker Start Floor must clamp to 1-40,000')",
+    'browser worker startFloor validation',
+)
+validate_path.write_text(validate, encoding='utf-8')
+
 Path('site-version.json').write_text(
     json.dumps({'version': '20260909-depth-start-floor-1'}, separators=(',', ':')) + '\n',
     encoding='utf-8',

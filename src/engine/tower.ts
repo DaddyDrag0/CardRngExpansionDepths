@@ -16,6 +16,7 @@ const DIFFICULTY_ID: Record<TowerDifficulty, number> = {
 
 const CARD_BY_NAME = new Map(cards.map((card) => [card.name, card] as const))
 const SINGLE_COPY_CHEESE_CARDS = new Set(['Parallax', 'Fate Seamstress'])
+const DISABLED_CHEESE_CARDS = new Set(['True Prophet'])
 
 /**
  * Small, intentionally curated cheese pool. The search is not a general deck builder:
@@ -34,7 +35,6 @@ const CHEESE_CARD_ALIASES = [
   'Control Freak',
   "Hell's Army",
   'Noveau Riche',
-  'True Prophet',
 ] as const
 
 const CHEESE_AURAS = [null, 'End Times', 'Flame Wizard', 'Storm Spirit', 'Guardian Angel', 'Executioner', 'Mirror Knight', 'Final Testament'] as const
@@ -195,9 +195,9 @@ export function towerCheeseCandidatePool(options: TowerCheesePoolOptions = {}): 
   const excluded = new Set((options.excludedCards || []).map((name) => String(name)))
   const added = (options.addedCards || [])
     .map((name) => CARD_BY_NAME.get(String(name)))
-    .filter((card) => Boolean(card && !card.unobtainable))
+    .filter((card) => Boolean(card && !card.unobtainable && !DISABLED_CHEESE_CARDS.has(card.name)))
     .map((card) => card!.name)
-  return [...new Set([...resolved, ...added])].filter((name) => !excluded.has(name))
+  return [...new Set([...resolved, ...added])].filter((name) => !excluded.has(name) && !DISABLED_CHEESE_CARDS.has(name))
 }
 
 /** Tower cheese inventory rules that differ from normal duplicate-friendly search. */

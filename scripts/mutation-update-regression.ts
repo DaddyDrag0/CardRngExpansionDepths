@@ -30,6 +30,10 @@ const expected: Record<MutationWeather, number> = {
 }
 assert.deepEqual(WEATHER_MUTATION_STAT_MULTIPLIERS, expected)
 
+const eclipseCards = cards.filter((entry) => entry.weather === 'Eclipse')
+assert(eclipseCards.length > 0)
+assert(eclipseCards.every((entry) => entry.statMultiplier === 5), 'all Eclipse weather cards should use the nerfed 5x stat multiplier')
+
 const base = card('Shining Armor')
 for (const [weather, multiplier] of Object.entries(expected) as [MutationWeather, number][]) {
   close(getAttack(base, [], weather), getAttack(base) * multiplier)

@@ -11,8 +11,8 @@ const card = (name: string) => {
   assert(found, name)
   return found
 }
-const noAbility = cards.find((entry) => !entry.ability && !entry.boss) || card('Shining Armor')
-const foe = (hp = 1e30, attack = 0): DepthsEnemy => ({ card: noAbility, power: hp, health: hp, attack })
+const neutralTarget = card('Trainee')
+const foe = (hp = 1e30, attack = 0): DepthsEnemy => ({ card: neutralTarget, power: hp, health: hp, attack })
 const close = (a: number, b: number) => assert(Math.abs(a - b) < Math.max(1, Math.abs(b)) * 1e-9, `${a} != ${b}`)
 
 const expected: Record<MutationWeather, number> = {

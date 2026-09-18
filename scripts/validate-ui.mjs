@@ -50,7 +50,7 @@ if (!liveHtml.includes('./src/depths-ui.js')) throw new Error('Extracted Depths 
 if (!liveHtml.includes('./src/depths-ui.css')) throw new Error('Extracted Depths UI styles are not loaded')
 if (liveHtml.includes("const root=document.getElementById('root')")) throw new Error('Depths application code returned to inline HTML')
 if (!depthsUi.includes('function sortPrefixMatches(')) throw new Error('Shared autocomplete sorter is missing')
-if ((depthsUi.match(/matches\.sort\(\(a,b\)=>/g) || []).length > 0) throw new Error('Duplicate autocomplete sort blocks returned')
+if ((depthsUi.match(/matches\.sort\(\(a,b\)=>/g) || []).length !== 1) throw new Error('Autocomplete sorting must use one shared implementation')
 
 const feedbackWorker = fs.readFileSync('server/feedback-worker.mjs', 'utf8')
 if (!liveHtml.includes('./src/feedback.js') || !liveHtml.includes('./src/feedback.css')) throw new Error('Feedback UI assets are not loaded')

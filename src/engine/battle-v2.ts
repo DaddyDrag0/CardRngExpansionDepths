@@ -488,21 +488,22 @@ function clearStatuses(card: CombatCard) {
   card.counters.weaknessTurns = 0
 }
 
-function makePlayerCard(name: string, borders: CombatCard['borders'], index: number): CombatCard | null {
+function makePlayerCard(name: string, borders: CombatCard['borders'], index: number, mutationWeather?: CombatCard['mutationWeather']): CombatCard | null {
   const card = definition(name)
   if (!card) return null
-  const power = getPower(card, borders)
-  const hp = getHealth(card, borders)
+  const power = getPower(card, borders, mutationWeather)
+  const hp = getHealth(card, borders, mutationWeather)
   return {
     id: `Allies:${index}:${name}`,
     definition: card,
     team: 'Allies',
     index,
     borders: [...borders],
+    mutationWeather: mutationWeather || null,
     power,
     hp,
     maxHp: hp,
-    damage: getAttack(card, borders),
+    damage: getAttack(card, borders, mutationWeather),
     entered: false,
     dead: false,
     boss: Boolean(card.boss),
@@ -640,7 +641,7 @@ function applyDraconianSetup(team: CombatCard[]) {
 
 export function createBattleStateV2(loadout: TeamLoadout, enemies: DepthsEnemy[]): BattleState {
   const allies = loadout.cards
-    .map((slot, index) => makePlayerCard(slot.cardName, slot.borders, index + 1))
+    .map((slot, index) => makePlayerCard(slot.cardName, slot.borders, index + 1, slot.mutationWeather))
     .filter((card): card is CombatCard => Boolean(card))
   const enemyCards = enemies.map((enemy, index) => makeEnemyCard(enemy, index + 1))
 
@@ -731,12 +732,6 @@ function onEntry(runtime: Runtime, card: CombatCard) {
 
   // Video Game combat models are implemented from the current card definitions and
   // are covered by the dedicated regression suite below.
-  if (name === 'Frozen Solitude' && !statusProtected(runtime, enemyTeam)) {
-    for (const foe of runtime.state.teams[enemyTeam]) {
-      foe.status.stunned = Math.max(1, foe.status.stunned)
-      foe.counters.videoFrozen = 1
-    }
-  }
   if (name === 'The D8') {
     card.damage *= 1 + (1 + Math.floor(rand(runtime, card.team) * 50)) / 100
     const hpFactor = 1 + (1 + Math.floor(rand(runtime, card.team) * 50)) / 100
@@ -1243,9 +1238,9 @@ function onEntry(runtime: Runtime, card: CombatCard) {
       const deck = runtime.state.teams[card.team]
       const behind = deck[1]
       if (behind && behind !== card) {
-        card.damage += behind.damage
-        card.maxHp += behind.maxHp
-        card.hp += Math.max(0, behind.hp)
+        card.damage += behind.damage * 0.75
+        card.maxHp += behind.maxHp * 0.75
+        card.hp += Math.max(0, behind.hp) * 0.75
         deck.splice(1, 1)
         behind.dead = true
       }
@@ -1361,7 +1356,7 @@ function onEntry(runtime: Runtime, card: CombatCard) {
       const targets = [...runtime.state.teams[enemyTeam]]
       for (const target of targets) {
         if (!alive(target)) continue
-        dealDamage(runtime, card, target)
+        dealDamage(runtime, card, target, 0.25)
         resolveDeaths(runtime)
       }
       break
@@ -3438,9 +3433,26 @@ export function simulateBattleV2(
       const nextTeam = OTHER_TEAM[state.moving]
       const next = active(runtime, nextTeam)
       if (next && statusProtected(runtime, nextTeam)) clearStatuses(next)
-      if (next && next.status.stunned > 0) {
+
+      // Frozen Solitude now freezes each opposing card exactly when that card would
+      // take its first turn, and only while the Frozen Solitude user is still active.
+      // Keep the frozen marker through the source card's follow-up turn so its
+      // +100% damage against Frozen enemies can actually apply.
+      const frozenSource = active(runtime, state.moving)
+      const canFirstTurnFreeze = next
+        && !next.flags.frozenSolitudeFirstTurnUsed
+        && frozenSource
+        && hasAbility(runtime, frozenSource, 'Frozen Solitude')
+      if (next && !next.flags.frozenSolitudeFirstTurnUsed) next.flags.frozenSolitudeFirstTurnUsed = true
+
+      if (canFirstTurnFreeze && !statusProtected(runtime, nextTeam)) {
+        next.counters.videoFrozen = 1
+        pushAbilityDebug(runtime, frozenSource!, `Frozen Solitude froze ${effectiveCardName(next) || next.definition.name} on its first turn.`)
+      } else if (next && (next.counters.videoFrozen || 0) > 0) {
+        next.counters.videoFrozen = 0
+        state.moving = nextTeam
+      } else if (next && next.status.stunned > 0) {
         next.status.stunned -= 1
-        next.counters.videoFrozen = Math.max(0, (next.counters.videoFrozen || 0) - 1)
       } else if (next && next.flags.slowed) {
         next.counters.slowed = (next.counters.slowed || 0) + 1
         if ((next.counters.slowTurns || 0) > 0) {

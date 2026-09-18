@@ -24,9 +24,9 @@ const requiredUiHooks = [
 for (const hook of requiredUiHooks) {
   if (!html.includes(hook)) throw new Error(`Missing live-page hook: ${hook}`)
 }
-if (!liveHtml.includes('id="towerFloor" type="number" min="1" max="105"')) throw new Error('Tower floor input must remain capped at 105')
+if (!depthsUi.includes('id="towerFloor" type="number" min="1" max="105"')) throw new Error('Tower floor input must remain capped at 105')
 if (!depthsUi.includes('state.towerFloor=Math.min(105,Math.max(1,Number(e.target.value)||1))')) throw new Error('Tower floor runtime clamp must remain 105')
-if (!liveHtml.includes("const searchKey=(v='')=>String(v).normalize('NFD')")) throw new Error('Accent-insensitive card search helper missing')
+if (!depthsUi.includes("const searchKey=(v='')=>String(v).normalize('NFD')")) throw new Error('Accent-insensitive card search helper missing')
 if (!depthsUi.includes('searchKey(c.name).includes(q)')) throw new Error('Card search is not using normalized names')
 if (!depthsUi.includes('searchKey(c.name).includes(banQ)')) throw new Error('Depth ban search is not using normalized names')
 for (const hook of ['depthBanLayouts','data-depth-ban-layout','data-depth-bans-export','data-depth-bans-import','CRB1-']) {
@@ -35,16 +35,16 @@ for (const hook of ['depthBanLayouts','data-depth-ban-layout','data-depth-bans-e
 if (!depthsUi.includes("payload={v:2,bans:sanitizeBanList(state.depthBans)}")) throw new Error('Ban export must contain only the active layout')
 if (!depthsUi.includes('setActiveDepthBans(decodeBanLayouts(code))')) throw new Error('Ban import must target the currently viewed layout')
 if (!depthsUi.includes('runs:15,startFloor:1,cap:100000,seed:1000')) throw new Error('Depths start floor/default floor cap state is not initialized correctly')
-if (!liveHtml.includes('id="startFloorInput" type="number" min="1" max="40000"')) throw new Error('Depths Start Floor input must be limited to 1-40,000')
+if (!depthsUi.includes('id="startFloorInput" type="number" min="1" max="40000"')) throw new Error('Depths Start Floor input must be limited to 1-40,000')
 if (!depthsUi.includes('state.startFloor=Math.min(40000,Math.max(1,Math.floor(Number(s.startFloor)||1)))')) throw new Error('Depths Start Floor restore path must clamp to 1-40,000')
 if (!depthsUi.includes('startFloor:state.startFloor')) throw new Error('Depths Start Floor is not sent to the simulation worker')
 if (!depthsUi.includes('chronoShard:true')) throw new Error('Chrono Shard timing toggle must default on')
 if (!depthsUi.includes('data-chrono-shard')) throw new Error('Chrono Shard timing toggle is missing from the UI')
 if (!depthsUi.includes('chronoShard:state.chronoShard')) throw new Error('Chrono Shard timing setting is not sent to the worker')
-if (!liveHtml.includes('id="capInput" type="number" min="100000" max="100000" value="100000" readonly')) throw new Error('Depths floor cap is not rendered as a locked 100,000 value')
+if (!depthsUi.includes('id="capInput" type="number" min="100000" max="100000" value="100000" readonly')) throw new Error('Depths floor cap is not rendered as a locked 100,000 value')
 if (!depthsUi.includes('state.cap=100000;')) throw new Error('Depths restore path does not force the cap to 100,000')
 if (depthsUi.includes('cap:state.cap')) throw new Error('Depths floor cap is still being persisted as a user setting')
-if (liveHtml.includes("root.querySelector('#capInput')?.addEventListener('change'")) throw new Error('Depths floor cap is still user-editable')
+if (depthsUi.includes("root.querySelector('#capInput')?.addEventListener('change'")) throw new Error('Depths floor cap is still user-editable')
 
 if (!liveHtml.includes('./src/depths-ui.js')) throw new Error('Extracted Depths UI script is not loaded')
 if (!liveHtml.includes('./src/depths-ui.css')) throw new Error('Extracted Depths UI styles are not loaded')

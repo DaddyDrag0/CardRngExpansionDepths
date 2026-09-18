@@ -91,14 +91,14 @@ close(spotlight.maxHp, getHealth(spotlightDef) + getHealth(behind) * 0.75)
 
 const sacredDef = cards.find((entry) => entry.ability === 'Sacred Judgment')
 assert(sacredDef)
-const sacredEnemy = foe()
+const sacredEnemy = foe(1e9)
 const sacredBattle = simulateBattleV2({ cards: [{ cardName: sacredDef.name, borders: [] }] }, [sacredEnemy], 1, 1)
 const sacredRemaining = sacredBattle.state.teams.Enemies[0]
 assert(sacredRemaining)
 close(sacredEnemy.health - sacredRemaining.hp, getAttack(sacredDef) * 1.25)
 
 const ice = card('Ice King')
-const frozenEnemy = foe()
+const frozenEnemy = foe(1e9)
 const frozenBattle = simulateBattleV2({ cards: [{ cardName: ice.name, borders: [] }] }, [frozenEnemy], 1, 2, false, true)
 const frozenRemaining = frozenBattle.state.teams.Enemies[0]
 assert(frozenRemaining)

@@ -26,7 +26,24 @@
       const response=await fetch('./index-base.html?v='+encodeURIComponent(version),{cache:'no-store'});
       if(!response.ok)throw new Error(`HTTP ${response.status}`);
       let html=await response.text();
-      const ambienceTags='  <script src="./src/tower-win-logs-ui.js?rev=4"></'+'script>\n'+'  <script defer src="./src/blood-rain.js?rev=5"></'+'script>\n'+'  <script defer src="./src/lava-ambience.js?rev=7"></'+'script>\n';
+      const assetVersion=encodeURIComponent(version);
+      const versionedAssets=[
+        'theme-controller.js',
+        'styles.css',
+        'feedback.css',
+        'feedback.js',
+        'site-version-watch.js',
+        'depths-ui.css',
+        'depths-ui.js',
+      ];
+      for(const asset of versionedAssets){
+        html=html.replaceAll(`./src/${asset}`,`./src/${asset}?v=${assetVersion}`);
+      }
+      const ambienceTags=[
+        'tower-win-logs-ui.js',
+        'blood-rain.js',
+        'lava-ambience.js',
+      ].map(asset=>`  <script defer src="./src/${asset}?v=${assetVersion}"></`+'script>').join('\n')+'\n';
       html=html.replace('</head>',ambienceTags+'</head>');
       document.open();
       document.write(html);

@@ -1,0 +1,554 @@
+(() => {
+  const root=document.getElementById('root'),tooltip=document.getElementById('cardTooltip');
+  const visibleUrl=new URL(location.href);
+  if(visibleUrl.searchParams.has('v')){
+    visibleUrl.searchParams.delete('v');
+    history.replaceState(history.state,'',visibleUrl.pathname+visibleUrl.search+visibleUrl.hash);
+  }
+  const SITE_VERSION=window.__CRX_SITE_VERSION||'';
+  const versioned=path=>SITE_VERSION?`${path}${path.includes('?')?'&':'?'}v=${encodeURIComponent(SITE_VERSION)}`:path;
+  const styleLink=document.querySelector('link[rel="stylesheet"]');if(styleLink&&SITE_VERSION)styleLink.href=versioned('./src/styles.css');
+  const CARD_BORDER_MULT={Platinum:100,Crystal:10000,Ruby:100000,Galaxy:1000000},CARD_BORDERS=Object.keys(CARD_BORDER_MULT);
+  const MUTATION_MULT={Storm:1.1,Snow:1.2,Aurora:1.3,Shroud:1.5,'Meteor Shower':1.8,'Time Storm':2,Eclipse:2.5,Virus:3,'Blood Rain':3.5,Armageddon:4,Manga:4.5},MUTATION_WEATHERS=Object.keys(MUTATION_MULT);
+  const AURA_RARITY_MULT={Platinum:10,Crystal:100,Galaxy:1000},AURA_BORDERS=Object.keys(AURA_RARITY_MULT),AURA_TIER={'':0,Platinum:1,Crystal:2,Galaxy:3};
+  const AURA_CUSTOM={Berserker:[5,10,15,20],'Flame Wizard':[15,25,35,50],Shielder:[2,5,7,10],'Synth Human':[8,10,12,15],'Storm Spirit':[10,15,20,30],'Guardian Angel':[10,15,20,30],Executioner:[15,25,35,50],'Mirror Knight':[10,15,20,30],'Final Testament':[5,7.5,10,12.5,15]};
+  const MAX_DEPTH_BANS=14;
+  const DEPTHS_DEFAULT_BANS=new Set(['Vampire Lord','Parallax','Samurai']);
+  const depthBanEligible=c=>Boolean(c&&!c.unobtainable&&!c.expires&&!c.boss&&!DEPTHS_DEFAULT_BANS.has(c.name)&&c.pack!=='Christmas'&&c.pack!=='Halloween'&&c.pack!=='Halloween2');
+  const AURA_PACK={Neko:'Anime',Shrinemaiden:'Rising Sun',Shatbi:'Egypt',Taoist:'Immortal',Myths:'Cryptid',Gamer:'Video Game','Dinosaur King':'Prehistoric'};
+  const AURA_WEATHER={Elohim:'Rapture',Yggdrasil:'Armageddon',Satan:'Blood Rain','Eclipse Chaser':'Eclipse',Kala:'Time Storm',Stormcaller:'Storm',Iris:'Aurora',Niflheim:'Shroud',Khione:'Snow',Astrologist:'Meteor Shower',Disease:'Virus'};
+  const STORAGE='card-rng-expansion-depths-v2';
+  const blankTeam=()=>({cards:Array.from({length:4},()=>({cardName:'',borders:[],mutationWeather:''})),statAura:'',statAuraBorder:'',abilityAura:'',abilityAuraBorder:'',result:null,elapsedMs:0,lastError:''});
+  const blankBanLayouts=()=>Array.from({length:4},()=>[]);
+  const initialDepthBanLayouts=blankBanLayouts();
+  const state={cards:[],auras:[],abilities:{},thumbs:{},teams:Array.from({length:5},blankTeam),activeTeam:0,activeSlot:0,query:'',depthBanLayouts:initialDepthBanLayouts,activeDepthBanLayout:0,depthBans:initialDepthBanLayouts[0],depthBanQuery:'',bountifulDepths:false,chronoShard:true,rebanLegacyDepths:false,battleSpeedStructureLevel:0,skillTreeBattleSpeedLevel:0,runs:15,startFloor:1,cap:100000,seed:1000,running:false,runningLabel:'',workerReady:false,lastProgressRender:0,view:'depths',towerFloor:105,towerEnemies:['','','',''],towerResult:null,towerDifficulty:'Impossible',towerRuns:10000,towerSim:null,towerSimRunning:false,towerSimLabel:'',towerOverrides:['','','',''],towerBorders:Array.from({length:4},()=>[]),towerMutations:Array.from({length:4},()=>''),towerAbilityAura:'',towerAbilityAuraBorder:'',towerSearch:null,towerSearchRunning:false,towerSearchLabel:'',towerSearchMode:'quick',towerExcludedCards:[],towerAddedCards:[],towerPoolQuery:'',towerHasEndTimes:true};
+
+  const TOWER_DEFAULT_CHEESE_CARDS=['Judgment Day','Robin Hood','Parallax','Ice King','Piccolo','Pandora','Kuchisake-onna','Fate Seamstress','Kira','Surtr','Control Freak',"Hell's Army",'Noveau Riche'];
+  const TOWER_DISABLED_CHEESE_CARDS=new Set(['True Prophet']);
+
+  const TOWER_FIXED={
+    5:['Good Boy','Good Boy','Good Boy','Shining Armor'],
+    10:['Sorcerer','Sorcerer','Trainee','Trainee'],
+    15:['Chronus The Hoarder','Greedy Belly','Greedy Belly','Arthur of Excalibur'],
+    20:['Demon Hunter','Gunslinger','Stone Scientist','Darling'],
+    25:['Black Cat','Black Cat','Black Cat','Black Cat'],
+    30:['Crown Prince','Three-Legged Golden Crow','Leviathan','Malik The Sovereign'],
+    35:['Ice Queen','Kitsune','A0-ON1','AK4-ON1'],
+    40:['Zeus','Arcane Avian','Zeus','Arcane Avian'],
+    45:['Frankenstein','Phoenix','Phoenix','Gideon The Insatiable'],
+    50:['Admiral Ice','Ice Queen','Hoarfrost Phoenix','Ice Queen'],
+    55:['Boreas','Wind Spirit','Wind Spirit','Wind Spirit'],
+    60:['Bad Boys','Poseidon','Hades','Lilith The Enchantress'],
+    65:['Astraeus','Astraeus','Astraeus','Astraeus'],
+    70:['Cronus','Ixion','Cronus','Sciron'],
+    75:['Deus Ex','Bad Boys','Bad Boys','Morpheus The Slumberer'],
+    80:['Mastermind','Domain Master','Kira','Priest'],
+    85:['Savior','Lucifer','Lucifer','Lucifer'],
+    90:['Gilgamesh','Ragon','Fafnir','Raze The Destroyer'],
+    95:['Shu','Sekhmet','Set','Ra'],
+    100:['Shuten-dōji','Susanoo','Tsukuyomi','Amaterasu'],
+    105:["Heaven's Armor","Hell's Army",'Judgment Day','Sable The Envious']
+  };
+  const TOWER_FIXED_VARIANTS={65:['Virgo','Scorpio','Taurus','Gemini']};
+  const TOWER_FORCE_END_TIMES=new Set(['Honor','Order of the Cosmos','Unbothered','Nothing','God of Trickery','Erosion']);
+  const TOWER_PREEMPTIVE_BLOCKERS=new Set(['Northern Winds','Stardust Driver','Quick Strike','First Blood','Azure Dragon Wrath','Deadly Ambush','Fight Dirty','Heart Hunter','Stampede','Behavioral Therapy','Blinding Flash','Perish','Snowscape','Red-Nosed Reindeer','Pop-Up Impression','Am I Beautiful?','Ice Age']);
+  const TOWER_EXTRA_TURN_THREATS=new Set(['Haste','The World','Accelerate','First Progenitor','Melancholy']);
+  const TOWER_TRUE_PROPHET_BRIDGES=new Set();
+  const TOWER_KUCHISAKE_THREATS=new Set(['The Fall']);
+  const TOWER_OVERFLOW_THREATS=new Set(['Horned Attack']);
+  const TOWER_WEIRD_ABILITIES=new Set(['Revive','Eternity','Frozen Ashes','Flames of Rebirth','Beyond The Grave','Unholy Creature','Undying','Persistent',"Unpaid 'Interns'",'Better Days','Lotus Sutra','Gehenna','Mirror Image',"Pandora's Box",'Mutate','Shared Power','Heroes','Graveyard','Shapeshifter','Dance of Discord','Eternal Voyage']);
+  function towerAbilityText(card){return `${card?.ability||''} ${state.abilities[card?.ability]||''}`.toLowerCase()}
+  function towerThreat(card,index,enemies){
+    const text=towerAbilityText(card),ability=card?.ability||'';
+    let forceEndTimes=TOWER_FORCE_END_TIMES.has(ability)||/(cancel all abilities|can't use abilities|cannot use abilities|immune to other cards'? abilities|randomize enemy'?s ability|cannot be killed by abilities)/i.test(text);
+    let block=/(dodge attacks|dodge every other attack|dodge first lethal|evade attacks|evade lethal|evade first attack|chance to dodge|block first attack|block the first attack|nullify every other attack|invincible for|cannot take damage|damage can['’]?t exceed|damage cannot exceed|immune to damage from lower rarity|rng abilities always fail|making rng abilities fail|skip opponent['’]?s turn|enemy loses every other turn|survives lethal attack with 1 hp|stunned? on entry|blind target on entry)/i.test(text);
+    if(ability==='Unlucky'||ability==='Hex'||ability==='Limitless'||ability==='Danger Sense'||ability==='Final Tail'||ability==='The Loser'||ability==='Divine Barrier'||ability==='Transcend Time'||ability==='Invisibility'||ability==='Blinding Flash'||ability==='Stalwart'||ability==='Shelter Obsession'||ability==='Heavenly Ruler'||ability==='Indestructible')block=true;
+    if(TOWER_PREEMPTIVE_BLOCKERS.has(ability)||TOWER_EXTRA_TURN_THREATS.has(ability)||TOWER_OVERFLOW_THREATS.has(ability))block=true;
+    if(Number(state.towerFloor)===65&&index===0)block=true;
+    if(index>0&&['Destiny Sight','Eternal Devotion','Final Stand'].includes(enemies[index-1]?.ability))block=true;
+    if(index<enemies.length-1&&enemies[index+1]?.ability==='Aura Farm')block=true;
+    const luminantIndex=enemies.findIndex(c=>c?.name==='Eclipseborn Luminant');
+    if(luminantIndex>=0&&index<=luminantIndex)block=true;
+    if(forceEndTimes)block=true;
+    const weird=!block&&(TOWER_WEIRD_ABILITIES.has(ability)||/(revive|must be defeated 3 times|survive for two turns once hp reaches zero|survives lethal attacks twice|survive 1 turn when dead|gain .*random abilit|becomes a different card)/i.test(text));
+    return {block,weird,forceEndTimes};
+  }
+  function makeTowerCheese(enemyNames){
+    const enemies=enemyNames.map(cardByName),threats=enemies.map((card,i)=>towerThreat(card,i,enemies));
+    const specialCounter=enemies.map(enemy=>enemy?.name==='Inari'?'Noveau Riche':enemy?.ability==='Jealousy'?'Robin Hood':'');
+    const blockerIndices=threats.map((t,i)=>t.block&&!specialCounter[i]&&!t.weird?i:-1).filter(i=>i>=0);
+    const blockers=blockerIndices.length;
+
+    // True Prophet bridge: if a single-use first-hit blocker (currently proven for Limitless) appears before
+    // a later extra-turn threat, use True Prophet to burn that blocker and pass Destiny Sight to the next JD.
+    // This preserves Parallax for the later extra-turn enemy, where Paradox prevents a lethal turn-chain.
+    let prophetIndex=-1,prophetFollowupIndex=-1,parallaxIndex=-1,kuchisakeIndex=-1,overflowBufferIndex=-1;
+    for(const i of blockerIndices){
+      if(!TOWER_TRUE_PROPHET_BRIDGES.has(enemies[i]?.ability||''))continue;
+      if(i>=enemies.length-1)continue;
+      const next=i+1;
+      const nextIsClean=!specialCounter[next]&&!threats[next].weird&&!threats[next].forceEndTimes&&!threats[next].block;
+      const laterExtra=blockerIndices.find(j=>j>i&&TOWER_EXTRA_TURN_THREATS.has(enemies[j]?.ability||'')&&!specialCounter[j]);
+      if(nextIsClean&&laterExtra!==undefined){prophetIndex=i;prophetFollowupIndex=next;parallaxIndex=laterExtra;break}
+    }
+
+    // The Fall punishes direct damage by reflecting the damage back onto the attacker. Treat it as a
+    // separate trade threat rather than an End Times blocker. One copy gets Parallax. With 2+ copies,
+    // Kuchisake-onna handles the first through persistent confusion and Parallax is saved for the last.
+    // Only use this pattern when no harder blocker already needs the dedicated Parallax plan.
+    const fallIndices=enemies.map((enemy,i)=>TOWER_KUCHISAKE_THREATS.has(enemy?.ability||'')&&!specialCounter[i]&&!threats[i].weird?i:-1).filter(i=>i>=0);
+    if(parallaxIndex<0&&prophetIndex<0&&blockerIndices.length===0&&fallIndices.length){
+      if(fallIndices.length>=2)kuchisakeIndex=fallIndices[0];
+      parallaxIndex=fallIndices[fallIndices.length-1];
+    }
+
+    // Horned Attack is different from a normal entry hit: lethal excess damage carries directly into
+    // the next card and can kill a Parallax sitting behind another card without giving Paradox a chance.
+    // Only one Parallax may be assigned to a cheese team, so reserve that single copy for Horned Attack
+    // and never create a second Parallax buffer in the slot before it.
+    const overflowIndices=blockerIndices.filter(i=>TOWER_OVERFLOW_THREATS.has(enemies[i]?.ability||''));
+    if(parallaxIndex<0&&prophetIndex<0&&overflowIndices.length){
+      parallaxIndex=overflowIndices[0];
+      overflowBufferIndex=-1;
+    }
+
+    if(parallaxIndex<0){
+      const candidate=blockerIndices.find(i=>i!==prophetIndex&&!threats[i].forceEndTimes);
+      if(candidate!==undefined)parallaxIndex=candidate;
+    }
+    if(parallaxIndex<0){
+      parallaxIndex=enemies.findIndex((enemy,i)=>i!==prophetIndex&&i!==prophetFollowupIndex&&i!==kuchisakeIndex&&i!==overflowBufferIndex&&!specialCounter[i]&&!threats[i].weird&&!threats[i].forceEndTimes);
+    }
+
+    const unresolvedBlockers=blockerIndices.filter(i=>i!==prophetIndex&&i!==parallaxIndex);
+    const forced=threats.some((t,i)=>t.forceEndTimes&&!specialCounter[i]&&i!==prophetIndex&&i!==parallaxIndex);
+    const endTimesNeeded=unresolvedBlockers.length>0||forced;
+
+    const picks=enemies.map((enemy,index)=>{
+      const threat=threats[index];let pick='Judgment Day',reason='Use JD for the one-shot attempt.';
+      if(specialCounter[index]){pick=specialCounter[index];reason=enemy.name==='Inari'?"Noveau Riche hard-counters Final Tail, so save Parallax for another enemy.":'Jealousy redirects enemy abilities, so use Robin Hood here instead of feeding Sable a JD/Parallax ability.'}
+      else if(index===kuchisakeIndex){pick='Kuchisake-onna';reason=`${enemy.ability||'The Fall'} punishes direct damage. Kuchisake-onna uses persistent confusion so this high-stat enemy can damage itself, preserving Parallax for the last matching threat.`}
+      else if(index===prophetIndex){pick='True Prophet';reason=`${enemy.ability||'This ability'} has a one-time first-hit defense. True Prophet burns it and gives the next JD Destiny Sight, saving Parallax for the later extra-turn threat.`}
+      else if(index===prophetFollowupIndex){pick='Judgment Day';reason='This JD follows True Prophet: the enemy first-hit defense is already spent, and Destiny Sight can dodge one lethal answer to buy another Armageddon attempt.'}
+      else if(threat.weird){pick='Pandora';reason=`${enemy.ability||'This ability'} can survive, revive, change, or otherwise extend past a clean one-shot, so use Pandora as the fallback cheese.`}
+      else if(index===parallaxIndex){pick='Parallax';reason=TOWER_OVERFLOW_THREATS.has(enemy.ability||'')?(overflowBufferIndex===index-1?`${enemy.ability||'Horned Attack'} carries excess lethal damage into the next card. Use the previous Parallax as a buffer so this fresh Parallax is not sitting directly behind a JD when Triceratops enters.`:`${enemy.ability||'Horned Attack'} can overkill the current card and pierce directly into Parallax without triggering Paradox. No free buffer slot was available, so this is an unsafe Parallax setup; simulate it before using it.`):(TOWER_KUCHISAKE_THREATS.has(enemy.ability||'')?`${enemy.ability||'The Fall'} punishes attackers for dealing damage. Save Parallax here so this enemy killing Parallax triggers Paradox instead.`:(TOWER_EXTRA_TURN_THREATS.has(enemy.ability||'')?`${enemy.ability||'Extra turns'} can chain through your next card after a kill. Save Parallax here so Paradox kills this enemy when it kills Parallax.`:(threat.block?`${enemy.ability||'This ability'} can stop a direct kill, so reserve Parallax's one Paradox use for this card.`:'No blocker needs Parallax later, so use its one Paradox trade here instead of spending another JD.')))}
+      else if(threat.block){pick='Judgment Day';reason=endTimesNeeded?`${enemy.ability||'This ability'} can stop the direct kill. The dedicated counters are already used, so End Times is needed for the remaining blocker(s).`:'This card can interfere with the direct kill.'}
+      return {enemy:enemy.name,enemyAbility:enemy.ability||'No ability',pick,reason,threat};
+    });
+    let seenParallax=false;
+    for(const pick of picks){
+      if(pick.pick!=='Parallax')continue;
+      if(!seenParallax){seenParallax=true;continue}
+      pick.pick='Judgment Day';
+      pick.reason='Parallax is already assigned elsewhere on this team, so use Judgment Day here instead.';
+    }
+    return {picks,endTimesNeeded,blockers,prophetIndex,parallaxIndex,kuchisakeIndex,overflowBufferIndex};
+  }
+  function fixedTowerTeam(floor){const team=TOWER_FIXED[Number(floor)];return team?[...team]:null}
+  function syncTowerPreset(){const fixed=fixedTowerTeam(state.towerFloor);if(fixed)state.towerEnemies=fixed}
+  function towerTabs(){return `${state.teams.map((t,i)=>`<button data-tower-back-team="${i}"><span>Team ${i+1}</span><i>${t.result?`Range ${compact(t.result.estimatedFloorLow)}–${compact(t.result.estimatedFloorHigh)}`:complete(t)?'Ready':'Empty'}</i></button>`).join('')}<button class="on tower-tab"><span>Tower</span><i>Cheese maker</i></button>`}
+  function renderTower(){
+    syncTowerPreset();
+    const fixed=Boolean(fixedTowerTeam(state.towerFloor)),variants=TOWER_FIXED_VARIANTS[state.towerFloor]||[],names=state.cards.filter(c=>!c.unobtainable).map(c=>c.name).sort((a,b)=>a.localeCompare(b)),allCardNames=state.cards.map(c=>c.name).sort((a,b)=>a.localeCompare(b));
+    const defaultPool=TOWER_DEFAULT_CHEESE_CARDS.filter(name=>cardByName(name)),activePool=[...new Set([...defaultPool,...state.towerAddedCards])].filter(name=>!state.towerExcludedCards.includes(name)&&!TOWER_DISABLED_CHEESE_CARDS.has(name)),poolQ=state.towerPoolQuery.trim().toLowerCase(),poolSuggestions=poolQ?towerAutocompleteCards(poolQ,false).filter(card=>!TOWER_DISABLED_CHEESE_CARDS.has(card.name)&&!defaultPool.includes(card.name)&&!state.towerAddedCards.includes(card.name)).slice(0,8):[];
+    const poolPanel=`<div class="tower-pool-panel"><div class="tower-pool-head"><div><b>Search card pool</b><small>Click a default card you do not own to disable it. Add any other card you want the search to try.</small></div><div class="tower-pool-options"><span>${activePool.length} active cards</span><button type="button" class="tower-endtimes-owned ${state.towerHasEndTimes?'':'off'}" data-tower-end-times>${state.towerHasEndTimes?'End Times · OWNED':'End Times · NOT OWNED'}</button></div></div><div class="tower-pool-chips">${defaultPool.map(name=>`<button type="button" class="tower-pool-chip ${state.towerExcludedCards.includes(name)?'off':''}" data-tower-pool-toggle="${esc(name)}">${esc(name)}${state.towerExcludedCards.includes(name)?' · OFF':''}</button>`).join('')}${state.towerAddedCards.filter(name=>!TOWER_DISABLED_CHEESE_CARDS.has(name)).map(name=>`<button type="button" class="tower-pool-chip added" data-tower-pool-remove="${esc(name)}">+ ${esc(name)} ×</button>`).join('')}</div><div class="tower-pool-add"><input id="towerPoolSearch" value="${esc(state.towerPoolQuery)}" placeholder="Add another card to the search…" autocomplete="off">${poolQ?`<div class="tower-pool-suggestions">${poolSuggestions.length?poolSuggestions.map(card=>`<button type="button" data-tower-pool-add="${esc(card.name)}"><b>${esc(card.name)}</b><small>${esc(card.ability||'No ability')}</small></button>`).join(''):'<button type="button" disabled>No matching addable cards</button>'}</div>`:''}</div><div class="tower-pool-warning">Adding cards increases the exhaustive search space very quickly. Intensive mode uses multiple CPU workers automatically.</div></div>`;
+    const previews=state.towerEnemies.map((name,i)=>{const card=cardByName(name);return `<label class="tower-enemy-field"><span>Enemy ${i+1}</span><div class="tower-autocomplete"><input data-tower-enemy="${i}" value="${esc(name)}" ${fixed?'readonly':''} placeholder="Choose enemy card" autocomplete="off">${fixed?'':`<div class="tower-suggestions" data-tower-suggestions="enemy-${i}"></div>`}</div><div class="tower-enemy-preview">${card?portrait(card):portrait(null)}<div>${card?`<b>${esc(card.name)}</b><small>${esc(card.ability||'No ability')}</small>${variants[i]?`<i class="tower-fixed-tag">${esc(variants[i])}</i>`:''}`:'<b>No card selected</b><small>Choose the enemy for this position.</small>'}</div></div></label>`}).join('');
+    const result=state.towerResult;
+    let resultHtml='<div class="tower-empty">Search the known cheese pool, then load a recommendation for the full simulator.</div>';
+    if(result?.error)resultHtml=`<div class="tower-error">${esc(result.error)}</div>`;
+    else if(result){
+      const lineup=result.picks.map((pick,i)=>{const override=state.towerOverrides[i]||'',borders=state.towerBorders[i]||[],enemy=cardByName(pick.enemy),chosen=override||pick.pick,answer=cardByName(chosen),mutation=mutationEligible(answer)?(state.towerMutations[i]||''):'',canSwap=pick.pick!=='Pandora',reason=override?(chosen==='Pandora'&&pick.pick!=='Pandora'?`Manual Pandora swap. Original recommendation: ${esc(pick.pick)}.`:`Manual test swap to ${esc(chosen)}. Original recommendation: ${esc(pick.pick)}.`):esc(pick.reason);return `<div class="tower-pick"><div class="tower-pick-head">${portrait(enemy)}<span><b>${i+1}. ${esc(pick.enemy)}</b><small>${esc(pick.enemyAbility)}</small></span></div><div class="tower-arrow">USE</div><div class="tower-answer">${portrait(answer)}<span><b>${esc(chosen)}</b><small>${answer?esc(answer.ability||'No ability'):''}</small></span></div><div class="tower-card-borders"><span>Your card borders</span><div class="tower-card-border-pills"><button type="button" data-tower-card-border="" data-tower-card-border-slot="${i}" class="${!borders.length?'on':''}">Base</button>${CARD_BORDERS.map(b=>`<button type="button" data-tower-card-border="${b}" data-tower-card-border-slot="${i}" class="${borders.includes(b)?'on':''}">${b}</button>`).join('')}</div></div>${mutationEligible(answer)?`<label class="tower-custom-label" style="display:grid;gap:5px">Mutation<select data-tower-mutation="${i}" style="background:#0d151e;color:#dce4ed;border:1px solid #26384a;border-radius:7px;padding:7px 8px"><option value="">None</option>${MUTATION_WEATHERS.map(w=>`<option value="${esc(w)}" ${mutation===w?'selected':''}>${esc(w)} · ×${MUTATION_MULT[w]}</option>`).join('')}</select></label>`:''}<div class="tower-reason">${reason}</div>${canSwap?`<button class="tower-pandora-toggle ${chosen==='Pandora'?'on':''}" data-tower-pandora="${i}">${chosen==='Pandora'?`Restore ${esc(pick.pick)}`:'Use Pandora'}</button>`:`<button class="tower-pandora-toggle on" disabled>Pandora recommended</button>`}<span class="tower-custom-label">Try any card</span><div class="tower-autocomplete"><input class="tower-custom-card" data-tower-custom="${i}" value="${esc(override)}" placeholder="Search any card..." autocomplete="off"><div class="tower-suggestions" data-tower-suggestions="custom-${i}"></div></div></div>`}).join('');
+      const selectedTowerAura=auraByName(state.towerAbilityAura),towerAuraBorder=state.towerAbilityAuraBorder||'';
+      const towerAuraHtml=`<div class="tower-aura-picker ${result.endTimesNeeded?'recommended':''}"><div class="tower-aura-picker-head">${portrait(selectedTowerAura)}<span><b>Ability Aura${result.endTimesNeeded?' · End Times recommended':''}</b><small>${result.endTimesNeeded?'End Times is recommended for this lineup, but you can test any Ability Aura.':'Optional — choose any Ability Aura to test with this team.'}</small></span></div><span class="tower-custom-label">Choose ability aura</span><div class="tower-autocomplete"><input data-tower-ability-aura value="${esc(state.towerAbilityAura)}" placeholder="Search ability aura..." autocomplete="off"><div class="tower-suggestions" data-tower-suggestions="ability-aura"></div></div>${selectedTowerAura?`<div class="aura-border-pills"><button data-tower-aura-border="" class="${!towerAuraBorder?'on':''}">Base</button>${AURA_BORDERS.map(b=>`<button data-tower-aura-border="${b}" class="${towerAuraBorder===b?'on':''}">${b}</button>`).join('')}</div><div class="tower-aura-description"><b>${esc(selectedTowerAura.skillName||selectedTowerAura.name)}</b>${auraSummary(selectedTowerAura,towerAuraBorder)}</div>`:''}</div>`;
+      resultHtml=`<div class="tower-result-top"><h3>Cheese team</h3><div class="tower-end-times ${result.endTimesNeeded?'needed':''}">End Times: <b>${result.endTimesNeeded?'NEEDED':'NOT NEEDED'}</b></div></div><div class="tower-lineup">${lineup}</div>${towerAuraHtml}`;
+    }
+    if(result&&!result.error){
+      const sim=state.towerSim;
+      const rerollWarning=sim&&!fixed&&sim.runs===10000&&sim.wins<50?`<div class="tower-reroll-warning"><b>Very low success rate.</b> You might want to reroll this Tower team.</div>`:'';
+      const simBody=sim?.error?`<div class="tower-sim-error">${esc(sim.error)}</div>`:sim?`<div class="tower-sim-results"><div><span>Wins</span><b>${full(sim.wins)} / ${full(sim.runs)}</b></div><div><span>Win rate</span><b>${(sim.winRate*100).toFixed(2)}%</b></div><div><span>Losses</span><b>${full(sim.losses)}</b></div><div><span>Avg turns</span><b>${one(sim.averageTurns)}</b></div></div><div class="tower-winbar"><i style="width:${Math.max(0,Math.min(100,sim.winRate*100))}%"></i></div><div class="tower-sim-note">${sim.draws?`${full(sim.draws)} draws · `:''}${sim.elapsedMs<1000?`${Math.round(sim.elapsedMs)} ms`:`${(sim.elapsedMs/1000).toFixed(2)} s`} compute${sim.unsupportedAbilities?.length?` · Unsupported: ${esc(sim.unsupportedAbilities.join(', '))}`:''}</div>${rerollWarning}`:'';
+      resultHtml+=`<div class="tower-sim-panel"><div class="tower-sim-head"><div><b>Test this cheese team</b><small>${esc(state.towerDifficulty)} Tower · ${full(state.towerRuns)} battles · base cheese cards${state.towerAbilityAura?` + ${esc(state.towerAbilityAura)} ${esc(state.towerAbilityAuraBorder||'Base')} aura`:''}</small></div><button class="tower-sim-button" data-sim-tower ${state.towerSimRunning?'disabled':''}>${state.towerSimRunning?esc(state.towerSimLabel||'Simulating…'):`Simulate ${full(state.towerRuns)}`}</button></div>${simBody}</div>`;
+    }
+    const search=state.towerSearch;
+    const searchPct=state.towerSearchRunning&&search?.progress?.total?Math.min(100,Math.round((search.progress.completed/search.progress.total)*100)):0;
+    let towerSearchHtml='';
+    if(state.towerSearchRunning){
+      const pg=search?.progress||{};
+      const phase=pg.phase==='quick'?'Testing combinations':pg.phase==='order'?'Optimizing order':pg.phase==='aura'?'Testing auras':pg.phase==='final'?'Verifying finalists':pg.phase==='exhaustive'?'Exhaustive deck + aura search':pg.phase==='verify'?'Heavy finalist verification':'Starting search';
+      towerSearchHtml=`<div class=\"tower-search-panel\"><div class=\"tower-search-head\"><b>${phase}</b><span>${full(pg.battleSimulations||0)} battles tested</span></div><div class=\"tower-search-progress\"><span>${full(pg.completed||0)} / ${full(pg.total||0)}</span><div class=\"tower-search-bar\"><i style=\"width:${searchPct}%\"></i></div></div></div>`;
+    }else if(search?.error){
+      towerSearchHtml=`<div class=\"tower-search-panel tower-error\">${esc(search.error)}</div>`;
+    }else if(search?.recommendations?.length){
+      const anchors=state.towerSearchMode==='intensive'?'All ordered cheese-pool decks · every obtainable Ability Aura · Base/Platinum/Crystal/Galaxy':((search.anchorCards||[]).length?`Required counters: ${(search.anchorCards||[]).map(esc).join(' · ')}`:'No hard counter required for this enemy team.');
+      towerSearchHtml=`<div class=\"tower-search-panel\"><div class=\"tower-search-head\"><div><b>Recommended cheese decks</b><span>${anchors}</span></div><span>${full(search.combinations||0)} ${state.towerSearchMode==='intensive'?'deck/aura variants':'combinations'} · ${full(search.battleSimulations||0)} battles</span></div><div class=\"tower-search-list\">${search.recommendations.map((rec,index)=>`<div class=\"tower-search-rec\"><div><div class=\"tower-search-team\">${rec.loadout.cards.map((slot,i)=>{const card=cardByName(slot.cardName);return `<div class=\"tower-search-card\">${portrait(card)}<span><b>${i+1}. ${esc(slot.cardName)}</b><small>${esc(card?.ability||'No ability')}</small></span></div>`}).join('')}</div><div class=\"tower-search-meta\"><span>Aura: <b>${esc(rec.loadout.abilityAura?.auraName||'None')}</b></span><span>Search sample: <b>${pct((rec.winRate||0)*100)}% wins</b></span><span>Battle progress: <b>${pct((rec.progress||0)*100)}%</b></span></div></div><button class=\"tower-search-load\" data-load-cheese-result=\"${index}\">Load &amp; Simulate</button></div>`).join('')}</div><div class=\"tower-search-note\">${state.towerSearchMode==='intensive'?'Intensive mode exhaustively tests every ordered deck in the cheese pool against every obtainable Ability Aura at every aura border, then heavily verifies the finalists.':'This is a fast shortlist from repeated battle tests.'} Load a deck, then use the existing 10,000-run simulation for the final check.</div></div>`;
+    }
+    root.innerHTML=`<main class="shell"><header class="topbar"><div><p class="kicker">CARD RNG EXPANSION</p><h1>Tower Cheese Maker</h1></div></header><div class="team-tabs">${towerTabs()}</div><section class="tower-cheese-page"><article class="tower-cheese-card"><div class="tower-cheese-head"><div><span class="kicker">TOWER</span><h2>Build a cheese team</h2></div><small>Fixed stages auto-load every 5 floors.</small></div><div class="tower-controls"><label class="tower-floor"><span>Floor</span><input id="towerFloor" type="number" min="1" max="105" value="${state.towerFloor}"></label><label class="tower-floor"><span>Difficulty</span><select id="towerDifficulty">${['Normal','Hard','Extreme','Hell','Impossible'].map(d=>`<option value="${d}" ${state.towerDifficulty===d?'selected':''}>${d}</option>`).join('')}</select></label><div class="tower-preset-note">${fixed?`<b>Fixed Stage ${state.towerFloor}</b><br>The four enemy cards are loaded automatically.`:`<b>Stage ${state.towerFloor}</b><br>This is not a fixed stage. Enter the four enemy cards in their battle order.`}</div></div><div class="tower-enemies">${previews}</div>${poolPanel}<div class="tower-build-row"><button class="tower-make" data-make-tower-team ${state.towerSearchRunning||state.towerSimRunning?'disabled':''}>Quick Search</button><button class="tower-make intensive" data-make-tower-team-intensive ${state.towerSearchRunning||state.towerSimRunning?'disabled':''}>${state.towerSearchRunning&&state.towerSearchMode==='intensive'?esc(state.towerSearchLabel||'Intensive searching…'):'Intensive 1M+ Search'}</button>${state.towerSearchRunning?'<button class="tower-make cancel" data-cancel-tower-search>Cancel Search</button>':''}</div>${towerSearchHtml}<div class="tower-result">${resultHtml}</div></article></section><footer><span>Card RNG Expansion Tower Cheese Maker</span></footer></main>`;
+    bindTowerEvents();bindTooltips();
+  }
+  function sortPrefixMatches(matches, query, keyOf){
+    matches.sort((a,b)=>{
+      const an=keyOf(a),bn=keyOf(b),as=query&&an.startsWith(query),bs=query&&bn.startsWith(query);
+      if(as!==bs)return as?-1:1;
+      return a.name.localeCompare(b.name);
+    });
+    return matches.slice(0,45);
+  }
+  function towerAutocompleteCards(query,includeUnobtainable=false){
+    const q=searchKey(query).trim();
+    const pool=state.cards.filter(c=>includeUnobtainable||!c.unobtainable);
+    const matches=pool.filter(c=>!q||searchKey(c.name).includes(q));
+    return sortPrefixMatches(matches,q,c=>searchKey(c.name));
+  }
+  function towerAutocompleteAuras(query){
+    const q=String(query||'').trim().toLowerCase();
+    const matches=state.auras.filter(a=>!a.unobtainable&&a.type==='Skill'&&(state.towerHasEndTimes||a.name!=='End Times')&&(!q||a.name.toLowerCase().includes(q)||(a.skillName||'').toLowerCase().includes(q)));
+    return sortPrefixMatches(matches,q,a=>a.name.toLowerCase());
+  }
+  function resetTowerLoadout(abilityAura=''){
+    state.towerOverrides=['','','',''];
+    state.towerBorders=Array.from({length:4},()=>[]);
+    state.towerMutations=Array.from({length:4},()=>'');
+    state.towerAbilityAura=abilityAura;
+    state.towerAbilityAuraBorder='';
+    state.towerSim=null;
+  }
+  function bindTowerAuraAutocomplete(input){
+    const box=input.parentElement?.querySelector('.tower-suggestions');if(!box)return;
+    let active=-1,current=[];
+    const paint=()=>{
+      current=towerAutocompleteAuras(input.value);
+      box.innerHTML=`<button type="button" data-aura-none><b>No Ability Aura</b><small>Simulate without an Ability Aura</small></button>`+(current.length?current.map((a,i)=>`<button type="button" data-aura-index="${i}" class="${i===active?'active':''}"><b>${esc(a.name)}</b><small>${esc(a.skillName||'Ability Aura')}</small></button>`).join(''):'');
+      box.classList.add('open');
+      box.querySelector('[data-aura-none]')?.addEventListener('mousedown',e=>{e.preventDefault();chooseNone()});
+      box.querySelectorAll('[data-aura-index]').forEach(btn=>btn.addEventListener('mousedown',e=>{e.preventDefault();choose(Number(btn.dataset.auraIndex))}));
+    };
+    const choose=i=>{const aura=current[i];if(!aura)return;input.value=aura.name;state.towerAbilityAura=aura.name;state.towerAbilityAuraBorder='';state.towerSim=null;render()};
+    const chooseNone=()=>{input.value='';state.towerAbilityAura='';state.towerAbilityAuraBorder='';state.towerSim=null;render()};
+    input.addEventListener('focus',()=>{active=-1;paint()});
+    input.addEventListener('input',()=>{active=-1;if(!input.value){state.towerAbilityAura='';state.towerAbilityAuraBorder='';state.towerSim=null}paint()});
+    input.addEventListener('keydown',e=>{
+      if(e.key==='ArrowDown'){e.preventDefault();active=Math.min(current.length-1,active+1);paint()}
+      else if(e.key==='ArrowUp'){e.preventDefault();active=Math.max(0,active-1);paint()}
+      else if(e.key==='Enter'){e.preventDefault();if(current.length)choose(active>=0?active:0);else chooseNone()}
+      else if(e.key==='Escape')box.classList.remove('open');
+    });
+    input.addEventListener('blur',()=>setTimeout(()=>{
+      if(!input.isConnected)return;
+      box.classList.remove('open');
+      const exact=state.auras.find(a=>!a.unobtainable&&a.type==='Skill'&&(state.towerHasEndTimes||a.name!=='End Times')&&a.name.toLowerCase()===input.value.trim().toLowerCase());
+      const next=exact?exact.name:'';
+      if(state.towerAbilityAura!==next){state.towerAbilityAura=next;state.towerAbilityAuraBorder='';state.towerSim=null;render()}
+    },100));
+  }
+  function bindTowerAutocomplete(input,kind,index){
+    const box=input.parentElement?.querySelector('.tower-suggestions');
+    if(!box||input.readOnly)return;
+    let active=-1,current=[];
+    const paint=()=>{
+      current=towerAutocompleteCards(input.value,kind==='custom');
+      box.innerHTML=current.length?current.map((card,i)=>`<button type="button" data-auto-index="${i}" class="${i===active?'active':''}"><b>${esc(card.name)}</b><small>${esc(card.ability||'No ability')}</small></button>`).join(''):'<button type="button" disabled><b>No matching cards</b></button>';
+      box.classList.add('open');
+      box.querySelectorAll('[data-auto-index]').forEach(btn=>btn.addEventListener('mousedown',e=>{e.preventDefault();choose(Number(btn.dataset.autoIndex))}));
+    };
+    const choose=i=>{
+      const card=current[i];if(!card)return;
+      input.value=card.name;
+      box.classList.remove('open');
+      if(kind==='enemy'){
+        state.towerEnemies[index]=card.name;state.towerResult=null;resetTowerLoadout();render();
+      }else{
+        state.towerOverrides[index]=card.name;state.towerMutations[index]='';state.towerSim=null;render();
+      }
+    };
+    input.addEventListener('focus',()=>{active=-1;paint()});
+    input.addEventListener('input',()=>{
+      active=-1;
+      if(kind==='enemy'){state.towerEnemies[index]=input.value;state.towerResult=null;resetTowerLoadout()}
+      else if(!input.value){state.towerOverrides[index]='';state.towerMutations[index]='';state.towerSim=null}
+      paint();
+    });
+    input.addEventListener('keydown',e=>{
+      if(e.key==='ArrowDown'){e.preventDefault();active=Math.min(current.length-1,active+1);paint()}
+      else if(e.key==='ArrowUp'){e.preventDefault();active=Math.max(0,active-1);paint()}
+      else if(e.key==='Enter'){e.preventDefault();if(current.length)choose(active>=0?active:0)}
+      else if(e.key==='Escape')box.classList.remove('open');
+    });
+    input.addEventListener('blur',()=>setTimeout(()=>{
+      box.classList.remove('open');
+      if(kind==='custom'){
+        const exact=state.cards.find(c=>searchKey(c.name)===searchKey(input.value).trim());
+        const next=exact?exact.name:'';
+        if(state.towerOverrides[index]!==next){state.towerOverrides[index]=next;state.towerMutations[index]='';state.towerSim=null;render()}
+      }
+    },100));
+  }
+  function bindTowerEvents(){
+    root.querySelectorAll('[data-tower-back-team]').forEach(el=>el.addEventListener('click',()=>{state.view='depths';state.activeTeam=Number(el.dataset.towerBackTeam);state.activeSlot=0;render()}));
+    root.querySelector('#towerFloor')?.addEventListener('change',e=>{state.towerFloor=Math.min(105,Math.max(1,Number(e.target.value)||1));const fixed=fixedTowerTeam(state.towerFloor);state.towerEnemies=fixed||['','','',''];state.towerResult=null;state.towerSim=null;state.towerSearch=null;state.towerSearchRunning=false;state.towerSearchLabel='';resetTowerLoadout();render()});
+    root.querySelectorAll('[data-tower-enemy]').forEach(el=>bindTowerAutocomplete(el,'enemy',Number(el.dataset.towerEnemy)));
+    root.querySelectorAll('[data-tower-pool-toggle]').forEach(el=>el.addEventListener('click',()=>{const name=el.dataset.towerPoolToggle;if(!name)return;state.towerExcludedCards=state.towerExcludedCards.includes(name)?state.towerExcludedCards.filter(x=>x!==name):[...state.towerExcludedCards,name];state.towerSearch=null;persist();render()}));
+    root.querySelector('[data-tower-end-times]')?.addEventListener('click',()=>{state.towerHasEndTimes=!state.towerHasEndTimes;if(!state.towerHasEndTimes&&state.towerAbilityAura==='End Times'){state.towerAbilityAura='';state.towerAbilityAuraBorder='';state.towerSim=null}state.towerSearch=null;persist();render()});
+    root.querySelectorAll('[data-tower-pool-remove]').forEach(el=>el.addEventListener('click',()=>{const name=el.dataset.towerPoolRemove;state.towerAddedCards=state.towerAddedCards.filter(x=>x!==name);state.towerSearch=null;persist();render()}));
+    root.querySelectorAll('[data-tower-pool-add]').forEach(el=>el.addEventListener('click',()=>{const name=el.dataset.towerPoolAdd,card=cardByName(name);if(!card||card.unobtainable||TOWER_DISABLED_CHEESE_CARDS.has(name)||TOWER_DEFAULT_CHEESE_CARDS.includes(name)||state.towerAddedCards.includes(name))return;state.towerAddedCards=[...state.towerAddedCards,name];state.towerPoolQuery='';state.towerSearch=null;persist();render()}));
+    const poolSearch=root.querySelector('#towerPoolSearch');poolSearch?.addEventListener('input',()=>{state.towerPoolQuery=poolSearch.value;render();requestAnimationFrame(()=>{const n=root.querySelector('#towerPoolSearch');n?.focus();n?.setSelectionRange(n.value.length,n.value.length)})});
+    root.querySelector('[data-make-tower-team]')?.addEventListener('click',()=>runTowerCheeseSearch('quick'));root.querySelector('[data-make-tower-team-intensive]')?.addEventListener('click',()=>runTowerCheeseSearch('intensive'));root.querySelector('[data-cancel-tower-search]')?.addEventListener('click',cancelTowerCheeseSearch);root.querySelectorAll('[data-load-cheese-result]').forEach(el=>el.addEventListener('click',()=>loadTowerCheeseRecommendation(Number(el.dataset.loadCheeseResult))));
+    root.querySelector('#towerDifficulty')?.addEventListener('change',e=>{state.towerDifficulty=e.target.value;state.towerSim=null;state.towerSearch=null;render()});
+    root.querySelectorAll('[data-tower-pandora]').forEach(el=>el.addEventListener('click',()=>{const i=Number(el.dataset.towerPandora),recommended=state.towerResult?.picks?.[i]?.pick||'';if(!recommended||recommended==='Pandora')return;state.towerOverrides[i]=state.towerOverrides[i]==='Pandora'?'':'Pandora';state.towerMutations[i]='';state.towerSim=null;render()}));
+    root.querySelectorAll('[data-tower-card-border]').forEach(el=>el.addEventListener('click',()=>{const i=Number(el.dataset.towerCardBorderSlot),b=el.dataset.towerCardBorder||'',current=state.towerBorders[i]||[];state.towerBorders[i]=b?(current.includes(b)?current.filter(x=>x!==b):[...current,b]):[];state.towerSim=null;render()}));root.querySelectorAll('[data-tower-mutation]').forEach(el=>el.addEventListener('change',()=>{const i=Number(el.dataset.towerMutation);state.towerMutations[i]=MUTATION_WEATHERS.includes(el.value)?el.value:'';state.towerSim=null;render()}));
+    root.querySelectorAll('[data-tower-custom]').forEach(el=>bindTowerAutocomplete(el,'custom',Number(el.dataset.towerCustom)));
+    root.querySelector('[data-tower-ability-aura]')&&bindTowerAuraAutocomplete(root.querySelector('[data-tower-ability-aura]'));
+    root.querySelectorAll('[data-tower-aura-border]').forEach(el=>el.addEventListener('click',()=>{state.towerAbilityAuraBorder=el.dataset.towerAuraBorder||'';state.towerSim=null;render()}));
+    root.querySelector('[data-sim-tower]')?.addEventListener('click',runTowerSimulation);
+  }
+  const esc=(v='')=>String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  const searchKey=(v='')=>String(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[đð]/gi,'d').replace(/ø/gi,'o').replace(/ł/gi,'l').replace(/æ/gi,'ae').replace(/œ/gi,'oe').replace(/ß/g,'ss').replace(/þ/gi,'th').replace(/[’‘]/g,"'").replace(/[‐‑‒–—―]/g,'-').toLowerCase();
+  const compact=n=>Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:2}).format(n),full=n=>Math.round(n).toLocaleString('en-US'),one=n=>Number(n).toLocaleString('en-US',{maximumFractionDigits:1}),pct=n=>Number.isInteger(n)?String(n):Number(n.toFixed(2)).toString();
+  const RARITY_SUFFIXES=[[1e33,'Dc'],[1e30,'No'],[1e27,'Oc'],[1e24,'Sp'],[1e21,'Sx'],[1e18,'Qi'],[1e15,'Qa'],[1e12,'T'],[1e9,'B'],[1e6,'M'],[1e3,'K']];
+  const rarityCompact=n=>{const value=Number(n)||0;for(const [size,suffix] of RARITY_SUFFIXES)if(Math.abs(value)>=size)return `${Number((value/size).toFixed(2))}${suffix}`;return Number.isInteger(value)?String(value):Number(value.toFixed(2)).toString()};
+  function randomSeed(){const words=new Uint32Array(1);crypto.getRandomValues(words);return words[0]||((Date.now()^Math.floor(performance.now()*1000))>>>0)}
+  const duration=s=>{const n=Math.max(0,Math.round(Number(s)||0)),h=Math.floor(n/3600),m=Math.floor(n%3600/60),sec=n%60;if(h)return `${h}h ${m}m`;if(m)return `${m}m ${sec}s`;return `${sec}s`};
+  const current=()=>state.teams[state.activeTeam],imageUrl=id=>id?(state.thumbs[String(id)]||''):'',cardByName=name=>state.cards.find(c=>c.name===name)||null,auraByName=name=>state.auras.find(a=>a.name===name)||null;
+  function portrait(item,cls='mini-portrait'){if(!item)return `<span class="${cls}"><span class="fallback-letter">+</span></span>`;const url=imageUrl(item.imageAssetId),letter=esc(item.name?.[0]||'?');return `<span class="${cls}"><span class="fallback-letter">${letter}</span>${url?`<img src="${esc(url)}" alt="" loading="lazy" onerror="this.remove()">`:''}</span>`}
+  function rarityWithBorders(card,borders=[]){return borders.reduce((r,b)=>r*(CARD_BORDER_MULT[b]||1),card.rarity)}
+  const mutationEligible=card=>Boolean(card&&!card.weather&&!card.boss&&!card.expires&&!card.unobtainable);
+  function getPower(card,borders=[],mutationWeather=''){if(!card)return 0;const rarity=card.name==='Ouroboros'?100000000000000:rarityWithBorders(card,borders);const mutation=MUTATION_MULT[mutationWeather]||1;return rarity>0?Math.pow(2,Math.log10(rarity))*10*(card.statMultiplier||1)*mutation:0}
+  const getAttack=(card,borders=[],mutationWeather='')=>getPower(card,borders,mutationWeather)/2,getHealth=(card,borders=[],mutationWeather='')=>getPower(card,borders,mutationWeather)*(card?.hpMultiplier||1);
+  function auraValue(aura,border){if(!aura)return 0;if(aura.type==='Stat'){const rarity=(Number(aura.rarity)||0)*(AURA_RARITY_MULT[border]||1);return rarity>0?Math.floor(Math.pow(2,Math.log10(rarity))/2):0}const tier=AURA_TIER[border]||0,custom=AURA_CUSTOM[aura.name];return custom?(custom[tier]??custom[0]??0):(Number(aura.base)||0)+(Number(aura.perLevel)||0)*tier}
+  function resolveStatText(text,value){return String(text||'').replace(/(\d+(?:\.\d+)?)?STAT/g,(_,coef)=>pct((coef?Number(coef):1)*value))}
+  function auraSummary(aura,border){
+  if(!aura)return '';
+  const value=auraValue(aura,border);
+  if(aura.type==='Skill')return resolveStatText(aura.description,value);
+  if(aura.name==='General Sun Tzu')return `<div class="aura-stat-grid"><div class="aura-stat"><span>All allied cards</span><b>+${pct(value)}%</b><small>HP</small></div></div>`;
+  const boost=Number(aura.boostMult)||0,pack=AURA_PACK[aura.name],weather=AURA_WEATHER[aura.name],listed=(aura.boostedCards||[]).filter(Boolean),scopes=[];
+  if(pack)scopes.push(`${pack} Pack`);
+  if(weather){
+    const weatherCards=state.cards.filter(card=>!card.unobtainable&&card.weather===weather).map(card=>card.name).sort((a,b)=>a.localeCompare(b));
+    if(weatherCards.length)scopes.push(...weatherCards);
+    else scopes.push(`${weather} cards`);
+  }
+  for(const name of listed)if(!scopes.includes(name))scopes.push(name);
+  let out=`<div class="aura-stat-grid"><div class="aura-stat"><span>All allied cards</span><b>+${pct(value)}%</b><small>HP & ATK</small></div>`;
+  if(boost&&scopes.length)out+=`<div class="aura-stat boosted"><span>Extra boost group</span><b>+${pct(['The Sequel','Myths','Gamer'].includes(aura.name)?Math.min(300,value*boost):value*boost)}%</b><small>HP & ATK</small></div>`;
+  out+='</div>';
+  if(boost&&scopes.length)out+=`<div class="aura-scope"><span>Extra stat buff applies to</span><b>${scopes.map(esc).join(' · ')}</b></div>`;
+  return out;
+}
+  function auraBlock(type,label,auraKey,borderKey){const team=current(),choices=state.auras.filter(a=>!a.unobtainable&&a.type===type).sort((a,b)=>a.name.localeCompare(b.name)),selected=auraByName(team[auraKey]),border=team[borderKey];return `<div class="aura-card"><div class="aura-title">${selected?portrait(selected):'<span class="mini-portrait"><span class="fallback-letter">◇</span></span>'}<span><b>${label}</b><small>${selected?esc(selected.skillName||selected.type):'Choose one aura'}</small></span></div><select data-aura-select="${auraKey}"><option value="">No ${label.toLowerCase()}</option>${choices.map(a=>`<option value="${esc(a.name)}" ${a.name===team[auraKey]?'selected':''}>${esc(a.name)} · ${esc(a.skillName||'')}</option>`).join('')}</select><div class="aura-border-pills"><button data-aura-border="" data-aura-border-key="${borderKey}" class="${!border?'on':''}">Base</button>${AURA_BORDERS.map(b=>`<button data-aura-border="${b}" data-aura-border-key="${borderKey}" class="${border===b?'on':''}">${b}</button>`).join('')}</div>${selected?`<div class="aura-exact">${auraSummary(selected,border)}</div>`:''}</div>`}
+  const complete=team=>team.cards.length===4&&team.cards.every(slot=>Boolean(slot.cardName));
+function encodeTeam(team){
+  const payload={v:2,c:team.cards.map(slot=>[slot.cardName,[...slot.borders],slot.mutationWeather||'']),s:[team.statAura,team.statAuraBorder],a:[team.abilityAura,team.abilityAuraBorder]};
+  const bytes=new TextEncoder().encode(JSON.stringify(payload));
+  let binary='';for(const byte of bytes)binary+=String.fromCharCode(byte);
+  return 'CRE1-'+btoa(binary).replace(/=+$/,'').replace(/\+/g,'-').replace(/\//g,'_');
+}
+function decodeTeam(code){
+  const clean=String(code||'').trim();if(!clean.startsWith('CRE1-'))throw new Error('Not a CRE1 team code');
+  let raw=clean.slice(5).replace(/-/g,'+').replace(/_/g,'/');while(raw.length%4)raw+='=';
+  const binary=atob(raw),bytes=Uint8Array.from(binary,ch=>ch.charCodeAt(0)),payload=JSON.parse(new TextDecoder().decode(bytes));
+  if(![1,2].includes(payload.v)||!Array.isArray(payload.c)||payload.c.length!==4)throw new Error('Unsupported team code');
+  const team=blankTeam();
+  team.cards=payload.c.map(slot=>({cardName:String(slot?.[0]||''),borders:Array.isArray(slot?.[1])?slot[1].filter(border=>CARD_BORDERS.includes(border)):[],mutationWeather:payload.v>=2&&MUTATION_WEATHERS.includes(slot?.[2])?slot[2]:''}));
+  team.statAura=String(payload.s?.[0]||'');team.statAuraBorder=AURA_BORDERS.includes(payload.s?.[1])?payload.s[1]:'';
+  team.abilityAura=String(payload.a?.[0]||'');team.abilityAuraBorder=AURA_BORDERS.includes(payload.a?.[1])?payload.a[1]:'';
+  for(const slot of team.cards)if(slot.cardName&&!cardByName(slot.cardName))throw new Error(`Unknown card: ${slot.cardName}`);
+  if(team.statAura&&!auraByName(team.statAura))throw new Error(`Unknown Stat Aura: ${team.statAura}`);
+  if(team.abilityAura&&!auraByName(team.abilityAura))throw new Error(`Unknown Ability Aura: ${team.abilityAura}`);
+  return team;
+}
+  function resultCard(team,index){
+  const r=team.result;
+  if(!r)return team.lastError?`<section class="result-card"><div class="result-head"><div><span class="kicker">TEAM ${index+1}</span><h4>Simulation failed</h4></div></div><div class="team-error">${esc(team.lastError)}</div></section>`:'';
+  const avgTurns=r.runs.length?r.runs.reduce((s,x)=>s+x.totalTurns,0)/r.runs.length:0;
+  const drops=r.potionRewards;
+  const runsPerDayLow=r.estimatedSecondsHigh>0?86400/r.estimatedSecondsHigh:0,runsPerDayMedian=r.estimatedSecondsMedian>0?86400/r.estimatedSecondsMedian:0,runsPerDayHigh=r.estimatedSecondsLow>0?86400/r.estimatedSecondsLow:0;
+  const jackpotDayLow=drops?drops.low.jackpot.expected*runsPerDayLow:0,jackpotDayHigh=drops?drops.high.jackpot.expected*runsPerDayHigh:0,rareWeatherDay=drops?drops.median.rareWeather.expected*runsPerDayMedian:0;
+  const dropHtml=drops?`<div class="reward-drop-grid"><div class="reward-drop-card"><span>Jackpot Potion ${drops.bountiful?'<em>· Bountiful</em>':''}</span><b>${one(drops.low.jackpot.expected)}–${one(drops.high.jackpot.expected)} / run</b><small>≈${one(jackpotDayLow)}–${one(jackpotDayHigh)} / day</small></div><div class="reward-drop-card"><span>Rare Weather Potion ${drops.bountiful?'<em>· Bountiful</em>':''}</span><b>Average of ${one(drops.median.rareWeather.expected)}</b><small>≈${one(rareWeatherDay)} / day</small></div></div>`:'';
+  const enemyCounts={};
+  for(const run of r.runs)for(const name of (run.endingEnemies||[]))enemyCounts[name]=(enemyCounts[name]||0)+1;
+  const commonEnemies=Object.entries(enemyCounts).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,6);
+  const endingHtml=commonEnemies.length?`<div class="ending-enemies"><span>Most common losing-floor enemies</span><div class="enemy-chips">${commonEnemies.map(([name,count])=>`<i>${esc(name)} <b>×${count}</b></i>`).join('')}</div></div>`:'';
+  const turnLimitCounts={};
+  for(const run of r.runs)if(run.turnLimitEnemy)turnLimitCounts[run.turnLimitEnemy]=(turnLimitCounts[run.turnLimitEnemy]||0)+1;
+  const commonTurnLimits=Object.entries(turnLimitCounts).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,6);
+  const turnLimitHtml=commonTurnLimits.length?`<div class="ending-enemies"><span>Turn-limit enemies</span><div class="enemy-chips">${commonTurnLimits.map(([name,count])=>`<i>${esc(name)} <b>×${count}</b></i>`).join('')}</div></div>`:'';
+  return `<section class="result-card ${index===state.activeTeam?'active-result':''}"><div class="result-head"><div><span class="kicker">TEAM ${index+1}</span></div></div><div class="result-metrics"><div><span>Estimated Depth range</span><b>${full(r.estimatedFloorLow)} – ${full(r.estimatedFloorHigh)}</b></div><div><span>Median Depth</span><b>${one(r.medianFloor)}</b></div><div title="${full(r.auraPackLow)} – ${full(r.auraPackHigh)} Aura Packs"><span>Aura Pack reward</span><b>${compact(r.auraPackLow)} – ${compact(r.auraPackHigh)}</b><small>Median: ${compact(r.auraPackMedian)} packs</small></div><div title="One Aura Pack opens one Aura Card roll"><span>Aura cards</span><b>≈${compact(r.auraPackMedian)}</b><small>${compact(r.auraPackLow)}–${compact(r.auraPackHigh)} across the range · 1 card / pack</small></div><div><span>Estimated clear time</span><b>${duration(r.estimatedSecondsMedian)}</b><small>${duration(r.estimatedSecondsLow)}–${duration(r.estimatedSecondsHigh)} · Battle Speed 3${state.chronoShard?' + Chrono Shard':''} + Structure L${state.battleSpeedStructureLevel} + Skill Tree L${state.skillTreeBattleSpeedLevel} + floor scaling</small></div><div><span>Aura cards / hour</span><b>≈${compact(r.auraCardsPerHour)}</b><small>Using the median reward and estimated median clear time</small></div></div>${dropHtml}<div class="result-meta"><span>${r.runs.length} runs</span><span>${one(avgTurns)} avg turns</span><span>${team.elapsedMs<1000?`${Math.round(team.elapsedMs)} ms`:`${(team.elapsedMs/1000).toFixed(2)} s`} compute</span></div><div class="floor-strip">${r.runs.map((run,i)=>`<span role="button" tabindex="0" style="cursor:pointer" data-debug-team="${index}" data-debug-run="${i}" title="Run ${i+1}${run.turnLimitEnemy?' · TURN LIMIT vs '+run.turnLimitEnemy:''}${run.endingEnemies?.length?' · '+run.endingEnemies.join(' / '):''} · click for debug">${full(run.deathFloor)}</span>`).join('')}</div>${endingHtml}${turnLimitHtml}${r.unsupportedAbilities?.length?`<div class="result-warning">Unsupported: ${esc(r.unsupportedAbilities.join(', '))}</div>`:''}</section>`
+}
+  function showRunDebug(teamIndex,runIndex){
+    const run=state.teams[teamIndex]?.result?.runs?.[runIndex],d=run?.debug;if(!run)return;
+    const fmt=n=>Number.isFinite(Number(n))?Math.round(Number(n)).toLocaleString('en-US'):'?';
+    const compactDbg=n=>Number.isFinite(Number(n))?Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:2}).format(Number(n)).replace(/\s/g,'').toLowerCase():'?';
+    const compactText=value=>String(value??'').replace(/-?\b\d{4,}(?:\.\d+)?\b/g,raw=>compactDbg(Number(raw)));
+    const side=t=>t==='Allies'?'PLAYER':'ENEMY';
+    const visibleEvents=()=>d?.events||[];
+    const matchCard=c=>`<div class="dbg-match-card"><div><b>${esc(c.name)}</b><small>${esc(c.ability||'No ability')}</small></div><span>${compactDbg(c.hp)} HP · ${compactDbg(c.damage)} ATK</span></div>`;
+    const matchTeam=(list,label,kind)=>`<section class="dbg-match-team ${kind}"><div class="dbg-match-team-title">${label}</div><div class="dbg-match-cards">${list?.length?list.map(matchCard).join(''):'<div class="dbg-match-empty">No cards</div>'}</div></section>`;
+    const auraLine=()=>{const parts=[];if(d?.statAura)parts.push(`Stat Aura: ${esc(d.statAura.name)} · ${esc(d.statAura.border||'Base')}`);if(d?.abilityAura)parts.push(`Ability Aura: ${esc(d.abilityAura.name)} · ${esc(d.abilityAura.border||'Base')}`);return parts.length?`<div class="dbg-aura-line">${parts.join('<span>•</span>')}</div>`:''};
+    const parseTurn=e=>{
+      const m=String(e.detail||'').match(/^vs (.*?) \| attacker ([\d.-]+)\/([\d.-]+) HP ([\d.-]+) ATK \| defender ([\d.-]+)\/([\d.-]+) HP ([\d.-]+) ATK$/);
+      if(!m)return null;
+      return {target:m[1],aHp:Number(m[2]),aMax:Number(m[3]),aAtk:Number(m[4]),dHp:Number(m[5]),dMax:Number(m[6]),dAtk:Number(m[7])};
+    };
+    const hpPct=(hp,max)=>Math.max(0,Math.min(100,max>0?hp/max*100:0));
+    const fightCard=(name,hp,max,atk,align='left')=>`<div class="dbg-fighter ${align}"><div class="dbg-fighter-top"><b>${esc(name)}</b><span>${compactDbg(hp)} / ${compactDbg(max)} HP</span></div><div class="dbg-hp"><i style="width:${hpPct(hp,max)}%"></i></div><div class="dbg-fighter-atk">${compactDbg(atk)} ATK</div></div>`;
+    const eventLine=e=>{
+      if(e.type==='ability')return `<div class="dbg-interaction ability"><span>ABILITY</span><b>${esc(e.card)}</b><p>${esc(compactText(e.detail||''))}</p></div>`;
+      if(e.type==='death')return `<div class="dbg-interaction death"><span>DEATH</span><b>${esc(e.card)}</b><p>${esc(compactText(e.detail||'Card defeated'))}</p></div>`;
+      if(e.type==='revive')return `<div class="dbg-interaction revive"><span>REVIVE</span><b>${esc(e.card)}</b><p>${esc(compactText(e.detail||''))}</p></div>`;
+      if(e.type==='spawn')return `<div class="dbg-interaction spawn"><span>SPAWN</span><b>${esc(e.card)}</b><p>${esc(compactText(e.detail||''))}</p></div>`;
+      if(e.type==='stall')return `<div class="dbg-interaction stall"><span>STALL</span><b>${esc(e.card)}</b><p>${esc(compactText(e.detail||''))}</p></div>`;
+      return '';
+    };
+    const buildTimeline=()=>{
+      const groups=[];
+      for(const e of visibleEvents()){
+        let group=groups[groups.length-1];
+        if(!group||group.turn!==e.turn){group={turn:e.turn,events:[]};groups.push(group)}
+        group.events.push(e);
+      }
+      return groups.map(group=>{
+        const turnEvent=group.events.find(e=>e.type==='turn');
+        const parsed=turnEvent?parseTurn(turnEvent):null;
+        const extras=group.events.filter(e=>e.type!=='turn').map(eventLine).join('');
+        let fight='';
+        if(turnEvent&&parsed){
+          const playerAttacking=turnEvent.team==='Allies';
+          fight=playerAttacking
+            ?`<div class="dbg-fight player-attack">${fightCard(turnEvent.card,parsed.aHp,parsed.aMax,parsed.aAtk,'player')}<div class="dbg-vs"><i>→</i></div>${fightCard(parsed.target,parsed.dHp,parsed.dMax,parsed.dAtk,'enemy')}</div>`
+            :`<div class="dbg-fight enemy-attack">${fightCard(parsed.target,parsed.dHp,parsed.dMax,parsed.dAtk,'player')}<div class="dbg-vs"><i>←</i></div>${fightCard(turnEvent.card,parsed.aHp,parsed.aMax,parsed.aAtk,'enemy')}</div>`;
+        }else if(turnEvent){
+          fight=`<div class="dbg-fight-simple"><b>${esc(turnEvent.card)}</b><span>${esc(compactText(turnEvent.detail||''))}</span></div>`;
+        }
+        return `<section class="dbg-turn"><div class="dbg-turn-head"><b>TURN ${group.turn}</b>${turnEvent?`<span class="${turnEvent.team==='Allies'?'player':'enemy'}">${side(turnEvent.team)} TURN</span>`:'<span></span>'}<i></i></div>${fight}${extras?`<div class="dbg-interactions">${extras}</div>`:''}</section>`;
+      }).join('')||'<div class="dbg-empty">No battle events captured.</div>';
+    };
+    const plainText=()=>{
+      const lines=[];
+      lines.push(`TEAM ${teamIndex+1} · RUN ${runIndex+1} · DEATH FLOOR ${fmt(run.deathFloor)}`);
+      let last=null;
+      for(const e of visibleEvents()){
+        if(e.turn!==last){last=e.turn;lines.push('',`TURN ${e.turn}`)}
+        const parsed=e.type==='turn'?parseTurn(e):null;
+        if(parsed){
+          lines.push(`  ${side(e.team)} · ${e.card} → ${parsed.target}`);
+          lines.push(`    ${e.card}: ${compactDbg(parsed.aHp)}/${compactDbg(parsed.aMax)} HP · ${compactDbg(parsed.aAtk)} ATK`);
+          lines.push(`    ${parsed.target}: ${compactDbg(parsed.dHp)}/${compactDbg(parsed.dMax)} HP · ${compactDbg(parsed.dAtk)} ATK`);
+        }else if(e.type!=='turn'){
+          lines.push(`  [${e.type.toUpperCase()}] ${e.card}: ${compactText(e.detail||'')}`);
+        }
+      }
+      return lines.join('\n');
+    };
+    const dialog=document.createElement('dialog');dialog.className='dbg-dialog';
+    dialog.innerHTML=`<div class="dbg-shell"><div class="dbg-head"><div><span class="dbg-kicker">BATTLE DEBUG</span><h3>Team ${teamIndex+1} · Run ${runIndex+1}</h3><div class="dbg-sub">Death floor ${fmt(run.deathFloor)}</div></div><div class="dbg-actions"><button data-dbg-copy>Copy debug</button><button data-dbg-close>Close</button></div></div><div class="dbg-scroll"><div class="dbg-matchup">${matchTeam(d?.initialAllies,'YOUR TEAM','player')}<div class="dbg-match-vs">VS</div>${matchTeam(d?.initialEnemies,'ENEMY TEAM','enemy')}</div>${auraLine()}<div data-dbg-timeline></div></div></div>`;
+    document.body.appendChild(dialog);
+    const timeline=dialog.querySelector('[data-dbg-timeline]'),copy=dialog.querySelector('[data-dbg-copy]'),close=dialog.querySelector('[data-dbg-close]');
+    timeline.innerHTML=buildTimeline();
+    dialog.showModal();
+    copy.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(plainText());copy.textContent='Copied!';setTimeout(()=>{if(copy.isConnected)copy.textContent='Copy debug'},900)}catch(_){}});
+    close.addEventListener('click',()=>{dialog.close();dialog.remove()});
+    dialog.addEventListener('cancel',()=>dialog.remove());
+  }
+  const sanitizeBanList=list=>Array.isArray(list)?[...new Set(list.map(String))].filter(name=>depthBanEligible(cardByName(name))).slice(0,MAX_DEPTH_BANS):[];
+  function setActiveDepthBans(list){const next=sanitizeBanList(list);state.depthBanLayouts[state.activeDepthBanLayout]=next;state.depthBans=next}
+  function clearDepthResults(){state.teams.forEach(t=>{t.result=null;t.elapsedMs=0;t.lastError=''})}
+  function encodeBanLayouts(){const payload={v:2,bans:sanitizeBanList(state.depthBans)},bytes=new TextEncoder().encode(JSON.stringify(payload));let binary='';for(const byte of bytes)binary+=String.fromCharCode(byte);return 'CRB1-'+btoa(binary)}
+  function decodeBanLayouts(code){const raw=String(code||'').trim();if(!raw.startsWith('CRB1-'))throw new Error('Ban code must start with CRB1-');let payload;try{const binary=atob(raw.slice(5)),bytes=Uint8Array.from(binary,ch=>ch.charCodeAt(0));payload=JSON.parse(new TextDecoder().decode(bytes))}catch(_){throw new Error('Invalid ban code')}if(!payload)throw new Error('Unsupported ban code');if(payload.v===2&&Array.isArray(payload.bans))return sanitizeBanList(payload.bans);if(payload.v===1&&Array.isArray(payload.layouts)){const source=Math.max(0,Math.min(3,Math.floor(Number(payload.active)||0)));return sanitizeBanList(payload.layouts[source])}throw new Error('Unsupported ban code')}
+  function persist(){try{localStorage.setItem(STORAGE,JSON.stringify({teams:state.teams.map(t=>({cards:t.cards,statAura:t.statAura,statAuraBorder:t.statAuraBorder,abilityAura:t.abilityAura,abilityAuraBorder:t.abilityAuraBorder})),activeTeam:state.activeTeam,depthBanLayouts:state.depthBanLayouts,activeDepthBanLayout:state.activeDepthBanLayout,bountifulDepths:state.bountifulDepths,chronoShard:state.chronoShard,battleSpeedStructureLevel:state.battleSpeedStructureLevel,skillTreeBattleSpeedLevel:state.skillTreeBattleSpeedLevel,runs:state.runs,startFloor:state.startFloor,seed:state.seed,towerExcludedCards:state.towerExcludedCards,towerAddedCards:state.towerAddedCards,towerHasEndTimes:state.towerHasEndTimes}))}catch(_){}}
+  function restore(){try{const s=JSON.parse(localStorage.getItem(STORAGE)||'null');if(!s)return;if(Array.isArray(s.teams))state.teams=Array.from({length:5},(_,i)=>{const src=s.teams[i],t=blankTeam();if(!src)return t;t.cards=Array.from({length:4},(_,j)=>({cardName:src.cards?.[j]?.cardName||'',borders:Array.isArray(src.cards?.[j]?.borders)?src.cards[j].borders.filter(b=>CARD_BORDERS.includes(b)):[],mutationWeather:MUTATION_WEATHERS.includes(src.cards?.[j]?.mutationWeather)?src.cards[j].mutationWeather:''}));t.statAura=src.statAura||'';t.statAuraBorder=AURA_BORDERS.includes(src.statAuraBorder)?src.statAuraBorder:'';t.abilityAura=src.abilityAura||'';t.abilityAuraBorder=AURA_BORDERS.includes(src.abilityAuraBorder)?src.abilityAuraBorder:'';return t});state.activeTeam=Math.min(4,Math.max(0,Number(s.activeTeam)||0));state.runs=[1,3,8,15,30,50].includes(Number(s.runs))?Number(s.runs):15;state.startFloor=Math.min(40000,Math.max(1,Math.floor(Number(s.startFloor)||1)));state.cap=100000;state.seed=Number(s.seed)||1000;state.bountifulDepths=Boolean(s.bountifulDepths);state.chronoShard=s.chronoShard!==false;state.battleSpeedStructureLevel=Math.max(0,Math.min(7,Number(s.battleSpeedStructureLevel)||0));state.skillTreeBattleSpeedLevel=Math.max(0,Math.min(4,Number(s.skillTreeBattleSpeedLevel)||0));state.rebanLegacyDepths=false;state.depthBanLayouts=Array.isArray(s.depthBanLayouts)?Array.from({length:4},(_,i)=>sanitizeBanList(s.depthBanLayouts[i])):[sanitizeBanList(s.depthBans),[],[],[]];state.activeDepthBanLayout=Math.max(0,Math.min(3,Math.floor(Number(s.activeDepthBanLayout)||0)));state.depthBans=state.depthBanLayouts[state.activeDepthBanLayout];state.towerExcludedCards=Array.isArray(s.towerExcludedCards)?[...new Set(s.towerExcludedCards.map(String))].filter(name=>TOWER_DEFAULT_CHEESE_CARDS.includes(name)):[];state.towerAddedCards=Array.isArray(s.towerAddedCards)?[...new Set(s.towerAddedCards.map(String))].filter(name=>{const card=cardByName(name);return Boolean(card&&!card.unobtainable&&!TOWER_DEFAULT_CHEESE_CARDS.includes(name))}):[];state.towerHasEndTimes=s.towerHasEndTimes!==false;}catch(_){}}
+  function render(){if(state.view==='tower')return renderTower();const team=current(),q=searchKey(state.query).trim(),banQ=searchKey(state.depthBanQuery).trim(),banCandidates=state.cards.filter(depthBanEligible).filter(c=>!state.depthBans.includes(c.name)).filter(c=>banQ&&(searchKey(c.name).includes(banQ)||searchKey(c.ability||'').includes(banQ))).sort((a,b)=>a.name.localeCompare(b.name)).slice(0,8),shown=state.cards.filter(c=>!c.unobtainable||c.name==='Conqueror').filter(c=>!q||searchKey(c.name).includes(q)||searchKey(c.ability||'').includes(q)).sort((a,b)=>b.rarity-a.rarity).slice(0,100),ready=state.teams.filter(complete).length,results=state.teams.map(resultCard).filter(Boolean).join('');root.innerHTML=`<main class="shell"><header class="topbar"><div><p class="kicker">CARD RNG EXPANSION</p><h1>Depths Calculator</h1></div></header><div class="team-tabs">${state.teams.map((t,i)=>`<button data-team-tab="${i}" class="${i===state.activeTeam?'on':''}"><span>Team ${i+1}</span><i>${t.result?`Range ${compact(t.result.estimatedFloorLow)}–${compact(t.result.estimatedFloorHigh)}`:complete(t)?'Ready':'Empty'}</i></button>`).join('')}<button data-tower-tab class="tower-tab"><span>Tower</span><i>Cheese maker</i></button><button data-duplicate class="tab-action">Duplicate</button></div><section class="workspace"><article class="panel loadout"><div class="panel-head"><div><span class="kicker">LOADOUT</span><h3>Team ${state.activeTeam+1}</h3></div><div class="panel-actions"><button class="text-button" data-copy-team>Copy code</button><button class="text-button" data-import-team>Import code</button><button class="text-button danger-lite" data-clear-team>Clear team</button></div></div><div class="team-list">${team.cards.map((slot,index)=>{const card=cardByName(slot.cardName);if(!card)return `<div class="team-row empty-team-card ${state.activeSlot===index?'active':''}" data-slot="${index}" draggable="true" title="Drag to reorder team slots"><span class="slot">0${index+1}</span>${portrait(null,'portrait')}<span class="card-copy"><span class="name-line"><b>Select a card</b></span><span class="numbers">Choose from the library</span></span></div>`;const mutation=mutationEligible(card)?(slot.mutationWeather||''):'';if(!mutationEligible(card)&&slot.mutationWeather)slot.mutationWeather='';const hp=getHealth(card,slot.borders,mutation),atk=getAttack(card,slot.borders,mutation);return `<div class="team-row ${state.activeSlot===index?'active':''}" data-slot="${index}" draggable="true" title="Drag to reorder team slots" data-tooltip-card="${esc(card.name)}" data-tooltip-slot="${index}"><span class="slot">0${index+1}</span>${portrait(card,'portrait')}<span class="card-copy"><span class="name-line"><b>${esc(card.name)}</b><em>${esc(card.ability||'No ability')}</em></span><span class="numbers"><i><b>${compact(hp)}</b> HP</i><i><b>${compact(atk)}</b> ATK</i>${mutation?`<i><b>${esc(mutation)}</b> ×${MUTATION_MULT[mutation]} Mutation</i>`:''}</span><span class="border-pills">${CARD_BORDERS.map(b=>`<label class="${slot.borders.includes(b)?'on':''}" data-border="${b}" data-border-slot="${index}">${b}</label>`).join('')}</span>${mutationEligible(card)?`<label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:8px;color:#8291a1">Mutation <select data-mutation-slot="${index}" style="min-width:0;max-width:160px;background:#0d151e;color:#dce4ed;border:1px solid #26384a;border-radius:6px;padding:4px 6px"><option value="">None</option>${MUTATION_WEATHERS.map(w=>`<option value="${esc(w)}" ${mutation===w?'selected':''}>${esc(w)} · ×${MUTATION_MULT[w]}</option>`).join('')}</select></label>`:''}</span></div>`}).join('')}</div><div class="aura-grid">${auraBlock('Stat','Stat Aura','statAura','statAuraBorder')}${auraBlock('Skill','Ability Aura','abilityAura','abilityAuraBorder')}</div></article><article class="panel library"><div class="panel-head"><div><span class="kicker">Cards</span><h3>Team ${state.activeSlot+1}</h3></div><small>${shown.length} shown</small></div><input class="search" id="cardSearch" value="${esc(state.query)}" placeholder="Search card or ability…" autocomplete="off"><div class="library-list">${shown.length?shown.map(card=>`<button data-card="${esc(card.name)}" data-tooltip-card="${esc(card.name)}" class="${team.cards[state.activeSlot]?.cardName===card.name?'selected':''}">${portrait(card)}<span><b>${esc(card.name)}</b><small>${esc(card.ability||'No ability')}</small></span><em>1 / ${compact(card.rarity)}</em></button>`).join(''):'<div class="empty-state">No matching cards.</div>'}</div></article><article class="panel simulation"><div class="panel-head"><div><span class="kicker">DEPTHS TEST</span><h3>Run simulator</h3></div><small>${ready}/5 teams ready</small></div><div class="simulation-body"><div class="sim-field"><span>Runs per team</span><div class="run-options">${[1,3,8,15,30,50].map(n=>`<button data-runs="${n}" class="${state.runs===n?'on':''}">${n}</button>`).join('')}</div></div><label class="sim-field"><span>Start floor</span><input id="startFloorInput" type="number" min="1" max="40000" step="1" value="${state.startFloor}"><small style="display:block;color:#657487;font-size:8px;line-height:1.45;margin-top:5px">Skips floors below this during simulation. Use a floor you know the team safely clears. Max 40,000.</small></label><label class="sim-field"><span>Floor cap</span><input id="capInput" type="number" min="100000" max="100000" value="100000" readonly aria-readonly="true" tabindex="-1" title="Depths is fixed at a 100,000 floor cap"></label><label class="sim-field"><span>Battle Speed Structure</span><select id="battleSpeedStructureLevel" style="width:100%;color:var(--text);background:var(--surface-1);border:1px solid var(--line-strong);border-radius:10px;padding:11px 12px;outline:none">${Array.from({length:8},(_,level)=>`<option value="${level}" ${state.battleSpeedStructureLevel===level?'selected':''}>Level ${level} · +${(level*.25).toFixed(2)} Battle Speed</option>`).join('')}</select></label><label class="sim-field"><span>Skill Tree Battle Speed</span><select id="skillTreeBattleSpeedLevel" style="width:100%;color:var(--text);background:var(--surface-1);border:1px solid var(--line-strong);border-radius:10px;padding:11px 12px;outline:none">${[0,.5,1,1.5,2.5].map((bonus,level)=>`<option value="${level}" ${state.skillTreeBattleSpeedLevel===level?'selected':''}>Level ${level} · +${bonus.toFixed(2)} Battle Speed</option>`).join('')}</select><small style="display:block;color:#657487;font-size:8px;line-height:1.45;margin-top:5px">Skill Tree values: +0.50, +0.50, +0.50, then +1.00 at level 4.</small></label><div class="relic-toggle ${state.chronoShard?'on':''}"><div><span>Chrono Shard</span><small>Relic · +1 Battle Speed. Turn this off if you do not own/use the relic.</small></div><button type="button" data-chrono-shard>${state.chronoShard?'ON':'OFF'}</button></div><div class="relic-toggle ${state.bountifulDepths?'on':''}"><div><span>Bountiful Depths</span><small>Relic · +25% potion drop chance. This changes reward estimates only, not combat.</small></div><button type="button" data-bountiful-depths>${state.bountifulDepths?'ON':'OFF'}</button></div><div class="depth-ban-box"><div class="depth-ban-layouts"><div class="depth-ban-layout-tabs">${state.depthBanLayouts.map((bans,i)=>`<button type="button" data-depth-ban-layout="${i}" class="${state.activeDepthBanLayout===i?'on':''}"><span>Ban ${i+1}</span><small>${bans.length}/${MAX_DEPTH_BANS}</small></button>`).join('')}</div><div class="depth-ban-layout-actions"><button type="button" data-depth-bans-export>Export Bans</button><button type="button" data-depth-bans-import>Import Bans</button></div></div><div class="depth-ban-head"><div class="depth-ban-title"><span>Depth bans · Ban ${state.activeDepthBanLayout+1}</span></div><div>${state.depthBans.length?'<button type="button" class="depth-ban-clear" data-depth-ban-clear>Clear</button>':''} <b>${state.depthBans.length}/${MAX_DEPTH_BANS}</b></div></div><small>Optional player ban slots. Choose anywhere from 0 to 14. Vampire Lord, Parallax, and Samurai are permanently banned and do not use these slots.</small>${state.depthBans.length?`<div class="depth-ban-chips">${state.depthBans.map((name,i)=>`<button type="button" class="depth-ban-chip" data-depth-ban-remove="${i}" title="Remove ${esc(name)} ban">${esc(name)} ×</button>`).join('')}</div>`:''}<div class="depth-ban-search"><input id="depthBanSearch" value="${esc(state.depthBanQuery)}" placeholder="${state.depthBans.length>=MAX_DEPTH_BANS?'14/14 bans selected':'Search a card to ban…'}" autocomplete="off" ${state.depthBans.length>=MAX_DEPTH_BANS?'disabled':''}>${banQ&&state.depthBans.length<MAX_DEPTH_BANS?`<div class="depth-ban-suggestions">${banCandidates.length?banCandidates.map(c=>`<button type="button" data-depth-ban-add="${esc(c.name)}"><span>${esc(c.name)}</span><small>${esc(c.ability||'No ability')}</small></button>`).join(''):'<small>No eligible Depth enemies found.</small>'}</div>`:''}</div></div><div class="sim-actions">${state.running?`<button class="secondary-run" disabled>${esc(state.runningLabel||'Starting simulation…')}</button><button class="sim-run" data-cancel-run>Cancel simulation</button>`:`<button class="secondary-run" data-run-active ${!complete(team)?'disabled':''}>Test Team ${state.activeTeam+1}</button><button class="sim-run" data-run-ready ${ready===0?'disabled':''}>Test ${ready} Ready Team${ready===1?'':'s'}</button>`}</div>${state.running?`<p class="sim-footnote">Runs execute in parallel. Long battles show the exact enemy lineup; 150-turn no-progress matchups resolve using the previous behavior; any battle that reaches 10,000 total turns ends as a loss instead of hanging.</p>`:''}</div></article></section><section class="results-panel"><div class="results-title"><div><span class="kicker">DEPTHS TEST RESULTS</span><h3>${results?'Team comparison':'No simulations yet'}</h3></div>${results?'<button class="text-button" data-clear-results>Clear results</button>':''}</div>${results?`<div class="result-grid">${results}</div>`:'<div class="results-empty">Build a complete four-card team, choose any auras you use, then run a test.</div>'}</section><footer><span>Card RNG Expansion Depths Calculator</span></footer></main>`;bindEvents();bindTooltips()}
+  function bindEvents(){root.querySelector('[data-tower-tab]')?.addEventListener('click',()=>{state.view='tower';state.towerResult=null;render()});root.querySelectorAll('[data-debug-run]').forEach(el=>{const open=()=>showRunDebug(Number(el.dataset.debugTeam),Number(el.dataset.debugRun));el.addEventListener('click',open);el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open()}})});root.querySelectorAll('[data-team-tab]').forEach(el=>el.addEventListener('click',()=>{state.activeTeam=Number(el.dataset.teamTab);state.activeSlot=0;persist();render()}));root.querySelector('[data-duplicate]')?.addEventListener('click',()=>{const dst=(state.activeTeam+1)%5,src=current();state.teams[dst]={...blankTeam(),cards:src.cards.map(s=>({cardName:s.cardName,borders:[...s.borders],mutationWeather:s.mutationWeather||''})),statAura:src.statAura,statAuraBorder:src.statAuraBorder,abilityAura:src.abilityAura,abilityAuraBorder:src.abilityAuraBorder};state.activeTeam=dst;state.activeSlot=0;persist();render()});root.querySelector('[data-copy-team]')?.addEventListener('click',async()=>{const code=encodeTeam(current());try{await navigator.clipboard.writeText(code);const button=root.querySelector('[data-copy-team]');if(button){button.textContent='Copied!';setTimeout(()=>{if(button.isConnected)button.textContent='Copy code'},900)}}catch(_){prompt('Copy this team code:',code)}});root.querySelector('[data-import-team]')?.addEventListener('click',()=>{const code=prompt('Paste a CRE1 team code:');if(!code)return;try{state.teams[state.activeTeam]=decodeTeam(code);state.activeSlot=0;persist();render()}catch(error){alert(`Could not import team: ${error.message||error}`)}});root.querySelector('[data-clear-team]')?.addEventListener('click',()=>{state.teams[state.activeTeam]=blankTeam();state.activeSlot=0;persist();render()});root.querySelector('[data-clear-results]')?.addEventListener('click',()=>{state.teams.forEach(t=>{t.result=null;t.elapsedMs=0;t.lastError=''});render()});let draggedSlot=null;const clearDragStyles=()=>root.querySelectorAll('[data-slot]').forEach(row=>row.classList.remove('dragging','drop-target'));root.querySelectorAll('[data-slot]').forEach(el=>{el.addEventListener('click',e=>{if(e.target.closest('[data-border],[data-mutation-slot]'))return;state.activeSlot=Number(el.dataset.slot);render()});el.addEventListener('dragstart',e=>{if(e.target.closest('[data-border],[data-mutation-slot]')){e.preventDefault();return}draggedSlot=Number(el.dataset.slot);el.classList.add('dragging');if(e.dataTransfer){e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',String(draggedSlot))}});el.addEventListener('dragover',e=>{if(draggedSlot===null)return;e.preventDefault();if(e.dataTransfer)e.dataTransfer.dropEffect='move';root.querySelectorAll('[data-slot]').forEach(row=>row.classList.toggle('drop-target',row===el&&Number(el.dataset.slot)!==draggedSlot))});el.addEventListener('drop',e=>{if(draggedSlot===null)return;e.preventDefault();const to=Number(el.dataset.slot),from=draggedSlot;clearDragStyles();draggedSlot=null;if(!Number.isInteger(from)||!Number.isInteger(to)||from===to)return;const cards=current().cards;[cards[from],cards[to]]=[cards[to],cards[from]];state.activeSlot=to;current().result=null;persist();render()});el.addEventListener('dragend',()=>{draggedSlot=null;clearDragStyles()})});root.querySelectorAll('[data-border]').forEach(el=>el.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();const slot=current().cards[Number(el.dataset.borderSlot)],b=el.dataset.border;slot.borders=slot.borders.includes(b)?slot.borders.filter(x=>x!==b):[...slot.borders,b];current().result=null;persist();render()}));root.querySelectorAll('[data-mutation-slot]').forEach(el=>el.addEventListener('change',e=>{e.stopPropagation();const slot=current().cards[Number(el.dataset.mutationSlot)];slot.mutationWeather=MUTATION_WEATHERS.includes(el.value)?el.value:'';current().result=null;persist();render()}));root.querySelectorAll('[data-card]').forEach(el=>el.addEventListener('click',()=>{const slot=current().cards[state.activeSlot];slot.cardName=el.dataset.card;if(!mutationEligible(cardByName(slot.cardName)))slot.mutationWeather='';current().result=null;persist();render()}));const search=root.querySelector('#cardSearch');search?.addEventListener('input',()=>{state.query=search.value;render();requestAnimationFrame(()=>{const n=root.querySelector('#cardSearch');n?.focus();n?.setSelectionRange(n.value.length,n.value.length)})});root.querySelectorAll('[data-aura-select]').forEach(el=>el.addEventListener('change',()=>{current()[el.dataset.auraSelect]=el.value;current().result=null;persist();render()}));root.querySelectorAll('[data-aura-border]').forEach(el=>el.addEventListener('click',()=>{current()[el.dataset.auraBorderKey]=el.dataset.auraBorder;current().result=null;persist();render()}));root.querySelector('[data-chrono-shard]')?.addEventListener('click',()=>{state.chronoShard=!state.chronoShard;state.teams.forEach(t=>{t.result=null;t.elapsedMs=0;t.lastError=''});persist();render()});root.querySelector('[data-bountiful-depths]')?.addEventListener('click',()=>{state.bountifulDepths=!state.bountifulDepths;clearDepthResults();persist();render()});root.querySelectorAll('[data-depth-ban-layout]').forEach(el=>el.addEventListener('click',()=>{const next=Math.max(0,Math.min(3,Number(el.dataset.depthBanLayout)||0));if(next===state.activeDepthBanLayout)return;state.activeDepthBanLayout=next;state.depthBans=state.depthBanLayouts[next];state.depthBanQuery='';clearDepthResults();persist();render()}));root.querySelector('[data-depth-bans-export]')?.addEventListener('click',async()=>{const code=encodeBanLayouts(),button=root.querySelector('[data-depth-bans-export]');try{await navigator.clipboard.writeText(code);if(button){button.textContent='Copied!';setTimeout(()=>{if(button.isConnected)button.textContent='Export Bans'},900)}}catch(_){prompt('Copy this CRB1 ban code:',code)}});root.querySelector('[data-depth-bans-import]')?.addEventListener('click',()=>{const code=prompt(`Paste a CRB1 ban code into Ban ${state.activeDepthBanLayout+1}:`);if(!code)return;try{setActiveDepthBans(decodeBanLayouts(code));state.depthBanQuery='';clearDepthResults();persist();render()}catch(error){alert(`Could not import bans: ${error.message||error}`)}});root.querySelectorAll('[data-depth-ban-add]').forEach(el=>el.addEventListener('click',()=>{if(state.depthBans.length>=MAX_DEPTH_BANS)return;const name=el.dataset.depthBanAdd,card=cardByName(name);if(!depthBanEligible(card)||state.depthBans.includes(name))return;setActiveDepthBans([...state.depthBans,name]);state.depthBanQuery='';clearDepthResults();persist();render()}));root.querySelectorAll('[data-depth-ban-remove]').forEach(el=>el.addEventListener('click',()=>{setActiveDepthBans(state.depthBans.filter((_,i)=>i!==Number(el.dataset.depthBanRemove)));clearDepthResults();persist();render()}));root.querySelector('[data-depth-ban-clear]')?.addEventListener('click',()=>{setActiveDepthBans([]);state.depthBanQuery='';clearDepthResults();persist();render()});const banSearch=root.querySelector('#depthBanSearch');banSearch?.addEventListener('input',()=>{state.depthBanQuery=banSearch.value;render();requestAnimationFrame(()=>{const n=root.querySelector('#depthBanSearch');n?.focus();n?.setSelectionRange(n.value.length,n.value.length)})});root.querySelectorAll('[data-runs]').forEach(el=>el.addEventListener('click',()=>{state.runs=Number(el.dataset.runs);persist();render()}));const startFloorInput=root.querySelector('#startFloorInput');startFloorInput?.addEventListener('change',()=>{state.startFloor=Math.min(40000,Math.max(1,Math.floor(Number(startFloorInput.value)||1)));clearDepthResults();persist();render()});root.querySelector('#battleSpeedStructureLevel')?.addEventListener('change',e=>{state.battleSpeedStructureLevel=Math.max(0,Math.min(7,Number(e.target.value)||0));state.teams.forEach(t=>{t.result=null;t.elapsedMs=0;t.lastError=''});persist();render()});root.querySelector('#skillTreeBattleSpeedLevel')?.addEventListener('change',e=>{state.skillTreeBattleSpeedLevel=Math.max(0,Math.min(4,Number(e.target.value)||0));state.teams.forEach(t=>{t.result=null;t.elapsedMs=0;t.lastError=''});persist();render()});root.querySelector('[data-run-active]')?.addEventListener('click',()=>runTeams([state.activeTeam]));root.querySelector('[data-run-ready]')?.addEventListener('click',()=>runTeams(state.teams.map((t,i)=>complete(t)?i:-1).filter(i=>i>=0)));root.querySelector('[data-cancel-run]')?.addEventListener('click',cancelSimulation)}
+function bindTooltips(){const show=el=>{const card=cardByName(el.dataset.tooltipCard);if(!card)return;const desc=state.abilities[card.ability]||'No ability description found.',slotIndex=Number(el.dataset.tooltipSlot),slot=Number.isInteger(slotIndex)&&slotIndex>=0?current().cards[slotIndex]:null,borders=slot?.cardName===card.name&&Array.isArray(slot.borders)?slot.borders:[],mutation=slot?.cardName===card.name&&MUTATION_WEATHERS.includes(slot?.mutationWeather)?slot.mutationWeather:'',rarity=rarityWithBorders(card,borders),rarityLabel=borders.length?'Modified rarity':'Base rarity';tooltip.innerHTML=`<div class="tip-name">${esc(card.name)}</div><div class="tip-ability">${esc(card.ability||'No ability')}</div><div class="tip-desc">${esc(desc)}</div><div class="tip-rarity">${rarityLabel}: 1 / ${rarityCompact(rarity||0)}${mutation?` · ${esc(mutation)} Mutation ×${MUTATION_MULT[mutation]}`:''}</div>`;tooltip.classList.add('show');const r=el.getBoundingClientRect(),w=Math.min(320,window.innerWidth-24);let left=r.right+10;if(left+w>window.innerWidth-12)left=Math.max(12,r.left-w-10);tooltip.style.left=`${left}px`;tooltip.style.top=`${Math.min(window.innerHeight-180,Math.max(12,r.top))}px`};const hide=()=>tooltip.classList.remove('show');root.querySelectorAll('[data-tooltip-card]').forEach(el=>{el.addEventListener('mouseenter',()=>show(el));el.addEventListener('mouseleave',hide);el.addEventListener('focus',()=>show(el));el.addEventListener('blur',hide)})}
+  let towerWorker=null,towerRequestId=0,towerPendingId=0,towerSearchWorkers=[],towerSearchToken=0,towerSearchLastRender=0;
+  function startTowerWorker(){
+    try{
+      towerWorker=new Worker(versioned('./browser/tower-worker.js'));
+      towerWorker.onmessage=e=>{
+        if(e.data?.id!==towerPendingId)return;
+        if(e.data.kind==='tower-progress'){
+          state.towerSimLabel=`${full(e.data.completed||0)} / ${full(e.data.total||state.towerRuns)}`;
+          render();
+          return;
+        }
+        if(e.data.kind==='tower-cheese-progress'){
+          state.towerSearchRunning=true;state.towerSearchLabel=`${e.data.phase||'search'} ${full(e.data.completed||0)} / ${full(e.data.total||0)}`;
+          state.towerSearch={...(state.towerSearch||{}),progress:e.data};render();return;
+        }
+        if(e.data.kind==='tower-cheese-result'){
+          state.towerSearchRunning=false;state.towerSearchLabel='';towerPendingId=0;
+          state.towerSearch=e.data.ok?e.data.result:{error:e.data.error||'Tower cheese search failed.'};render();return;
+        }
+        state.towerSimRunning=false;state.towerSimLabel='';towerPendingId=0;
+        if(e.data.ok)state.towerSim={...e.data.result,elapsedMs:e.data.elapsedMs};
+        else state.towerSim={error:e.data.error||'Tower simulation failed.'};
+        render();
+      };
+      towerWorker.onerror=e=>{const searching=state.towerSearchRunning;state.towerSimRunning=false;state.towerSimLabel='';state.towerSearchRunning=false;state.towerSearchLabel='';towerPendingId=0;if(searching)state.towerSearch={error:e.message||'Tower cheese search worker failed.'};else state.towerSim={error:e.message||'Tower simulation worker failed.'};render()};
+    }catch(_){towerWorker=null}
+  }
+  function combineTowerSearchResults(results){
+    const recommendations=[],candidatePool=new Set();let combinations=0,battleSimulations=0;
+    for(const result of results){if(!result)continue;combinations+=Number(result.combinations)||0;battleSimulations+=Number(result.battleSimulations)||0;for(const name of result.candidatePool||[])candidatePool.add(name);for(const rec of result.recommendations||[])recommendations.push(rec)}
+    recommendations.sort((a,b)=>(Number(b.winRate)||0)-(Number(a.winRate)||0)||(Number(b.progress)||0)-(Number(a.progress)||0)||(Number(a.averageTurns)||0)-(Number(b.averageTurns)||0));
+    return {recommendations:recommendations.slice(0,10),anchorCards:[],candidatePool:[...candidatePool],combinations,battleSimulations};
+  }
+  function startParallelTowerCheeseSearch(seed){
+    const workerCount=Math.min(8,Math.max(2,Number(navigator.hardwareConcurrency)||4)),token=++towerSearchToken,results=Array(workerCount).fill(null),progress=Array.from({length:workerCount},()=>({completed:0,total:0,battleSimulations:0}));let finished=0,failed=false;
+    towerSearchWorkers.forEach(worker=>worker.terminate());towerSearchWorkers=[];towerSearchLastRender=0;
+    const refreshProgress=phase=>{const completed=progress.reduce((sum,p)=>sum+(Number(p.completed)||0),0),total=progress.reduce((sum,p)=>sum+(Number(p.total)||0),0),battles=progress.reduce((sum,p)=>sum+(Number(p.battleSimulations)||0),0);state.towerSearch={...(state.towerSearch||{}),progress:{phase:phase||'exhaustive',completed,total,battleSimulations:battles,workers:workerCount}};state.towerSearchLabel=`${workerCount} workers · ${full(completed)} / ${full(total)}`;const now=performance.now();if(now-towerSearchLastRender>120){towerSearchLastRender=now;render()}};
+    const fail=message=>{if(failed||token!==towerSearchToken)return;failed=true;towerSearchWorkers.forEach(worker=>worker.terminate());towerSearchWorkers=[];state.towerSearchRunning=false;state.towerSearchLabel='';state.towerSearch={error:message||'Parallel Tower cheese search failed.'};render()};
+    for(let shardIndex=0;shardIndex<workerCount;shardIndex++){
+      const worker=new Worker(versioned('./browser/tower-worker.js'));towerSearchWorkers.push(worker);
+      worker.onmessage=e=>{if(failed||token!==towerSearchToken)return;const data=e.data||{};if(data.kind==='tower-cheese-progress'){progress[shardIndex]={completed:data.completed||0,total:data.total||0,battleSimulations:data.battleSimulations||0};refreshProgress(data.phase);return}if(data.kind!=='tower-cheese-result')return;if(!data.ok){fail(data.error);return}results[shardIndex]=data.result;finished+=1;worker.terminate();if(finished<workerCount){refreshProgress('verify');return}towerSearchWorkers=[];state.towerSearchRunning=false;state.towerSearchLabel='';state.towerSearch=combineTowerSearchResults(results);render()};
+      worker.onerror=e=>fail(e.message||'Parallel Tower cheese search worker failed.');
+      const shardSeed=(seed^Math.imul(shardIndex+1,0x9e3779b1))>>>0;
+      worker.postMessage({id:token,kind:'tower-cheese-search',enemyNames:[...state.towerEnemies],floor:state.towerFloor,difficulty:state.towerDifficulty,seed:shardSeed||seed,intensive:true,excludedCards:[...state.towerExcludedCards],addedCards:[...state.towerAddedCards],hasEndTimes:state.towerHasEndTimes,shardIndex,shardCount:workerCount});
+    }
+    refreshProgress('exhaustive');
+  }
+  function runTowerCheeseSearch(mode='quick'){
+    if(state.towerSearchRunning||state.towerSimRunning)return;
+    const inputs=[...root.querySelectorAll('[data-tower-enemy]')];state.towerEnemies=inputs.map(el=>el.value.trim());
+    const missing=state.towerEnemies.find(name=>!cardByName(name));
+    if(missing!==undefined){state.towerSearch={error:missing?`Unknown card: ${missing}. Choose a card from the list.`:'All four enemy cards are required.'};render();return}
+    if(!towerWorker)startTowerWorker();
+    if(!towerWorker){state.towerSearch={error:'Tower search worker is unavailable. Refresh and try again.'};render();return}
+    const seed=randomSeed();
+    state.towerResult=null;state.towerSim=null;state.towerSearchMode=mode==='intensive'?'intensive':'quick';state.towerSearch={progress:{phase:state.towerSearchMode==='intensive'?'exhaustive':'quick',completed:0,total:0,battleSimulations:0}};state.towerSearchRunning=true;state.towerSearchLabel=state.towerSearchMode==='intensive'?'Starting 1M+ search…':'Starting quick search…';
+    if(state.towerSearchMode==='intensive'){startParallelTowerCheeseSearch(seed);render();return}
+    towerPendingId=++towerRequestId;
+    towerWorker.postMessage({id:towerPendingId,kind:'tower-cheese-search',enemyNames:[...state.towerEnemies],floor:state.towerFloor,difficulty:state.towerDifficulty,seed,intensive:false,excludedCards:[...state.towerExcludedCards],addedCards:[...state.towerAddedCards],hasEndTimes:state.towerHasEndTimes});
+    render();
+  }
+  function cancelTowerCheeseSearch(){
+    if(!state.towerSearchRunning)return;
+    towerSearchToken+=1;if(towerSearchWorkers.length){towerSearchWorkers.forEach(worker=>worker.terminate());towerSearchWorkers=[]}else if(towerWorker){towerWorker.terminate();towerWorker=null}
+    towerPendingId=0;state.towerSearchRunning=false;state.towerSearchLabel='';state.towerSearch={error:'Tower cheese search cancelled.'};if(!towerWorker)startTowerWorker();render();
+  }
+  function loadTowerCheeseRecommendation(index){
+    const rec=state.towerSearch?.recommendations?.[index];if(!rec)return;
+    state.towerResult={picks:rec.loadout.cards.map((slot,i)=>{const enemy=cardByName(state.towerEnemies[i]);return {enemy:state.towerEnemies[i],enemyAbility:enemy?.ability||'No ability',pick:slot.cardName,reason:'Selected by simulated Tower cheese search.',threat:{}}}),endTimesNeeded:rec.loadout.abilityAura?.auraName==='End Times',blockers:0,prophetIndex:-1,parallaxIndex:-1,kuchisakeIndex:-1,overflowBufferIndex:-1};
+    resetTowerLoadout(rec.loadout.abilityAura?.auraName||'');render();
+  }
+  function towerLoadout(){
+    const result=state.towerResult;if(!result?.picks)return null;
+    return {cards:result.picks.map((p,i)=>{const cardName=state.towerOverrides[i]||p.pick,card=cardByName(cardName);return{cardName,borders:[...(state.towerBorders[i]||[])],mutationWeather:mutationEligible(card)?(state.towerMutations[i]||null):null}}),statAura:null,abilityAura:state.towerAbilityAura?{auraName:state.towerAbilityAura,border:state.towerAbilityAuraBorder||null}:null};
+  }
+  function runTowerSimulation(){
+    if(state.towerSimRunning||!state.towerResult?.picks)return;
+    if(!towerWorker)startTowerWorker();
+    if(!towerWorker){state.towerSim={error:'Tower simulation worker is unavailable. Refresh and try again.'};render();return}
+    const loadout=towerLoadout();if(!loadout)return;
+    const seed=randomSeed();
+    const id=++towerRequestId;towerPendingId=id;state.towerSimRunning=true;state.towerSim=null;state.towerSimLabel=`0 / ${full(state.towerRuns)}`;render();
+    towerWorker.postMessage({id,kind:'tower-batch',loadout,enemyNames:[...state.towerEnemies],floor:state.towerFloor,difficulty:state.towerDifficulty,runs:state.towerRuns,seed});
+  }
+  let worker=null,requestId=0;const pending=new Map();
+  function startWorker(){try{worker=new Worker(versioned('./browser/depths-worker.js'));worker.onmessage=e=>{const p=pending.get(e.data.id);if(!p)return;if(e.data.kind==='progress'){const now=performance.now(),done=e.data.completedRuns||0,total=e.data.totalRuns||state.runs,active=Number(e.data.activeRuns)||1,min=Number(e.data.minActiveFloor)||Number(e.data.floor)||state.startFloor,max=Number(e.data.maxActiveFloor)||min,range=min===max?`Floor ${full(min)}`:`Floors ${full(min)}–${full(max)}`,turn=Number(e.data.battleTurn)||0,enemies=Array.isArray(e.data.enemies)?e.data.enemies:[],matchup=turn>=150&&enemies.length?` · vs ${enemies.join(' / ')}`:'';state.runningLabel=`Team ${p.teamIndex+1} · ${done}/${total} runs done · ${active} active · ${range}${turn?` · current T${turn}`:''}${matchup}`;if(now-state.lastProgressRender>250){state.lastProgressRender=now;render()}return}pending.delete(e.data.id);e.data.ok?p.resolve(e.data):p.reject(new Error(e.data.error||'Simulation failed'))};worker.onerror=e=>{for(const p of pending.values())p.reject(new Error(e.message||'Simulation worker failed'));pending.clear();state.workerReady=false};state.workerReady=true}catch(_){state.workerReady=false}}
+  function cancelSimulation(){if(worker)worker.terminate();const error=new Error('Simulation cancelled');for(const p of pending.values())p.reject(error);pending.clear();state.workerReady=false;state.running=false;state.runningLabel='';startWorker();render()}
+  function loadoutFor(team){return{cards:team.cards.map(s=>({cardName:s.cardName,borders:[...s.borders],mutationWeather:s.mutationWeather||null})),statAura:team.statAura?{auraName:team.statAura,border:team.statAuraBorder||null}:null,abilityAura:team.abilityAura?{auraName:team.abilityAura,border:team.abilityAuraBorder||null}:null}}
+  function askWorker(index,batchSeed){if(!worker||!state.workerReady)return Promise.reject(new Error('Simulation worker is unavailable. Refresh and try again.'));const id=++requestId,t=state.teams[index];return new Promise((resolve,reject)=>{pending.set(id,{resolve,reject,teamIndex:index});worker.postMessage({id,loadout:loadoutFor(t),runs:state.runs,startFloor:state.startFloor,floorCap:state.cap,seed:batchSeed>>>0,bannedCardNames:[...state.depthBans],bountifulDepths:state.bountifulDepths,chronoShard:state.chronoShard,battleSpeedStructureLevel:state.battleSpeedStructureLevel,skillTreeBattleSpeedLevel:state.skillTreeBattleSpeedLevel})})}
+  async function runTeams(indices){if(state.running||!indices.length)return;state.running=true;state.lastProgressRender=0;const batchSeed=randomSeed();try{for(let order=0;order<indices.length;order++){const index=indices[order];state.runningLabel=`Starting Team ${index+1} · ${order+1}/${indices.length}`;render();try{const response=await askWorker(index,batchSeed);state.teams[index].lastSeed=batchSeed;state.teams[index].result=response.result;state.teams[index].elapsedMs=response.elapsedMs;state.teams[index].lastError=''}catch(error){if((error.message||String(error))==='Simulation cancelled')return;state.teams[index].result=null;state.teams[index].lastError=error.message||String(error);throw error}}}catch(error){console.error(error)}finally{state.running=false;state.runningLabel='';render()}}
+  async function liveThumbs(){const missing=[...new Set([...state.cards,...state.auras].map(x=>x.imageAssetId).filter(id=>id&&!state.thumbs[String(id)]).map(String))];if(!missing.length)return;try{for(let i=0;i<missing.length;i+=20){const chunk=missing.slice(i,i+20),p=new URLSearchParams({assetIds:chunk.join(','),size:'420x420',format:'Png',isCircular:'false'}),r=await fetch(`https://thumbnails.roblox.com/v1/assets?${p}`,{credentials:'omit'});if(!r.ok)continue;const j=await r.json();for(const item of j.data||[])if(item.imageUrl)state.thumbs[String(item.targetId)]=item.imageUrl}render()}catch(_){}}
+  async function load(){try{const cardFiles=[1,2,3,4,5,6,7].map(i=>fetch(versioned(`./src/data/cards-${i}.json`),{cache:'no-store'}).then(r=>r.json())),auraFiles=[1,2].map(i=>fetch(versioned(`./src/data/auras-${i}.json`),{cache:'no-store'}).then(r=>r.json())),abilityFiles=[1,2,3,4].map(i=>fetch(versioned(`./src/data/abilities-${i}.json`),{cache:'no-store'}).then(r=>r.json())),thumbPromise=fetch(versioned('./src/data/thumbnails.json'),{cache:'no-store'}).then(r=>r.ok?r.json():{}).catch(()=>({}));const[cardSets,auraSets,abilitySets,thumbs]=await Promise.all([Promise.all(cardFiles),Promise.all(auraFiles),Promise.all(abilityFiles),thumbPromise]);state.cards=cardSets.flat();state.auras=auraSets.flat();state.abilities=Object.assign({},...abilitySets);state.thumbs=thumbs||{};restore();startWorker();startTowerWorker();render();liveThumbs()}catch(err){console.error(err);root.innerHTML=`<div class="error-box"><b>Calculator failed to load.</b><br><br>${esc(err.message)}</div>`}}
+  load();
+})();

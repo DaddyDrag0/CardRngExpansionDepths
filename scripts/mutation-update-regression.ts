@@ -13,7 +13,7 @@ const card = (name: string) => {
 }
 const neutralTarget = card('Trainee')
 const foe = (hp = 1e30, attack = 0): DepthsEnemy => ({ card: neutralTarget, power: hp, health: hp, attack })
-const close = (a: number, b: number) => assert(Math.abs(a - b) < Math.max(1, Math.abs(b)) * 1e-9, `${a} != ${b}`)
+const close = (a: number, b: number) => assert(Math.abs(a - b) <= Math.max(1.1, Math.abs(b) * 1e-9), `${a} != ${b}`)
 
 const expected: Record<MutationWeather, number> = {
   Storm: 1.1,

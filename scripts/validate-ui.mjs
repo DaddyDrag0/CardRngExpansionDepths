@@ -57,6 +57,14 @@ if (!liveHtml.includes('./src/feedback.js') || !liveHtml.includes('./src/feedbac
 if (!feedbackUi.includes('Report issue / Feedback')) throw new Error('Feedback button is missing')
 if (!feedbackUi.includes('window.__CRX_FEEDBACK_ENDPOINT__')) throw new Error('Feedback relay endpoint hook is missing')
 if (!feedbackWorker.includes('env.DISCORD_WEBHOOK_URL')) throw new Error('Feedback worker must read the Discord webhook from an environment secret')
+if (!feedbackUi.includes('__CRX_CREATE_REPORT_SNAPSHOT__')) throw new Error('Feedback submission is not capturing a calculator snapshot')
+if (!depthsUi.includes('window.__CRX_CREATE_REPORT_SNAPSHOT__=buildReportSnapshot')) throw new Error('Calculator snapshot capture hook is missing')
+if (!depthsUi.includes('restoreReportSnapshot()')) throw new Error('Calculator snapshot restore path is missing')
+if (!depthsUi.includes('if(reportSnapshotMode)return')) throw new Error('Report snapshots must not overwrite local calculator settings')
+for (const hook of ["'/snapshot/'", "CompressionStream('gzip')", "snapshot-", "/messages/"]) {
+  if (!feedbackWorker.includes(hook)) throw new Error(`Feedback snapshot worker hook missing: ${hook}`)
+}
+
 for (const publicFile of [loaderHtml, liveHtml, depthsUi, feedbackUi, themeController, versionWatcher]) {
   if (/discord\.com\/api\/webhooks\//i.test(publicFile)) throw new Error('Discord webhook secret leaked into public site code')
 }

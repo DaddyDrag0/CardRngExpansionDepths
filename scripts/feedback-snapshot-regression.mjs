@@ -120,11 +120,9 @@ try {
   ), env)
   assert.equal(restored.status, 200)
 
-  const compressedBytes = await restored.arrayBuffer()
-  const decompressed = new Blob([compressedBytes])
-    .stream()
-    .pipeThrough(new DecompressionStream('gzip'))
-  const restoredSnapshot = JSON.parse(await new Response(decompressed).text())
+  assert.equal(restored.headers.get('content-encoding'), null)
+  assert.match(restored.headers.get('content-type') || '', /application\/json/)
+  const restoredSnapshot = await restored.json()
   assert.deepEqual(restoredSnapshot, snapshot)
 
   const badKey = '1550000000000000000.' + '0'.repeat(32)

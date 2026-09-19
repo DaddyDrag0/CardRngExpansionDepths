@@ -11,7 +11,7 @@
     "test:engine": "tsx scripts/engine-smoke.ts && tsx scripts/stall-regression.ts && tsx scripts/ability-trace-regression.ts && tsx scripts/announcement-balance-regression.ts && tsx scripts/anubis-regression.ts && tsx scripts/combat-corrections-regression.ts && tsx scripts/insatiable-unholy-regression.ts && tsx scripts/order-cosmos-regression.ts && tsx scripts/revive-grinch-regression.ts && tsx scripts/robin-hood-regression.ts && tsx scripts/tower-cheese-search-regression.ts && tsx scripts/tower-cheese-corrections-regression.ts && tsx scripts/new-aura-regression.ts && tsx scripts/aura-farm-origin-regression.ts && tsx scripts/manga-update-regression.ts && tsx scripts/mutation-update-regression.ts",
     "test:depths": "tsx scripts/depths-regression.ts && tsx scripts/depths-rewards-regression.ts && tsx scripts/depths-time-regression.ts && tsx scripts/watchdog-heartbeat-regression.ts",
     "test:player": "tsx scripts/player-coverage.ts",
-    "test:ui": "node --check src/depths-ui.js && node --check src/feedback.js && node --check src/theme-controller.js && node --check src/site-version-watch.js && node --check server/feedback-worker.mjs && node scripts/validate-ui.mjs",
+    "test:ui": "node --check src/depths-ui.js && node --check src/feedback.js && node --check src/theme-controller.js && node --check src/site-version-watch.js && node --check server/feedback-worker.mjs && node scripts/feedback-snapshot-regression.mjs && node scripts/validate-ui.mjs",
     "check": "npm run build && npm run test:data && npm run test:engine && npm run test:depths && npm run test:player && npm run test:ui",
     "preview": "vite preview",
     "test:video-game": "node --import tsx scripts/video-game-update-regression.ts"

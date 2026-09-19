@@ -122,9 +122,18 @@
       submit.disabled = true;
       status.textContent = 'Sending…';
       try {
+        let snapshot = null;
+        try {
+          snapshot = typeof window.__CRX_CREATE_REPORT_SNAPSHOT__ === 'function'
+            ? window.__CRX_CREATE_REPORT_SNAPSHOT__()
+            : null;
+        } catch (error) {
+          console.warn('[feedback] snapshot capture failed', error);
+        }
         const payload = {
           category: escapeText(form.elements.category.value),
           message: text.slice(0, MAX_MESSAGE_LENGTH),
+          snapshot,
           ...currentContext(),
         };
         const response = await fetch(target, {

@@ -47,7 +47,8 @@
         <label class="feedback-field">
           <span>Type</span>
           <select name="category">
-            <option value="Incorrect data">Incorrect card / ability data</option>
+            <option value="Incorrect data">Incorrect data</option>
+            <option value="Does not work">Does not work</option>
             <option value="Battle bug">Battle calculation bug</option>
             <option value="Site bug">Site / UI bug</option>
             <option value="Suggestion">Suggestion</option>

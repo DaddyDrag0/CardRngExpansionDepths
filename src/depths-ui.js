@@ -477,7 +477,7 @@ function decodeTeam(code){
         depthBanLayouts:cloneJson(state.depthBanLayouts),activeDepthBanLayout:state.activeDepthBanLayout,depthBanQuery:state.depthBanQuery,
         bountifulDepths:state.bountifulDepths,chronoShard:state.chronoShard,rebanLegacyDepths:state.rebanLegacyDepths,
         battleSpeedStructureLevel:state.battleSpeedStructureLevel,skillTreeBattleSpeedLevel:state.skillTreeBattleSpeedLevel,
-        runs:state.runs,startFloor:state.startFloor,cap:state.cap,seed:state.seed,view:state.view,
+        runs:state.runs,startFloor:state.startFloor,seed:state.seed,view:state.view,
         towerFloor:state.towerFloor,towerEnemies:[...state.towerEnemies],towerResult:cloneJson(state.towerResult),towerDifficulty:state.towerDifficulty,towerRuns:state.towerRuns,
         towerSim:cloneJson(state.towerSim),towerOverrides:[...state.towerOverrides],towerBorders:cloneJson(state.towerBorders),towerMutations:[...state.towerMutations],
         towerAbilityAura:state.towerAbilityAura,towerAbilityAuraBorder:state.towerAbilityAuraBorder,towerSearch:cloneJson(state.towerSearch),towerSearchMode:state.towerSearchMode,

@@ -85,12 +85,20 @@ async function fetchSnapshot(request, env, headers, snapshotKey) {
   const attachmentResponse = await fetch(attachment.url, { cf: { cacheTtl: 0 } });
   if (!attachmentResponse.ok) return json({ error: 'Snapshot attachment unavailable' }, 502, headers);
 
-  return new Response(attachmentResponse.body, {
+  let snapshotText;
+  try {
+    const decompressed = attachmentResponse.body.pipeThrough(new DecompressionStream('gzip'));
+    snapshotText = await new Response(decompressed).text();
+    JSON.parse(snapshotText);
+  } catch {
+    return json({ error: 'Snapshot attachment is corrupted' }, 502, headers);
+  }
+
+  return new Response(snapshotText, {
     status: 200,
     headers: {
       ...headers,
       'content-type': 'application/json; charset=utf-8',
-      'content-encoding': 'gzip',
       'cache-control': 'private, no-store, max-age=0',
       'x-content-type-options': 'nosniff',
     },

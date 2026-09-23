@@ -3,20 +3,24 @@ import { isTowerCheeseCandidateLegal, towerCheeseAnchors, towerCheeseCandidatePo
 
 const pool = towerCheeseCandidatePool()
 const norm = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '')
-for (const expected of ['Judgment Day', 'Robin Hood', 'Parallax', 'Ice King', 'Piccolo', 'Pandora', 'Kuchisake-onna', 'Fate Seamstress', 'Kira', 'Surtr', 'Control Freak', "Hell's Army", 'Noveau Riche']) {
+for (const expected of ['Judgment Day', 'Robin Hood', 'Parallax', 'Piccolo', 'Pandora', 'Kuchisake-onna', 'Fate Seamstress', 'Kira', "Hell's Army", 'Noveau Riche']) {
   assert.ok(pool.some((name) => norm(name).includes(norm(expected)) || norm(expected).includes(norm(name))), `Missing cheese candidate matching ${expected}`)
 }
 assert.deepEqual(towerCheeseAnchors(['Sable The Envious', 'Good Boy', 'Good Boy', 'Good Boy']), ['Robin Hood'])
 assert.deepEqual(towerCheeseAnchors(['Inari', 'Good Boy', 'Good Boy', 'Good Boy']), ['Noveau Riche'])
 assert.deepEqual(towerCheeseAnchors(['Sable The Envious', 'Inari', 'Good Boy', 'Good Boy']), ['Robin Hood', 'Noveau Riche'])
-assert.equal(isTowerCheeseCandidateLegal(['Parallax', 'Judgment Day', 'Pandora', 'Control Freak']), true)
+assert.equal(isTowerCheeseCandidateLegal(['Parallax', 'Judgment Day', 'Pandora', "Hell's Army"]), true)
 assert.equal(isTowerCheeseCandidateLegal(['Parallax', 'Parallax', 'Judgment Day', 'Pandora']), false)
 assert.equal(isTowerCheeseCandidateLegal(['Fate Seamstress', 'Judgment Day', 'Fate Seamstress', 'Pandora']), false)
 assert.equal(isTowerCheeseCandidateLegal(['Fate Seamstress', 'Judgment Day', 'Parallax', 'Pandora']), true)
 const customPool = towerCheeseCandidatePool({ excludedCards: ['Parallax'], addedCards: ['Behemoth'] })
 assert.equal(customPool.includes('Parallax'), false, 'Excluded cards must be removed from the cheese search pool')
 assert.equal(customPool.includes('Behemoth'), true, 'User-added cards must be included in the cheese search pool')
-assert.equal(pool.includes('Ice King'), true, 'Ice King must be in the default cheese pool')
+for (const removed of ['Ice King', 'Surtr', 'Control Freak']) {
+  assert.equal(pool.includes(removed), false, `${removed} must be removed from the cheese pool`)
+  const forced = towerCheeseCandidatePool({ addedCards: [removed] })
+  assert.equal(forced.includes(removed), false, `${removed} must stay disabled even if a saved/custom pool tries to add it`)
+}
 assert.equal(pool.includes('Piccolo'), true, 'Piccolo must be in the default cheese pool')
 assert.equal(pool.includes('True Prophet'), false, 'True Prophet must not be offered by the cheese finder')
 const prophetAddPool = towerCheeseCandidatePool({ addedCards: ['True Prophet'] })

@@ -50,6 +50,12 @@ if (!liveHtml.includes('./src/depths-ui.js')) throw new Error('Extracted Depths 
 if (!liveHtml.includes('./src/depths-ui.css')) throw new Error('Extracted Depths UI styles are not loaded')
 if (liveHtml.includes("const root=document.getElementById('root')")) throw new Error('Depths application code returned to inline HTML')
 if (!depthsUi.includes('function sortPrefixMatches(')) throw new Error('Shared autocomplete sorter is missing')
+if (!depthsUi.includes("towerExcludedCards:['Robin Hood','Pandora']")) throw new Error('Robin Hood and Pandora must default OFF in Tower cheese search')
+if (!depthsUi.includes("towerHasEndTimes:false")) throw new Error('End Times must default OFF in Tower cheese search')
+for (const removed of ['Ice King','Surtr','Control Freak']) {
+  if (depthsUi.includes(`TOWER_DEFAULT_CHEESE_CARDS=[${String.fromCharCode(39)}${removed}`)) throw new Error(`${removed} returned to the default Tower cheese pool`)
+}
+
 if ((depthsUi.match(/matches\.sort\(\(a,b\)=>/g) || []).length !== 1) throw new Error('Autocomplete sorting must use one shared implementation')
 
 const feedbackWorker = fs.readFileSync('server/feedback-worker.mjs', 'utf8')

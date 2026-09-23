@@ -17,6 +17,15 @@ const DIFFICULTY_ID: Record<TowerDifficulty, number> = {
 const CARD_BY_NAME = new Map(cards.map((card) => [card.name, card] as const))
 const SINGLE_COPY_CHEESE_CARDS = new Set(['Parallax', 'Fate Seamstress'])
 const DISABLED_CHEESE_CARDS = new Set(['True Prophet', 'Ice King', 'Surtr', 'Control Freak'])
+const DISABLED_CHEESE_AURAS = new Set([
+  'Final Testament',
+  'Magical Elf',
+  'Executioner',
+  'Jurassic World',
+  'Shielder',
+  'Synth Human',
+  'Vampire Matron',
+])
 
 /**
  * Small, intentionally curated cheese pool. The search is not a general deck builder:
@@ -420,7 +429,8 @@ export function searchTowerCheese(
   for (let index = 0; index < auraPool.length; index++) {
     const entry = auraPool[index]
     let best: { loadout: TeamLoadout; score: SampleScore } | null = null
-    const quickAuras = poolOptions.hasEndTimes === false ? CHEESE_AURAS.filter((auraName) => auraName !== 'End Times') : CHEESE_AURAS
+    const quickAuras = (poolOptions.hasEndTimes === false ? CHEESE_AURAS.filter((auraName) => auraName !== 'End Times') : CHEESE_AURAS)
+      .filter((auraName) => !auraName || !DISABLED_CHEESE_AURAS.has(auraName))
     for (const auraName of quickAuras) {
       const loadout = { ...entry.loadout, abilityAura: auraName ? { auraName, border: null } : null }
       const score = sampleLoadout(loadout, enemies, 16, auraSeed, simulations)
@@ -484,7 +494,7 @@ function intensiveCheeseAuraVariants(hasEndTimes = true): Array<TeamLoadout['abi
   const borders = [null, 'Platinum', 'Crystal', 'Galaxy'] as const
   const variants: Array<TeamLoadout['abilityAura']> = [null]
   const skillAuras = auras
-    .filter((aura) => !aura.unobtainable && aura.type === 'Skill' && (hasEndTimes || aura.name !== 'End Times'))
+    .filter((aura) => !aura.unobtainable && aura.type === 'Skill' && !DISABLED_CHEESE_AURAS.has(aura.name) && (hasEndTimes || aura.name !== 'End Times'))
     .sort((a, b) => a.name.localeCompare(b.name))
   for (const aura of skillAuras) {
     for (const border of borders) variants.push({ auraName: aura.name, border })
@@ -515,7 +525,7 @@ export function towerCheeseIntensivePlan(poolOptions: TowerCheesePoolOptions = {
 /**
  * Deliberately expensive Tower search. Unlike the fast search, this does not prune by anchors,
  * order, or a small aura list. Every legal ordered four-card lineup in the cheese pool is tested
- * with no aura and every obtainable Skill Aura at Base/Platinum/Crystal/Galaxy. The discovery pass
+ * with no aura and every enabled obtainable Skill Aura at Base/Platinum/Crystal/Galaxy. The discovery pass
  * is guaranteed to execute at least one million battles, then the best candidates get an independent
  * 2,000-battle verification pass.
  */

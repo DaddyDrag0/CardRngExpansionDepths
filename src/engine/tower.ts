@@ -16,7 +16,7 @@ const DIFFICULTY_ID: Record<TowerDifficulty, number> = {
 
 const CARD_BY_NAME = new Map(cards.map((card) => [card.name, card] as const))
 const SINGLE_COPY_CHEESE_CARDS = new Set(['Parallax', 'Fate Seamstress'])
-const DISABLED_CHEESE_CARDS = new Set(['True Prophet'])
+const DISABLED_CHEESE_CARDS = new Set(['True Prophet', 'Ice King', 'Surtr', 'Control Freak'])
 
 /**
  * Small, intentionally curated cheese pool. The search is not a general deck builder:
@@ -27,14 +27,11 @@ const CHEESE_CARD_ALIASES = [
   'Judgment Day',
   'Robin Hood',
   'Parallax',
-  'Ice King',
   'Piccolo',
   'Pandora',
   'Kuchisake-onna',
   'Fate Seamstress',
   'Kira',
-  'Surtr',
-  'Control Freak',
   "Hell's Army",
   'Noveau Riche',
 ] as const

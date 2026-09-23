@@ -50,6 +50,10 @@ if (!liveHtml.includes('./src/depths-ui.js')) throw new Error('Extracted Depths 
 if (!liveHtml.includes('./src/depths-ui.css')) throw new Error('Extracted Depths UI styles are not loaded')
 if (liveHtml.includes("const root=document.getElementById('root')")) throw new Error('Depths application code returned to inline HTML')
 if (!depthsUi.includes('function sortPrefixMatches(')) throw new Error('Shared autocomplete sorter is missing')
+if (!depthsUi.includes("visibleUrl.searchParams.get('view')==='tower'")) throw new Error('Direct Tower view URL is not handled on load')
+if (!depthsUi.includes("url.searchParams.set('view','tower')")) throw new Error('Tower tab does not update the direct-link URL')
+if (!depthsUi.includes("url.searchParams.delete('view')")) throw new Error('Depths tab does not restore the base URL')
+
 if (!depthsUi.includes("towerExcludedCards:['Robin Hood','Pandora']")) throw new Error('Robin Hood and Pandora must default OFF in Tower cheese search')
 if (!depthsUi.includes("towerHasEndTimes:false")) throw new Error('End Times must default OFF in Tower cheese search')
 for (const removed of ['Ice King','Surtr','Control Freak']) {

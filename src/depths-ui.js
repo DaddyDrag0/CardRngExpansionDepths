@@ -436,6 +436,7 @@ function decodeTeam(code){
     const plainText=()=>{
       const lines=[];
       lines.push(`TEAM ${teamIndex+1} · RUN ${runIndex+1} · DEATH FLOOR ${fmt(run.deathFloor)}`);
+      lines.push(`Run seed: ${run.runSeed ?? '?'} · Floor seed: ${run.floorSeed ?? '?'} · Battle seed: ${run.battleSeed ?? '?'}`);
       let last=null;
       for(const e of visibleEvents()){
         if(e.turn!==last){last=e.turn;lines.push('',`TURN ${e.turn}`)}
@@ -451,7 +452,7 @@ function decodeTeam(code){
       return lines.join('\n');
     };
     const dialog=document.createElement('dialog');dialog.className='dbg-dialog';
-    dialog.innerHTML=`<div class="dbg-shell"><div class="dbg-head"><div><span class="dbg-kicker">BATTLE DEBUG</span><h3>Team ${teamIndex+1} · Run ${runIndex+1}</h3><div class="dbg-sub">Death floor ${fmt(run.deathFloor)}</div></div><div class="dbg-actions"><button data-dbg-copy>Copy debug</button><button data-dbg-close>Close</button></div></div><div class="dbg-scroll"><div class="dbg-matchup">${matchTeam(d?.initialAllies,'YOUR TEAM','player')}<div class="dbg-match-vs">VS</div>${matchTeam(d?.initialEnemies,'ENEMY TEAM','enemy')}</div>${auraLine()}<div data-dbg-timeline></div></div></div>`;
+    dialog.innerHTML=`<div class="dbg-shell"><div class="dbg-head"><div><span class="dbg-kicker">BATTLE DEBUG</span><h3>Team ${teamIndex+1} · Run ${runIndex+1}</h3><div class="dbg-sub">Death floor ${fmt(run.deathFloor)} · Seed ${run.battleSeed ?? run.floorSeed ?? run.runSeed ?? '?'}</div></div><div class="dbg-actions"><button data-dbg-copy>Copy debug</button><button data-dbg-close>Close</button></div></div><div class="dbg-scroll"><div class="dbg-matchup">${matchTeam(d?.initialAllies,'YOUR TEAM','player')}<div class="dbg-match-vs">VS</div>${matchTeam(d?.initialEnemies,'ENEMY TEAM','enemy')}</div>${auraLine()}<div data-dbg-timeline></div></div></div>`;
     document.body.appendChild(dialog);
     const timeline=dialog.querySelector('[data-dbg-timeline]'),copy=dialog.querySelector('[data-dbg-copy]'),close=dialog.querySelector('[data-dbg-close]');
     timeline.innerHTML=buildTimeline();

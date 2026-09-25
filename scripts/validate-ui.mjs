@@ -88,7 +88,7 @@ for (const removedHook of ['data-library-mode="bans"', 'data-library-mode="pool"
 const workerSource = fs.readFileSync('src/browser-worker.ts', 'utf8')
 if (!workerSource.includes('chronoShard?: boolean')) throw new Error('Browser worker Chrono Shard request field is missing')
 if (!workerSource.includes('startFloor?: number')) throw new Error('Browser worker Start Floor request field is missing')
-if (!workerSource.includes('Math.min(80_000, Math.max(1')) throw new Error('Browser worker Start Floor must clamp to 1-40,000')
+if (!workerSource.includes('Math.min(80_000, Math.max(1')) throw new Error('Browser worker Start Floor must clamp to 1-80,000')
 if (!workerSource.includes('request.chronoShard !== false')) throw new Error('Browser worker does not apply the Chrono Shard timing toggle')
 for (const removedField of ['excludedCardNames', 'selectedCardNames']) {
   if (workerSource.includes(removedField)) throw new Error(`Removed calculator-only field returned: ${removedField}`)

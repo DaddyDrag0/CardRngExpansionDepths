@@ -165,35 +165,46 @@ console.log('Shuten calibration:', JSON.stringify({
 }))
 
 
-// Nao Presence's Invisibility is a normal defensive dodge and must also roll
-// against counterattacks such as Sekhmet's Blood Drinker.
-let sawNaoCounterDodge = false
-for (let seed = 1; seed <= 200 && !sawNaoCounterDodge; seed++) {
-  const battle = simulateBattleV2(
-    { cards: [{ cardName: 'Sekhmet', borders: [] }] },
-    [{ card: card('Nao Presence'), power: 1e30, attack: 1, health: 1e30 }],
-    seed,
-    4,
-    false,
-    true,
-  )
-  const events = battle.debug?.events || []
-  for (let index = 0; index < events.length; index++) {
-    const event = events[index]
-    if (event.card !== 'Sekhmet' || !event.detail?.includes('Blood Drinker triggered a counterattack against Nao Presence')) continue
-    const dodge = events.slice(index + 1, index + 5).find((candidate) =>
-      candidate.card === 'Nao Presence'
-      && candidate.detail?.includes('Invisibility')
-      && candidate.detail?.includes('DODGE'),
+// Nao Presence's Invisibility is a normal defensive dodge and must be able to
+// dodge every counterattack that comes through the combat counter system.
+const naoCounterSources = [
+  ['Raze The Destroyer', 'Hatred'],
+  ['100 Men', 'Perseverance'],
+  ['Ankylosaurus', 'Spikes'],
+  ['Sekhmet', 'Blood Drinker'],
+  ['Cosmic Pop Star', 'Stolen Spotlight'],
+  ['Chupacabra', 'Poke the Beast'],
+] as const
+
+for (const [sourceCard, counterName] of naoCounterSources) {
+  let sawCounterDodge = false
+  for (let seed = 1; seed <= 300 && !sawCounterDodge; seed++) {
+    const battle = simulateBattleV2(
+      { cards: [{ cardName: sourceCard, borders: [] }] },
+      [{ card: card('Nao Presence'), power: 1e30, attack: 1, health: 1e30 }],
+      seed,
+      6,
+      false,
+      true,
     )
-    if (dodge) {
-      sawNaoCounterDodge = true
-      break
+    const events = battle.debug?.events || []
+    for (let index = 0; index < events.length; index++) {
+      const event = events[index]
+      if (event.card !== sourceCard || !event.detail?.includes(counterName + ' triggered a counterattack against Nao Presence')) continue
+      const dodge = events.slice(index + 1, index + 6).find((candidate) =>
+        candidate.card === 'Nao Presence'
+        && candidate.detail?.includes('Invisibility')
+        && candidate.detail?.includes('DODGE'),
+      )
+      if (dodge) {
+        sawCounterDodge = true
+        break
+      }
     }
   }
+  assert(sawCounterDodge, `Nao Presence Invisibility must be able to dodge ${counterName} counterattacks`)
 }
-assert(sawNaoCounterDodge, 'Nao Presence Invisibility must be able to dodge Blood Drinker counterattacks')
-console.log('Nao Presence counter-dodge regression passed')
+console.log('Nao Presence all-counter dodge regressions passed')
 
 // Final Tail should only make Inari invincible for its lifespan and then defeat Inari.
 // Its expiry itself must not damage or silently defeat the opposing card.

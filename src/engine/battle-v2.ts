@@ -261,7 +261,7 @@ function describeAbilityTrace(runtime: Runtime, before: AbilityTraceSnapshot, so
     }
     if (oldState && !newState) {
       const isFallen = runtime.state.fallen[oldState.team].some((card) => card.id === id)
-      if (!isFallen) changes.push(oldState.name + ' left the lineup')
+      changes.push(oldState.name + (isFallen ? ' was defeated' : ' left the lineup'))
       continue
     }
     if (!oldState || !newState) continue
@@ -703,7 +703,17 @@ function performEntryAttack(runtime: Runtime, card: CombatCard, mult = 1, allEne
   const enemyTeam = OTHER_TEAM[card.team]
   const first = active(runtime, enemyTeam)
   if (!first || !alive(card)) return
+  const targetName = effectiveCardName(first) || first.definition.name
+  const hpBefore = Math.max(0, first.hp)
   const dealt = dealDamage(runtime, card, first, mult)
+  const applied = Math.max(0, hpBefore - Math.max(0, first.hp))
+  if (runtime.captureDebug) {
+    pushAbilityDebug(
+      runtime,
+      card,
+      `${resolvedAbility(runtime, card) || 'Entry attack'} attacked ${targetName} on entry for ${compactDebugNumber(applied)} HP damage${first.hp <= 0 ? ' and defeated it' : ''}.`,
+    )
+  }
   if (allEnemies && dealt > 0) {
     for (const target of runtime.state.teams[enemyTeam].slice(1)) target.hp -= Math.min(target.hp, dealt)
   }

@@ -1579,6 +1579,7 @@ function defensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
   let damage = initial
   if (!name || !hasAbility(runtime, target, name)) return damage
   const defensiveDebugBefore = runtime.captureDebug ? { attackerHp: attacker.hp, attackerDamage: attacker.damage, targetHp: target.hp, targetDamage: target.damage } : null
+  let defensiveChanceDetail = ''
 
   switch (name) {
     case 'Divine Arrogance': if (target.hp < attacker.hp) damage *= 0.55; break
@@ -1655,7 +1656,13 @@ function defensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
     case 'The Loser':
       if (!target.flags.loser && damage > target.hp) { damage = 0; target.flags.loser = true; target.damage *= 2 }
       break
-    case 'Invisibility': if (rand(runtime, target.team) > 0.4) damage = 0; break
+    case 'Invisibility': {
+      const roll = rand(runtime, target.team)
+      const dodged = roll > 0.4
+      if (dodged) damage = 0
+      defensiveChanceDetail = `roll ${(roll * 100).toFixed(1)}% · ${dodged ? 'DODGE' : 'HIT'} · 60% evade chance`
+      break
+    }
     case 'Limitless':
       if (!target.flags.limitless) {
         damage = 0
@@ -1703,9 +1710,13 @@ function defensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
       if (!target.counters.drop || target.counters.drop % 2 !== 0) damage = 0
       break
     case 'Spikes': damage *= 0.75; attacker.counters.bleed = 2; break
-    case 'Shadow Predator':
-      if (rand(runtime, target.team) > 0.6) { damage = 0; target.flags.double = true }
+    case 'Shadow Predator': {
+      const roll = rand(runtime, target.team)
+      const dodged = roll > 0.6
+      if (dodged) { damage = 0; target.flags.double = true }
+      defensiveChanceDetail = `roll ${(roll * 100).toFixed(1)}% · ${dodged ? 'DODGE' : 'HIT'} · 40% evade chance`
       break
+    }
     case 'Apex Predator': damage *= 0.5; break
     case 'Absolute Apex': damage *= 0.5; break
     case 'Immortal Ascension': if (target.flags.awakened) damage *= 0.5; break
@@ -1753,6 +1764,7 @@ function defensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
     if (changed(defensiveDebugBefore.attackerDamage, attacker.damage)) changes.push('attacker ATK ' + n(defensiveDebugBefore.attackerDamage) + ' → ' + n(attacker.damage))
     if (changed(defensiveDebugBefore.targetHp, target.hp)) changes.push('own HP ' + n(defensiveDebugBefore.targetHp) + ' → ' + n(target.hp))
     if (changed(defensiveDebugBefore.targetDamage, target.damage)) changes.push('own ATK ' + n(defensiveDebugBefore.targetDamage) + ' → ' + n(target.damage))
+    if (defensiveChanceDetail) changes.push(defensiveChanceDetail)
     if (changes.length) pushAbilityDebug(runtime, target, name + ': ' + changes.join('; ') + '.')
   }
   return damage
@@ -2485,10 +2497,18 @@ function applyOnDeathCore(runtime: Runtime, dead: CombatCard, opponent: CombatCa
   }
   if (name === 'Heart Legacy') { next.maxHp += dead.maxHp; next.hp += dead.maxHp }
   if (name === 'Tonic') boostStats(next, 1.2)
-  if (name === 'Fusion... HA!' && rand(runtime, team) > 0.5) {
-    next.damage += dead.damage * 0.5
-    next.maxHp += dead.maxHp * 0.5
-    next.hp += dead.maxHp * 0.5
+  if (name === 'Fusion... HA!') {
+    const roll = rand(runtime, team)
+    if (roll > 0.5) {
+      const transferredDamage = dead.damage * 0.5
+      const transferredHp = dead.maxHp * 0.5
+      next.damage += transferredDamage
+      next.maxHp += transferredHp
+      next.hp += transferredHp
+      pushAbilityDebug(runtime, dead, `Fusion... HA! rolled ${(roll * 100).toFixed(1)}% — SUCCESS; transferred ${compactDebugNumber(transferredDamage)} ATK and ${compactDebugNumber(transferredHp)} Max HP to ${effectiveCardName(next) || next.definition.name}.`)
+    } else if (runtime.captureDebug) {
+      pushAbilityDebug(runtime, dead, `Fusion... HA! rolled ${(roll * 100).toFixed(1)}% — FAILED; no stats transferred.`)
+    }
   }
   if (name === 'Destiny Sight' && canReceiveExternalProtection(next)) {
     next.flags.dodgeLethal = true

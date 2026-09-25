@@ -163,3 +163,52 @@ console.log('Shuten calibration:', JSON.stringify({
   low: calibrationResult.minFloor,
   high: calibrationResult.maxFloor,
 }))
+
+
+// Nao Presence's Invisibility is a normal defensive dodge and must also roll
+// against counterattacks such as Sekhmet's Blood Drinker.
+let sawNaoCounterDodge = false
+for (let seed = 1; seed <= 200 && !sawNaoCounterDodge; seed++) {
+  const battle = simulateBattleV2(
+    { cards: [{ cardName: 'Sekhmet', borders: [] }] },
+    [{ card: card('Nao Presence'), power: 1e30, attack: 1, health: 1e30 }],
+    seed,
+    4,
+    false,
+    true,
+  )
+  const events = battle.debug?.events || []
+  for (let index = 0; index < events.length; index++) {
+    const event = events[index]
+    if (event.card !== 'Sekhmet' || !event.detail?.includes('Blood Drinker triggered a counterattack against Nao Presence')) continue
+    const dodge = events.slice(index + 1, index + 5).find((candidate) =>
+      candidate.card === 'Nao Presence'
+      && candidate.detail?.includes('Invisibility')
+      && candidate.detail?.includes('DODGE'),
+    )
+    if (dodge) {
+      sawNaoCounterDodge = true
+      break
+    }
+  }
+}
+assert(sawNaoCounterDodge, 'Nao Presence Invisibility must be able to dodge Blood Drinker counterattacks')
+console.log('Nao Presence counter-dodge regression passed')
+
+// Final Tail should only make Inari invincible for its lifespan and then defeat Inari.
+// Its expiry itself must not damage or silently defeat the opposing card.
+const inariBattle = simulateBattleV2(
+  { cards: [{ cardName: 'Sekhmet', borders: ['Galaxy'] }, { cardName: 'Julius Leader', borders: [] }] },
+  [{ card: card('Inari'), power: 1e12, attack: 1, health: 1e12 }],
+  0x1a4a1,
+  20,
+  false,
+  true,
+)
+assert(inariBattle.winner === 'Allies', `Inari Final Tail regression should end with Allies winning; got ${inariBattle.winner}`)
+assert(inariBattle.state.fallen.Allies.length === 0, 'Final Tail expiry must not defeat an allied card')
+assert(
+  inariBattle.debug?.events.some((event) => event.card === 'Inari' && event.detail?.includes('Final Tail expired after 3 turns')),
+  'Inari Final Tail expiry should be explicit in the battle debug log',
+)
+console.log('Inari Final Tail self-expiry regression passed')

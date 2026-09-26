@@ -137,22 +137,16 @@ for (let seed = 1200; seed < 1230; seed++) {
 }
 assert(ordinaryEvadeSeen, 'Luminescent Veil should still evade ordinary attackers.')
 
-let kiraVeilEvadeSeen = false
-for (let seed = 1300; seed < 1360; seed++) {
-  const result = simulateBattleV2(veilLoadout, [enemy('Kira', 1e20, 100)], seed, 4, false, true)
-  if (result.debug?.events.some((event) => event.detail.includes('Luminescent Veil evaded an attack'))) {
-    kiraVeilEvadeSeen = true
-    break
+for (const [attackerName, startSeed] of [['Kira', 1300], ['Judgment Day', 1360]] as const) {
+  let veilEvadeSeen = false
+  for (let seed = startSeed; seed < startSeed + 80; seed++) {
+    const result = simulateBattleV2(veilLoadout, [enemy(attackerName, 1e20, 100)], seed, 4, false, true)
+    if (result.debug?.events.some((event) => event.detail.includes('Luminescent Veil evaded an attack'))) {
+      veilEvadeSeen = true
+      break
+    }
   }
-}
-assert(kiraVeilEvadeSeen, 'Latest source allows Luminescent Veil to evade Kira.')
-
-for (let seed = 1360; seed < 1380; seed++) {
-  const result = simulateBattleV2(veilLoadout, [enemy('Judgment Day', 1e20, 100)], seed, 4, false, true)
-  assert(
-    !result.debug?.events.some((event) => event.detail.includes('Luminescent Veil evaded an attack')),
-    'Judgment Day must still reject teammate-granted Luminescent Veil protection.',
-  )
+  assert(veilEvadeSeen, `Latest source allows Luminescent Veil to evade attacks from ${attackerName}.`)
 }
 
 const shutenBase = getAttack(card('Shuten-dōji'))

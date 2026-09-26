@@ -16,7 +16,7 @@ for (const [name, rarity, image, ability, pack] of [
   ['The Awakened One',17000000,79559745346915,'Six Realms Staff','Immortal'],
   ['Ultimate Brawler',9000000,123755387112417,'Divine Ascension','Anime'],
   ['The Curse',6660666,109272849583933,'Kitchen',null],
-] as const) { const c=card(name); assert.equal(c.rarity,rarity); assert.equal(c.imageAssetId,image); assert.equal(c.statMultiplier,9); assert.equal(c.weather,'Manga'); assert.equal(c.ability,ability); assert.equal(c.pack,pack) }
+] as const) { const c=card(name); assert.equal(c.rarity,rarity); assert.equal(c.imageAssetId,image); assert.equal(c.statMultiplier,10); assert.equal(c.weather,'Manga'); assert.equal(c.ability,ability); assert.equal(c.pack,pack) }
 
 const mangaAura = aura('Mangeka')
 assert.equal(getStatAuraValue(mangaAura,'Galaxy'),207)

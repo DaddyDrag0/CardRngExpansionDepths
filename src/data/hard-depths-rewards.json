@@ -1,0 +1,43 @@
+{
+  "weatherTokenScalingCapFloor": 10000,
+  "rewards": [
+    {
+      "name": "Stat Aura Pack",
+      "rarityLabel": "Guaranteed",
+      "notes": "Contains PlayerStat Aura Cards."
+    },
+    {
+      "name": "Jackpot Potion",
+      "rarityLabel": "Uncommon"
+    },
+    {
+      "name": "Legendary Luck Potion",
+      "rarityLabel": "Rare"
+    },
+    {
+      "name": "Legendary Speed Potion",
+      "rarityLabel": "Rare"
+    },
+    {
+      "name": "Gold Structure Coin",
+      "rarityLabel": "Very Rare"
+    },
+    {
+      "name": "Weather Token",
+      "rarityLabel": "Super Rare",
+      "notes": "Drop scaling stops at Hard Depth floor 10,000."
+    }
+  ],
+  "gamepassChanceLabel": "1 in 100,000",
+  "gamepasses": [
+    "VIP",
+    "+50% Borders",
+    "3x Battle Speed",
+    "2x Card Packs",
+    "Auto Collect Potions",
+    "All Packs",
+    "+1 Relic",
+    "Depth Bans +5",
+    "+25% Mutation"
+  ]
+}

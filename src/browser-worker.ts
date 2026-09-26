@@ -78,9 +78,9 @@ function summarize(
     low: estimatedFloorLow,
     high: estimatedFloorHigh,
     medianDepth,
-    auraPackLow: hardMode ? 0 : auraPacksForDepth(estimatedFloorLow),
-    auraPackMedian: hardMode ? 0 : auraPacksForDepth(medianDepth),
-    auraPackHigh: hardMode ? 0 : auraPacksForDepth(estimatedFloorHigh),
+    auraPackLow: auraPacksForDepth(estimatedFloorLow) * (hardMode ? 3 : 1),
+    auraPackMedian: auraPacksForDepth(medianDepth) * (hardMode ? 3 : 1),
+    auraPackHigh: auraPacksForDepth(estimatedFloorHigh) * (hardMode ? 3 : 1),
   }
   const potionRewards = hardMode ? null : {
     low: potionDropsForDepth(estimatedFloorLow, bountifulDepths),
@@ -95,7 +95,7 @@ function summarize(
   const estimatedSecondsLow = estimateDepthClearSeconds(estimate.low, averageTurnsPerBattle, chronoShard, battleSpeedStructureLevel, skillTreeBattleSpeedLevel)
   const estimatedSecondsMedian = estimateDepthClearSeconds(estimate.medianDepth, averageTurnsPerBattle, chronoShard, battleSpeedStructureLevel, skillTreeBattleSpeedLevel)
   const estimatedSecondsHigh = estimateDepthClearSeconds(estimate.high, averageTurnsPerBattle, chronoShard, battleSpeedStructureLevel, skillTreeBattleSpeedLevel)
-  const auraCardsPerHour = !hardMode && estimatedSecondsMedian > 0 ? estimate.auraPackMedian / (estimatedSecondsMedian / 3600) : 0
+  const auraCardsPerHour = estimatedSecondsMedian > 0 ? estimate.auraPackMedian / (estimatedSecondsMedian / 3600) : 0
   return {
     runs: results,
     averageFloor: floors.reduce((sum, floor) => sum + floor, 0) / floors.length,

@@ -157,7 +157,7 @@ const shutenBattle = simulateBattleV2(
 )
 const shutenTarget = combatCard(shutenBattle, 'Enemies', 'Archer')
 assert(shutenTarget, 'Shuten nerf target should still be alive after one hit.')
-close(shutenBase * 10 - shutenTarget.hp, shutenBase * 1.5, 'Shuten Decapitate damage multiplier')
+assert.equal(shutenBase * 10 - shutenTarget.hp, Math.ceil(shutenBase * 1.5), 'Shuten Decapitate damage multiplier')
 
 const deadlyAmbushBattle = simulateBattleV2(
   { cards: [{ cardName: 'Dilophosaurus', borders: [] }] },

@@ -2,7 +2,7 @@ import cards from '../src/data/cards'
 import { cardAge } from '../src/data/ages'
 import { createBattleStateV2, simulateBattleV2 } from '../src/engine/battle-v2'
 import { DRAGON_CARDS } from '../src/engine/combat-data'
-import { depthsMechanics, generateDepthsTeam, getDepthsPool, isDepthsSourceEligible, MAX_DEPTH_BANS } from '../src/engine/depths'
+import { depthsMechanics, depthsPower, generateDepthsTeam, getDepthsPool, isDepthsSourceEligible, MAX_DEPTH_BANS } from '../src/engine/depths'
 import { simulateDepthsBatch, simulateDepthsRun } from '../src/engine/simulation'
 import { getAttack, getHealth, getPower } from '../src/engine/stats'
 import type { BattleResult, CardDefinition, CombatCard, DepthsEnemy, TeamLoadout } from '../src/types'
@@ -43,6 +43,27 @@ function cardByName(name: string) {
 
 function loadout(names: string[]): TeamLoadout {
   return { cards: names.map((cardName) => ({ cardName, borders: [] })) }
+}
+
+// Hard Mode keeps the actual floor/encounter pool, but enemy stats use floor ×10.
+// Example: Hard floor 100 must have the same base enemy power as normal floor 1,000.
+{
+  const seed = 0x10d1ff
+  const normal = generateDepthsTeam(100, seed)
+  const hard = generateDepthsTeam(100, seed, [], false, 10)
+  assert(normal.length === 4 && hard.length === 4, 'Hard Mode regression did not generate four enemies')
+  assert(
+    JSON.stringify(normal.map((enemy) => enemy.card.name)) === JSON.stringify(hard.map((enemy) => enemy.card.name)),
+    'Hard Mode should not change the floor-100 encounter pool or seeded card lineup',
+  )
+  const expectedPower = depthsPower(1_000)
+  for (const enemy of hard) {
+    assert(enemy.power === expectedPower, `Hard floor 100 power ${enemy.power} did not match normal floor 1,000 power ${expectedPower}`)
+    assert(enemy.attack === expectedPower / 2, 'Hard Mode attack did not use the 10× stat floor')
+    assert(enemy.health === expectedPower * (enemy.card.hpMultiplier || 1), 'Hard Mode health did not use the 10× stat floor')
+  }
+  assert(hard[0].power > normal[0].power, 'Hard Mode did not increase enemy power')
+  console.log('Depths Hard Mode 10× stat-floor regression passed')
 }
 
 

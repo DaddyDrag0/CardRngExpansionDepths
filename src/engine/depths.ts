@@ -153,10 +153,17 @@ function pickWeighted(pool: PreparedPool, roll: number): CardDefinition {
   return pool.entries[low].card
 }
 
-export function generateDepthsTeam(floor: number, seed = floor, bannedCardNames: readonly string[] = [], rebanLegacyDepths = false): DepthsEnemy[] {
+export function generateDepthsTeam(
+  floor: number,
+  seed = floor,
+  bannedCardNames: readonly string[] = [],
+  rebanLegacyDepths = false,
+  statFloorMultiplier = 1,
+): DepthsEnemy[] {
   const pool = preparedPool(floor, bannedCardNames, rebanLegacyDepths)
   const rng = new SeededRng(seed)
-  const power = depthsPower(floor)
+  const statFloor = Math.max(1, floor * Math.max(1, Number(statFloorMultiplier) || 1))
+  const power = depthsPower(statFloor)
   const result: DepthsEnemy[] = []
 
   if (!pool.entries.length || pool.totalWeight <= 0) return result

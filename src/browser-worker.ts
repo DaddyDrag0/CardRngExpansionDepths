@@ -20,6 +20,7 @@ interface BatchRequest {
   battleSpeedStructureLevel?: number
   skillTreeBattleSpeedLevel?: number
   chronoShard?: boolean
+  hardMode?: boolean
 }
 
 interface SingleRunRequest {
@@ -32,6 +33,7 @@ interface SingleRunRequest {
   runIndex: number
   bannedCardNames?: string[]
   rebanLegacyDepths?: boolean
+  hardMode?: boolean
 }
 
 type SimulationRequest = BatchRequest | SingleRunRequest
@@ -124,6 +126,7 @@ function simulateOne(request: SingleRunRequest, onProgress?: (floor: number, bat
     throwOnBattleTurnCap: false,
     bannedCardNames: request.bannedCardNames,
     rebanLegacyDepths: request.rebanLegacyDepths,
+    hardMode: request.hardMode,
   }, onProgress)
 }
 
@@ -262,6 +265,7 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
         runIndex,
         bannedCardNames: request.bannedCardNames,
         rebanLegacyDepths: request.rebanLegacyDepths,
+        hardMode: request.hardMode,
       } satisfies SingleRunRequest)
     }
 

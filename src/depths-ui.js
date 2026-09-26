@@ -378,6 +378,7 @@ function decodeTeam(code){
     <div class="hard-gamepass-note"><b>Free Gamepass drop</b><span>${esc(data.gamepassChanceLabel||'1 in 100,000')} listed chance for an unowned pass</span><small>${(data.gamepasses||[]).map(esc).join(' · ')}</small></div>
     <div class="hard-stat-aura-title"><span>Stat Aura Pack contents</span><small>New PlayerStat aura cards from the update file. Base → max value shown.</small></div>
     <div class="hard-stat-aura-grid">${statAuras}</div>
+    <div class="hard-reward-source-note">The update file exposes the Hard reward pool, rarity labels, the 1 in 100,000 Gamepass listing, and the Weather Token floor-10,000 scaling cap. Exact server-side Hard drop formulas are not present in the place copy, so the calculator does not invent numeric token/potion odds.</div>
   </div>`
 }
 

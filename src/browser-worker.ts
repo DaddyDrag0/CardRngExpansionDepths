@@ -60,6 +60,7 @@ function summarize(
   battleSpeedStructureLevel = 0,
   skillTreeBattleSpeedLevel = 0,
   chronoShard = true,
+  hardMode = false,
 ) {
   const unsupported = new Set<string>()
   for (const result of results) {
@@ -77,11 +78,11 @@ function summarize(
     low: estimatedFloorLow,
     high: estimatedFloorHigh,
     medianDepth,
-    auraPackLow: auraPacksForDepth(estimatedFloorLow),
-    auraPackMedian: auraPacksForDepth(medianDepth),
-    auraPackHigh: auraPacksForDepth(estimatedFloorHigh),
+    auraPackLow: hardMode ? 0 : auraPacksForDepth(estimatedFloorLow),
+    auraPackMedian: hardMode ? 0 : auraPacksForDepth(medianDepth),
+    auraPackHigh: hardMode ? 0 : auraPacksForDepth(estimatedFloorHigh),
   }
-  const potionRewards = {
+  const potionRewards = hardMode ? null : {
     low: potionDropsForDepth(estimatedFloorLow, bountifulDepths),
     median: potionDropsForDepth(medianDepth, bountifulDepths),
     high: potionDropsForDepth(estimatedFloorHigh, bountifulDepths),
@@ -94,7 +95,7 @@ function summarize(
   const estimatedSecondsLow = estimateDepthClearSeconds(estimate.low, averageTurnsPerBattle, chronoShard, battleSpeedStructureLevel, skillTreeBattleSpeedLevel)
   const estimatedSecondsMedian = estimateDepthClearSeconds(estimate.medianDepth, averageTurnsPerBattle, chronoShard, battleSpeedStructureLevel, skillTreeBattleSpeedLevel)
   const estimatedSecondsHigh = estimateDepthClearSeconds(estimate.high, averageTurnsPerBattle, chronoShard, battleSpeedStructureLevel, skillTreeBattleSpeedLevel)
-  const auraCardsPerHour = estimatedSecondsMedian > 0 ? estimate.auraPackMedian / (estimatedSecondsMedian / 3600) : 0
+  const auraCardsPerHour = !hardMode && estimatedSecondsMedian > 0 ? estimate.auraPackMedian / (estimatedSecondsMedian / 3600) : 0
   return {
     runs: results,
     averageFloor: floors.reduce((sum, floor) => sum + floor, 0) / floors.length,
@@ -112,6 +113,7 @@ function summarize(
     estimatedSecondsHigh,
     auraCardsPerHour,
     potionRewards,
+    hardMode,
     trusted: unsupported.size === 0,
     unsupportedAbilities: [...unsupported].sort(),
   }
@@ -300,7 +302,7 @@ self.onmessage = async (event: MessageEvent<SimulationRequest>) => {
       return
     }
     const results = await simulateParallel(request)
-    self.postMessage({ id: request.id, ok: true, elapsedMs: performance.now() - started, result: summarize(results, request.bountifulDepths, request.battleSpeedStructureLevel, request.skillTreeBattleSpeedLevel, request.chronoShard !== false) })
+    self.postMessage({ id: request.id, ok: true, elapsedMs: performance.now() - started, result: summarize(results, request.bountifulDepths, request.battleSpeedStructureLevel, request.skillTreeBattleSpeedLevel, request.chronoShard !== false, request.hardMode === true) })
   } catch (error) {
     self.postMessage({
       id: request.id,

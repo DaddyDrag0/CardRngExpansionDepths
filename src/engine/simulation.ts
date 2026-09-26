@@ -52,6 +52,8 @@ export interface DepthsSimulationOptions {
   bannedCardNames?: string[]
   /** Temporarily restore the eight pre-update default Depth bans. Does not consume player ban slots. */
   rebanLegacyDepths?: boolean
+  /** Hard Mode keeps the real floor number but gives enemies stats from floor ×10. */
+  hardMode?: boolean
 }
 
 export interface DepthsBatchOptions extends DepthsSimulationOptions {
@@ -86,7 +88,13 @@ export function simulateDepthsRun(
 
   for (let floor = startFloor; floor <= floorCap; floor++) {
     const floorSeed = mixSeed(runSeed, floor)
-    const enemies = generateDepthsTeam(floor, floorSeed, options.bannedCardNames, options.rebanLegacyDepths)
+    const enemies = generateDepthsTeam(
+      floor,
+      floorSeed,
+      options.bannedCardNames,
+      options.rebanLegacyDepths,
+      options.hardMode ? 10 : 1,
+    )
     const enemyNames = enemies.map((enemy) => enemy.card.name)
     onProgress?.(floor, undefined, enemyNames)
     const hasTurnCap = Number.isFinite(options.battleTurnCap)
@@ -166,6 +174,7 @@ export function simulateDepthsBatch(
       battleTurnCap: options.battleTurnCap,
       bannedCardNames: options.bannedCardNames,
       rebanLegacyDepths: options.rebanLegacyDepths,
+      hardMode: options.hardMode,
     })
     results.push(result)
     for (const ability of result.unsupportedAbilities) unsupported.add(ability)

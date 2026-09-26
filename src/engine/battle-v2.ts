@@ -431,9 +431,8 @@ function luminescentVeilHolder(runtime: Runtime, team: BattleTeam): CombatCard |
   return runtime.state.teams[team].find((card) => alive(card) && hasAbility(runtime, card, 'Luminescent Veil'))
 }
 
-function luminescentVeilCanAffect(attacker: CombatCard): boolean {
-  const name = effectiveCardName(attacker) || attacker.definition.name
-  return name !== 'Kira' && name !== 'Judgment Day'
+function luminescentVeilCanAffect(_attacker: CombatCard): boolean {
+  return true
 }
 
 // Judgment Day cannot receive shields, blocks, lethal dodges, redirects, or other
@@ -1502,7 +1501,7 @@ function offensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
     case 'Vainglory': if (attacker.hp / attacker.maxHp > 0.5) damage *= 1.5; break
     case 'Frail': damage *= 1.5; break
     case 'Modesty': damage *= 0.7; break
-    case 'Decapitate': damage *= 2; break
+    case 'Decapitate': damage *= 1.5; break
     case 'Martial Will': {
       const ah = attacker.counters.martialHits || 0
       const th = target.counters.martialHits || 0

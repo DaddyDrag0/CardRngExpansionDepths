@@ -137,15 +137,33 @@ for (let seed = 1200; seed < 1230; seed++) {
 }
 assert(ordinaryEvadeSeen, 'Luminescent Veil should still evade ordinary attackers.')
 
-for (const excluded of ['Kira', 'Judgment Day']) {
-  for (let seed = 1300; seed < 1320; seed++) {
-    const result = simulateBattleV2(veilLoadout, [enemy(excluded, 1e20, 100)], seed, 4, false, true)
-    assert(
-      !result.debug?.events.some((event) => event.detail.includes('Luminescent Veil evaded an attack')),
-      `Luminescent Veil must not evade ${excluded}.`,
-    )
+let kiraVeilEvadeSeen = false
+for (let seed = 1300; seed < 1360; seed++) {
+  const result = simulateBattleV2(veilLoadout, [enemy('Kira', 1e20, 100)], seed, 4, false, true)
+  if (result.debug?.events.some((event) => event.detail.includes('Luminescent Veil evaded an attack'))) {
+    kiraVeilEvadeSeen = true
+    break
   }
 }
+assert(kiraVeilEvadeSeen, 'Latest source allows Luminescent Veil to evade Kira.')
+
+for (let seed = 1360; seed < 1380; seed++) {
+  const result = simulateBattleV2(veilLoadout, [enemy('Judgment Day', 1e20, 100)], seed, 4, false, true)
+  assert(
+    !result.debug?.events.some((event) => event.detail.includes('Luminescent Veil evaded an attack')),
+    'Judgment Day must still reject teammate-granted Luminescent Veil protection.',
+  )
+}
+
+const shutenBase = getAttack(card('Shuten-dōji'))
+const shutenBattle = simulateBattleV2(
+  { cards: [{ cardName: 'Shuten-dōji', borders: [] }] },
+  [enemy('Shining Armor', shutenBase * 10, 0)],
+  1390, 1, true, true,
+)
+const shutenTarget = combatCard(shutenBattle, 'Enemies', 'Shining Armor')
+assert(shutenTarget, 'Shuten nerf target should still be alive after one hit.')
+close(shutenBase * 10 - shutenTarget.hp, shutenBase * 1.5, 'Shuten Decapitate damage multiplier')
 
 const deadlyAmbushBattle = simulateBattleV2(
   { cards: [{ cardName: 'Dilophosaurus', borders: [] }] },

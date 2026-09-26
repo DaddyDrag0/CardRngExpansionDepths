@@ -152,10 +152,10 @@ for (const [attackerName, startSeed] of [['Kira', 1300], ['Judgment Day', 1360]]
 const shutenBase = getAttack(card('Shuten-dōji'))
 const shutenBattle = simulateBattleV2(
   { cards: [{ cardName: 'Shuten-dōji', borders: [] }] },
-  [enemy('Shining Armor', shutenBase * 10, 0)],
+  [enemy('Archer', shutenBase * 10, 0)],
   1390, 1, true, true,
 )
-const shutenTarget = combatCard(shutenBattle, 'Enemies', 'Shining Armor')
+const shutenTarget = combatCard(shutenBattle, 'Enemies', 'Archer')
 assert(shutenTarget, 'Shuten nerf target should still be alive after one hit.')
 close(shutenBase * 10 - shutenTarget.hp, shutenBase * 1.5, 'Shuten Decapitate damage multiplier')
 

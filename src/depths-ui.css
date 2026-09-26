@@ -62,3 +62,5 @@
 .hard-result-metrics{grid-template-columns:repeat(5,minmax(0,1fr))}
 @media(max-width:1050px){.hard-reward-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.hard-result-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:760px){.hard-reward-grid,.hard-stat-aura-grid,.hard-result-metrics{grid-template-columns:1fr}.hard-reward-head,.hard-stat-aura-title{align-items:flex-start;flex-direction:column}.hard-stat-aura-title small{text-align:left}}
+
+.hard-reward-source-note{margin-top:8px;padding-top:8px;border-top:1px solid #3f2d25;color:#806f65;font-size:7px;line-height:1.45}

@@ -83,7 +83,6 @@ export function getStatAuraValue(aura: AuraDefinition, border?: AuraBorderName |
 }
 
 export function getSkillAuraValue(aura: AuraDefinition, border?: AuraBorderName | null): number {
-  if (aura.name === 'Jurassic World') return 20
   const tier = getAuraTier(border)
   const custom = CUSTOM_SKILL_VALUES[aura.name]
   if (custom) return custom[tier] ?? custom[0] ?? 0
@@ -158,7 +157,7 @@ export function applySkillAuraTeamEffects(
 
   if (aura.name === 'Jurassic World') {
     const prehistoricCount = team.filter((card) => card.definition.pack === 'Prehistoric').length
-    const bonus = Math.min(80, prehistoricCount * 20)
+    const bonus = prehistoricCount * value
     const multiplier = 1 + bonus / 100
     if (prehistoricCount > 0) {
       for (const card of team) {
@@ -168,7 +167,7 @@ export function applySkillAuraTeamEffects(
         card.hp *= multiplier
       }
     }
-    return { aura, value: 20, implemented: true }
+    return { aura, value, implemented: true }
   }
 
   if (aura.name === 'Magical Elf') {

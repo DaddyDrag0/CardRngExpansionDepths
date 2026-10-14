@@ -2723,8 +2723,9 @@ function statusStart(runtime: Runtime, attacker: CombatCard, target: CombatCard)
 }
 
 function tickGlobalUnholyCreature(runtime: Runtime) {
-  // "Survives for two turns" is a battle-turn lifespan, not two turns taken by
-  // Zombie Dragon itself. Extra-turn chains must therefore not freeze it at 1 HP.
+  // "Survives for two turns" means two completed battle turns after lethal damage.
+  // This still counts extra-turn chains, but expiry happens after the second turn
+  // resolves rather than before that turn gets to act.
   for (const team of ['Allies', 'Enemies'] as BattleTeam[]) {
     for (const card of runtime.state.teams[team]) {
       if (!card.flags.unholyActive) continue
@@ -3407,8 +3408,6 @@ export function simulateBattleV2(
     // normal fast battles do not spam worker messages, while long battles still
     // prove that the engine is actively advancing.
     if (state.turn % 5 === 0) onProgress?.(state.turn)
-    tickGlobalUnholyCreature(runtime)
-    resolveDeaths(runtime)
     let attacker = active(runtime, state.moving)
     let defender = active(runtime, OTHER_TEAM[state.moving])
     if (!attacker || !defender) break
@@ -3453,6 +3452,13 @@ export function simulateBattleV2(
     doTurn(runtime, attacker)
     processDivination(runtime)
     growHiddenInDepths(runtime, state.moving)
+    resolveDeaths(runtime)
+
+    // Unholy Creature survives two COMPLETE battle turns after lethal damage.
+    // Tick after the turn resolves so the second turn still happens while the
+    // Zombie Dragon is alive; expiring at the start of that turn let the next
+    // enemy enter one action too early.
+    tickGlobalUnholyCreature(runtime)
     resolveDeaths(runtime)
     if (!state.teams.Allies.length || !state.teams.Enemies.length) break
 

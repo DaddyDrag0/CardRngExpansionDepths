@@ -1,6 +1,7 @@
 import cards from '../src/data/cards'
 import { generateDepthsTeam } from '../src/engine/depths'
 import { simulateBattleV2 } from '../src/engine/battle-v2'
+import { buildTowerEnemies, simulateTowerBatch } from '../src/engine/tower'
 import type { DepthsEnemy, TeamLoadout } from '../src/types'
 
 function assert(condition: unknown, message: string): asserts condition { if (!condition) throw new Error(message) }
@@ -43,3 +44,60 @@ const exact = simulateBattleV2(loadout, enemies, floorSeed ^ 0x51ed270b, 10_000,
 assert(exact.turns <= 10_000, 'Reported floor did not terminate')
 assert(!exact.debug?.events.some((e) => e.detail.includes('Insatiable same-turn chain stopped')), 'Reported floor required Insatiable safety limit')
 console.log('Insatiable/Unholy regression passed:', { syntheticTurns: synthetic.turns, exactTurns: exact.turns, winner: exact.winner, names })
+
+
+const reportedTowerEnemies = buildTowerEnemies(
+  ['Cherub', 'Baby Skeleton', 'Zombie Dragon', 'Mummy'],
+  71,
+  'Hell',
+)
+const reportedTowerLoadout: TeamLoadout = {
+  cards: [
+    { cardName: 'Kuchisake-onna', borders: ['Platinum'] },
+    { cardName: 'Parallax', borders: [] },
+    { cardName: 'Judgment Day', borders: ['Platinum'] },
+    { cardName: 'Judgment Day', borders: ['Platinum'] },
+  ],
+  abilityAura: { auraName: 'Fate', border: 'Galaxy' },
+}
+const reportedReplay = simulateBattleV2(
+  reportedTowerLoadout,
+  reportedTowerEnemies,
+  709889199,
+  2_000,
+  true,
+  true,
+)
+const replayEvents = reportedReplay.debug?.events || []
+const unholyActivationIndex = replayEvents.findIndex((event) => event.detail.includes('Unholy Creature activated'))
+const unholyExpiryIndex = replayEvents.findIndex((event) => event.detail.includes('Unholy Creature expired'))
+assert(unholyActivationIndex >= 0, 'Reported Tower replay never activated Unholy Creature')
+assert(unholyExpiryIndex > unholyActivationIndex, 'Reported Tower replay never expired Unholy Creature')
+const unholyExpiryTurn = replayEvents[unholyExpiryIndex].turn
+const sameTurnActionIndex = replayEvents.findIndex((event, index) =>
+  index > unholyActivationIndex
+  && index < unholyExpiryIndex
+  && event.type === 'turn'
+  && event.turn === unholyExpiryTurn
+)
+assert(
+  sameTurnActionIndex >= 0,
+  'Unholy Creature expired before the second survival turn could resolve',
+)
+
+const reportedBatch = simulateTowerBatch(
+  reportedTowerLoadout,
+  ['Cherub', 'Baby Skeleton', 'Zombie Dragon', 'Mummy'],
+  71,
+  'Hell',
+  10_000,
+  1,
+)
+console.log('Reported floor 71 Hell Zombie Dragon fixture:', {
+  replayWinner: reportedReplay.winner,
+  replayTurns: reportedReplay.turns,
+  activationTurn: replayEvents[unholyActivationIndex].turn,
+  expiryTurn: unholyExpiryTurn,
+  batchWins: reportedBatch.wins,
+  batchWinRate: reportedBatch.winRate,
+})

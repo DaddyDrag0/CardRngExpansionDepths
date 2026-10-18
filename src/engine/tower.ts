@@ -377,10 +377,9 @@ export function searchTowerCheese(
   const simulations = { value: 0 }
   const stageRng = new SeededRng(seed || 1)
   const nextSeed = () => Math.floor(stageRng.next() * 0x7fffffff) || 1
-  const discoveryAuras = DISCOVERY_AURAS.filter((auraName) =>
-    (poolOptions.hasEndTimes !== false || auraName !== 'End Times')
-    && (poolOptions.hasGuardianAngel !== false || auraName !== 'Guardian Angel')
-  )
+  const discoveryAuras = poolOptions.hasEndTimes === false
+    ? DISCOVERY_AURAS.filter((auraName) => auraName !== 'End Times')
+    : DISCOVERY_AURAS
   const quickSeed = nextSeed()
 
   // Stage 1: every multiset gets several different orders. This avoids eliminating a team only

@@ -1,0 +1,39 @@
+name: Publish Guardian Angel toggle
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-guardian-angel-toggle.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Validate Tower ownership toggle
+        run: |
+          npx tsx scripts/tower-cheese-search-regression.ts
+          node --check src/depths-ui.js
+      - name: Build browser workers
+        run: npm run build:workers
+      - name: Bump site version
+        run: printf '{"version":"%s"}\n' "$(date -u +%Y%m%d-%H%M%SZ)" > site-version.json
+      - name: Publish
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add browser/depths-worker.js browser/tower-worker.js site-version.json
+          git commit -m "Publish Guardian Angel ownership toggle" || exit 0
+          git pull --rebase origin main
+          git push origin HEAD:main

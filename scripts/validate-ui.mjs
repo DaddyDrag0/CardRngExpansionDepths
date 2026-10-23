@@ -80,7 +80,7 @@ for (const publicFile of [loaderHtml, liveHtml, depthsUi, feedbackUi, themeContr
 }
 
 const simulationSource = fs.readFileSync('src/engine/simulation.ts', 'utf8')
-if (!simulationSource.includes('options.floorCap ?? 150_000')) throw new Error('Depths engine default floor cap is not 150,000')
+if (!simulationSource.includes('options.floorCap ?? 300_000')) throw new Error('Depths engine default floor cap is not 300,000')
 for (const removedHook of ['data-library-mode="bans"', 'data-library-mode="pool"', 'id="seedInput"', 'src/main.tsx']) {
   if (html.includes(removedHook)) throw new Error(`Removed/dead UI hook returned: ${removedHook}`)
 }

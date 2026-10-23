@@ -575,7 +575,7 @@
     "name": "Revenant",
     "imageAssetId": 74840833306973,
     "rarity": 500000,
-    "statMultiplier": 1,
+    "statMultiplier": 1.5,
     "hpMultiplier": 1,
     "ability": "Unforgiving",
     "weather": null,

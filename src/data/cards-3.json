@@ -614,7 +614,7 @@
     "name": "Marionette",
     "imageAssetId": 96195175576111,
     "rarity": 7500000,
-    "statMultiplier": 1,
+    "statMultiplier": 1.5,
     "hpMultiplier": 1,
     "ability": "Dance of Discord",
     "weather": null,

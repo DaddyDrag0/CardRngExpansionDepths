@@ -107,7 +107,7 @@
     "name": "Scarecrow",
     "imageAssetId": 128150318677145,
     "rarity": 100000,
-    "statMultiplier": 1,
+    "statMultiplier": 1.5,
     "hpMultiplier": 1,
     "ability": "Spook",
     "weather": null,

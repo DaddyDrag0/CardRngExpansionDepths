@@ -302,7 +302,7 @@
     "name": "Dr. Frankenstein",
     "imageAssetId": 70495589220923,
     "rarity": 3500000,
-    "statMultiplier": 1,
+    "statMultiplier": 1.5,
     "hpMultiplier": 1,
     "ability": "Playing God",
     "weather": null,

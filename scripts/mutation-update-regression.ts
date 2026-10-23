@@ -77,7 +77,8 @@ const jw = auras.find((aura) => aura.name === 'Jurassic World')
 assert(jw)
 const beforeJw = prehistoricTeam[0].damage
 applySkillAuraTeamEffects(prehistoricTeam, { auraName: 'Jurassic World', border: 'Galaxy' })
-close(prehistoricTeam[0].damage, beforeJw * 1.8)
+// Galaxy Jurassic World gives 25% per Prehistoric card: four cards = +100% stats.
+close(prehistoricTeam[0].damage, beforeJw * 2)
 
 const spotlightDef = cards.find((entry) => entry.ability === 'Stolen Spotlight')
 assert(spotlightDef)

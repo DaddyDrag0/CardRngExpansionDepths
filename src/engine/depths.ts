@@ -64,6 +64,7 @@ export function isDepthsSourceEligible(card: CardDefinition): boolean {
     && card.pack !== 'Christmas'
     && card.pack !== 'Halloween'
     && card.pack !== 'Halloween2'
+    && card.pack !== 'Halloween3'
 }
 
 function minimumUnlockFloor(card: CardDefinition): number {

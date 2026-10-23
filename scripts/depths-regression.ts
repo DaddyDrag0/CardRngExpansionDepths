@@ -290,7 +290,7 @@ assert(astraeusCardA.abilityOverride === astraeusCardB.abilityOverride, 'Constel
   assert(initial.boosts.Allies.composerThreshold === 1, 'Nightmare Melody threshold did not initialize at 1')
   const result = simulateBattleV2(loadout([composer.name]), [namedDummy('__Composer Target__', damage * 4.5, 0)], 1106)
   assert(result.state.boosts.Allies.composerCount === 1, 'Living Composer unexpectedly lost its field count')
-  assert(Math.abs((result.state.boosts.Allies.composerThreshold ?? 0) - 0.6) < 1e-12, 'Nightmare Melody threshold did not cap at 0.6')
+  assert((result.state.boosts.Allies.composerThreshold ?? 0) >= 1 && (result.state.boosts.Allies.composerThreshold ?? 0) <= 6, 'Nightmare Melody exceeded its five stat-buff activation cap')
 }
 
 {

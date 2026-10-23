@@ -1,0 +1,26 @@
+name: Rebuild Halloween workers
+on:
+  push:
+    branches: [halloween-2026-source-data-sync]
+    paths: ['.github/workflows/rebuild-halloween-workers.yml']
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm run build:workers
+      - name: Commit worker bundles
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add browser/depths-worker.js browser/tower-worker.js
+          git commit -m "Rebuild Halloween simulator workers" || exit 0
+          git push origin HEAD:halloween-2026-source-data-sync

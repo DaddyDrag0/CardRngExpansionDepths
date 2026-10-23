@@ -979,8 +979,10 @@ function onEntry(runtime: Runtime, card: CombatCard) {
       }
       break
     case 'Perish':
-      if (!statusProtected(runtime, enemy.team)) enemy.status.stunned = Math.max(enemy.status.stunned, 1)
-      card.counters.perishTurns = 3
+      if (!statusProtected(runtime, enemy.team) && rand(runtime, card.team) < 0.25) {
+        enemy.status.stunned = Math.max(enemy.status.stunned, 1)
+        boostStats(enemy, 0.75)
+      }
       break
     case 'Desire':
       break
@@ -1096,9 +1098,12 @@ function onEntry(runtime: Runtime, card: CombatCard) {
         enemy.hp = hp
       }
       break
-    case 'Chimeric':
-      boostStats(card, 4)
+    case 'Chimeric': {
+      const occupied = runtime.state.teams[card.team].length + runtime.state.fallen[card.team].length
+      const unusedSlots = Math.max(0, 4 - occupied)
+      if (unusedSlots) boostStats(card, 1 + unusedSlots)
       break
+    }
     case 'Puppy Eyes':
       enemy.damage *= 0.85
       break
@@ -2367,13 +2372,6 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   const phantom = runtime.state.boosts[attacker.team].phantom
   if (!statusProtected(runtime, target.team) && phantom && damage > 0 && runtime.rng.next() * 100 < phantom) target.status.stunned = Math.max(1, target.status.stunned)
 
-  if (hasAbility(runtime, target, 'Chimeric') && target.hp > 0 && target.hp <= target.maxHp / 2 && !target.flags.chimericFaded) {
-    runAbilityTrace(runtime, target, 'Chimeric', () => {
-      target.flags.chimericFaded = true
-      target.maxHp /= 4; target.hp /= 4; target.damage /= 4
-    })
-  }
-
   targetRetro(runtime, attacker, target, damage)
   const didRegen = attackerRetro(runtime, attacker, target, damage)
 
@@ -2823,19 +2821,10 @@ function prepareTurn(runtime: Runtime, attacker: CombatCard) {
     attacker.counters.ahimsaTurns = (attacker.counters.ahimsaTurns || 0) + 1
     if (attacker.counters.ahimsaTurns % 2 === 0) attacker.status.shield += 1
   }
-  if ((composer.composerCount || 0) > 0) {
-    composer.composerThreshold = Math.max(0.6, (composer.composerThreshold ?? 1) - 0.1)
-    const target = active(runtime, OTHER_TEAM[attacker.team])
-    if (target && rand(runtime, attacker.team) > composer.composerThreshold) target.status.confused = 2
-  }
-
-  if (hasAbility(runtime, attacker, 'Perish') && (attacker.counters.perishTurns || 0) > 0) {
-    attacker.counters.perishTurns -= 1
-    if (attacker.counters.perishTurns <= 0) {
-      const target = active(runtime, OTHER_TEAM[attacker.team])
-      attacker.hp = 0
-      if (target) target.hp = 0
-      return
+  if ((composer.composerCount || 0) > 0 && (composer.composerThreshold || 0) <= 5) {
+    if (rand(runtime, attacker.team) < 0.5) {
+      for (const ally of runtime.state.teams[attacker.team]) if (alive(ally)) boostStats(ally, 1.1)
+      composer.composerThreshold = (composer.composerThreshold || 0) + 1
     }
   }
   if (attacker.flags.naughtyListDrain) runAbilityTrace(runtime, attacker, 'Naughty List', () => boostStats(attacker, 0.9))

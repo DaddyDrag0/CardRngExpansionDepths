@@ -348,6 +348,24 @@ function candidate(loadout: TeamLoadout, score: SampleScore): TowerCheeseCandida
   }
 }
 
+/**
+ * Independently reproduce a Cheese Maker candidate using the exact Tower combat
+ * engine and battle seeds. Wins and average turns must match simulateTowerBatch
+ * for the same loadout, matchup, seed, and run count.
+ */
+export function evaluateTowerCheeseLoadout(
+  loadout: TeamLoadout,
+  enemyNames: string[],
+  floor: number,
+  difficulty: TowerDifficulty,
+  runs = 250,
+  seed = 1,
+): TowerCheeseCandidate {
+  const enemies = buildTowerEnemies(enemyNames, floor, difficulty)
+  const total = Math.min(10_000, Math.max(1, Math.floor(runs)))
+  return candidate(loadout, sampleLoadout(loadout, enemies, total, seed, { value: 0 }))
+}
+
 export function searchTowerCheese(
   enemyNames: string[],
   floor: number,
@@ -561,6 +579,11 @@ export function searchTowerCheeseIntensive(
   const simulations = { value: 0 }
   const stageRng = new SeededRng(seed || 1)
   const nextSeed = () => Math.floor(stageRng.next() * 0x7fffffff) || 1
+  // Common random numbers prevent one team or worker shard from being ranked
+  // higher solely because it received an easier draw of random combat seeds.
+  // Final verification uses a second, independent sample shared by finalists.
+  const discoverySeed = nextSeed()
+  const verificationSeed = nextSeed()
   const contenders: Array<{ loadout: TeamLoadout; score: SampleScore }> = []
   const keep = 80
   let completed = 0
@@ -571,7 +594,7 @@ export function searchTowerCheeseIntensive(
         ...loadoutFor(names, null),
         abilityAura: auraVariant ? { ...auraVariant } : null,
       }
-      const score = sampleLoadout(loadout, enemies, runsPerVariant, nextSeed(), simulations)
+      const score = sampleLoadout(loadout, enemies, runsPerVariant, discoverySeed, simulations)
       contenders.push({ loadout, score })
       if (contenders.length >= keep * 2) {
         contenders.sort((a, b) => compareSamples(a.score, b.score))
@@ -591,7 +614,7 @@ export function searchTowerCheeseIntensive(
   const recommendations: TowerCheeseCandidate[] = []
   for (let index = 0; index < verifyPool.length; index++) {
     const entry = verifyPool[index]
-    const score = sampleLoadout(entry.loadout, enemies, verifyRuns, nextSeed(), simulations)
+    const score = sampleLoadout(entry.loadout, enemies, verifyRuns, verificationSeed, simulations)
     recommendations.push(candidate(entry.loadout, score))
     onProgress?.({ phase: 'verify', completed: index + 1, total: verifyPool.length, battleSimulations: simulations.value })
   }

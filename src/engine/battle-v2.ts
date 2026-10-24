@@ -86,6 +86,7 @@ const FULLY_SUPPORTED = new Set([
   'Jackpot', "Spartan's Rage", 'Black Box', 'Blade of Miquella', 'Life Tap',
   'Frozen Solitude', 'The D8', 'Fortify', 'Divine Arrogance', 'Void Heart',
   'Hidden Blade', 'Glory Kill', 'Split In Two', 'Ruler of Humans', 'Joy', 'Sorrow',
+  'King of Horror', 'Stone Vigil', 'Never Fall Asleep', 'Cursed Orchard', 'Haunted Heirloom',
 ])
 
 const BENCH_AFFECTING_UNSUPPORTED = new Set<string>()
@@ -123,6 +124,8 @@ interface Runtime {
   debug: BattleDebug
   captureDebug: boolean
   deathEpoch: number
+  // Independent seeds retain their own delay and strength, even across deaths.
+  orchardSeeds: Map<CombatCard, Array<{ turns: number; damage: number }>>
 }
 
 function debugCard(card: CombatCard) {
@@ -854,6 +857,23 @@ function onEntry(runtime: Runtime, card: CombatCard) {
   const entryTraceEventStart = runtime.debug.events.length
 
   switch (name) {
+    case 'King of Horror': {
+      let gainedDamage = 0
+      let gainedHealth = 0
+      for (const ally of runtime.state.teams[card.team]) {
+        if (ally === card || !alive(ally) || !String(ally.definition.pack || '').startsWith('Halloween')) continue
+        gainedDamage += ally.damage * 0.25
+        gainedHealth += ally.maxHp * 0.25
+        boostStats(ally, 1.25)
+      }
+      card.damage += gainedDamage
+      card.maxHp += gainedHealth
+      card.hp += gainedHealth
+      break
+    }
+    case 'Haunted Heirloom':
+      card.counters.hauntedGuardTurns = 2
+      break
     case 'Bind Fate': {
       const firstTwo = runtime.state.teams[enemyTeam].filter(alive).slice(0, 2)
       if (firstTwo.length === 2) {
@@ -1444,6 +1464,7 @@ function offensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
       if (!statusProtected(runtime, target.team) && rand(runtime, attacker.team) < 0.25) target.status.stunned = Math.max(1, target.status.stunned)
       break
     case 'Kitchen': bypass = true; break
+    case 'Stone Vigil': if (attacker.flags.stoneAwakened) damage *= 2; break
     case 'War Scythe': if (attacker.flags.warScytheEntry) bypass = true; break
     case 'True Strike': if (rand(runtime, attacker.team) > 0.5) damage *= 2; break
     case 'Absolute Apex': damage *= 1.5; break
@@ -1597,6 +1618,8 @@ function defensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
 
   switch (name) {
     case 'Divine Arrogance': if (target.hp < attacker.hp) damage *= 0.55; break
+    case 'Stone Vigil': if (target.flags.stoneForm) damage *= 0.2; break
+    case 'Haunted Heirloom': if ((target.counters.hauntedGuardTurns || 0) > 0) damage *= 0.25; break
     case 'The D8': damage *= 1 - (target.counters.d8Reduction || 0); break
     case 'Fortify': {
       const absorbed = Math.min(damage, target.counters.blockHp || 0)
@@ -1992,6 +2015,23 @@ function attackerRetroCore(runtime: Runtime, attacker: CombatCard, target: Comba
         target.counters.poisonTurns = Math.max(target.counters.poisonTurns || 0, 2)
       }
       break
+    case 'Never Fall Asleep':
+      if (damage > 0 && !statusProtected(runtime, target.team)) {
+        target.counters.freddyFatigue = Math.min(2, (target.counters.freddyFatigue || 0) + 1)
+        if (target.counters.freddyFatigue >= 2) {
+          target.flags.freddySleeping = true
+          target.status.stunned = Math.max(1, target.status.stunned)
+          target.counters.freddyFatigue = 0
+        }
+      }
+      break
+    case 'Cursed Orchard':
+      if (damage > 0 && !statusProtected(runtime, target.team)) {
+        const seeds = runtime.orchardSeeds.get(target) || []
+        seeds.push({ turns: 2, damage: attacker.damage })
+        runtime.orchardSeeds.set(target, seeds)
+      }
+      break
     case 'Undying':
       if (target.hp <= 0 && attacker.flags.undyingActive) attacker.counters.undyingTurns = (attacker.counters.undyingTurns || 0) + 1
       break
@@ -2195,6 +2235,7 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   if (attacker.status.burn > 0) damage *= 0.85
   const off = offensive(runtime, attacker, target, damage)
   damage = off.damage
+  if (target.flags.freddySleeping) damage *= 2
   bypass = bypass || off.bypass
 
   const executioner = runtime.state.boosts[attacker.team].executioner
@@ -2261,6 +2302,9 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
 
   const shielder = runtime.state.boosts[target.team].shielder
   if (shielder) damage *= (100 - shielder) / 100
+  // Inherited Heirloom is an external protective effect on the next card,
+  // not an ability the inheritor needs to own.
+  if (!bypass && canReceiveExternalProtection(target) && (target.counters.hauntedInheritedTurns || 0) > 0) damage *= 0.6
 
   let threshold = runtime.state.boosts[target.team].synthHuman
   if (threshold && target.definition.weather === 'Time Storm') threshold *= 1.5
@@ -2305,6 +2349,7 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   }
   const appliedHpDamage = Math.min(hpTarget.hp, damage)
   hpTarget.hp -= appliedHpDamage
+  if (appliedHpDamage > 0 && hpTarget.flags.freddySleeping) hpTarget.flags.freddySleeping = false
 
   const mirrorKnight = runtime.state.boosts[hpTarget.team].mirrorKnight
   if (appliedHpDamage > 0 && attacker !== hpTarget && mirrorKnight && alive(attacker)) {
@@ -2451,6 +2496,10 @@ function applyOnDeathCore(runtime: Runtime, dead: CombatCard, opponent: CombatCa
       return child
     })
     deck.unshift(...children)
+  }
+  if (name === 'Haunted Heirloom' && next && canReceiveExternalProtection(next)) {
+    next.counters.hauntedInheritedTurns = Math.max(next.counters.hauntedInheritedTurns || 0, 3)
+    pushAbilityDebug(runtime, dead, 'Haunted Heirloom passed 40% damage reduction to the next ally for three turns.')
   }
   if (name === 'Nightmare Melody' && runtime.state.boosts[team].composerCount) {
     runtime.state.boosts[team].composerCount = Math.max(0, (runtime.state.boosts[team].composerCount || 0) - 1)
@@ -2755,6 +2804,23 @@ function tickOuroborosDecay(attacker: CombatCard) {
 
 function statusEnd(runtime: Runtime, attacker: CombatCard) {
   tickOuroborosDecay(attacker)
+  if ((attacker.counters.hauntedGuardTurns || 0) > 0) attacker.counters.hauntedGuardTurns -= 1
+  if ((attacker.counters.hauntedInheritedTurns || 0) > 0) attacker.counters.hauntedInheritedTurns -= 1
+  const orchardSeeds = runtime.orchardSeeds.get(attacker)
+  if (orchardSeeds?.length) {
+    let burst = 0
+    for (const seed of orchardSeeds) {
+      seed.turns -= 1
+      if (seed.turns <= 0) burst += seed.damage
+    }
+    const remaining = orchardSeeds.filter((seed) => seed.turns > 0)
+    if (remaining.length) runtime.orchardSeeds.set(attacker, remaining)
+    else runtime.orchardSeeds.delete(attacker)
+    if (burst > 0) {
+      attacker.hp -= burst
+      pushAbilityDebug(runtime, attacker, 'Cursed Orchard seed burst for ' + compactDebugNumber(burst) + ' damage.')
+    }
+  }
   if (statusProtected(runtime, attacker.team)) {
     clearStatuses(attacker)
     // Protection of Gods grants immunity to Status Effects; it must not freeze
@@ -2806,6 +2872,12 @@ function statusEnd(runtime: Runtime, attacker: CombatCard) {
 
 function prepareTurn(runtime: Runtime, attacker: CombatCard) {
   const composer = runtime.state.boosts[attacker.team]
+  if (hasAbility(runtime, attacker, 'Stone Vigil')) {
+    attacker.counters.stoneTurns = (attacker.counters.stoneTurns || 0) + 1
+    attacker.flags.stoneForm = attacker.counters.stoneTurns % 2 === 1
+    attacker.flags.stoneAwakened = !attacker.flags.stoneForm
+    pushAbilityDebug(runtime, attacker, attacker.flags.stoneForm ? 'Stone Vigil entered stone form.' : 'Stone Vigil awakened with double attack damage.')
+  }
 
   if (hasAbility(runtime, attacker, 'Cosmic Rivalry')) {
     runAbilityTrace(runtime, attacker, 'Cosmic Rivalry', () => {
@@ -2971,6 +3043,7 @@ function attackCount(runtime: Runtime, attacker: CombatCard): { count: number; m
 
 function canNormalAttack(runtime: Runtime, attacker: CombatCard): boolean {
   if (hasAbility(runtime, attacker, 'Ruler of Humans')) return false
+  if (hasAbility(runtime, attacker, 'Stone Vigil') && attacker.flags.stoneForm) return false
   if (hasAbility(runtime, attacker, 'Dagger Storm') || hasAbility(runtime, attacker, 'Naughty or Nice?')
     || hasAbility(runtime, attacker, 'Meow') || hasAbility(runtime, attacker, 'Never Forgotten')
     || hasAbility(runtime, attacker, 'Origin') || hasAbility(runtime, attacker, 'Laser Gun')
@@ -3382,7 +3455,7 @@ export function simulateBattleV2(
     statAura: loadout.statAura ? { name: loadout.statAura.auraName, border: loadout.statAura.border || null, value: state.boosts.Allies.statAuraValue } : undefined,
     abilityAura: loadout.abilityAura ? { name: loadout.abilityAura.auraName, border: loadout.abilityAura.border || null, value: state.boosts.Allies.skillAuraValue } : undefined,
   }
-  const runtime: Runtime = { state, rng: new SeededRng(seed), debug, captureDebug, deathEpoch: 0 }
+  const runtime: Runtime = { state, rng: new SeededRng(seed), debug, captureDebug, deathEpoch: 0, orchardSeeds: new Map() }
   resolveConstellarArts(runtime)
   if (captureDebug) {
     debug.initialAllies = state.teams.Allies.map(debugCard)

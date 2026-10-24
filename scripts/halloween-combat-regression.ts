@@ -15,7 +15,7 @@ const neutral: CardDefinition = {
   pack: null, boss: false, unobtainable: false, expires: false,
 }
 const enemy = (attack = 0): DepthsEnemy[] => [{
-  card: neutral, attack, health: 1e24, power: 1e24,
+  card: neutral, attack, health: 1e12, power: 1e12,
 }]
 const deck = (...names: string[]): TeamLoadout => ({
   cards: names.map((cardName) => ({ cardName, borders: [] })),
@@ -42,11 +42,11 @@ const equalish = (actual: number, expected: number, label: string) => {
 {
   const stone = find('Living Gargoyle')
   const stopped = simulateBattleV2(deck(stone.name), enemy(10000), 3, 1)
-  equalish(stopped.state.teams.Enemies[0].hp, 1e24, 'Stone skipped first attack')
+  equalish(stopped.state.teams.Enemies[0].hp, 1e12, 'Stone skipped first attack')
   const defending = simulateBattleV2(deck(stone.name), enemy(10000), 3, 2)
   equalish(getHealth(stone) - defending.state.teams.Allies[0].hp, 2500, 'Stone first-turn mitigation')
   const awakened = simulateBattleV2(deck(stone.name), enemy(10000), 3, 3)
-  equalish(1e24 - awakened.state.teams.Enemies[0].hp, getAttack(stone) * 2, 'Stone awakening')
+  equalish(1e12 - awakened.state.teams.Enemies[0].hp, getAttack(stone) * 2, 'Stone awakening')
 }
 
 // Freddy gives fatigue on attacks; the third successful hit deals double
@@ -54,7 +54,7 @@ const equalish = (actual: number, expected: number, label: string) => {
 {
   const freddy = find('Freddy Krueger')
   const result = simulateBattleV2(deck(freddy.name), enemy(), 3, 4)
-  equalish(1e24 - result.state.teams.Enemies[0].hp, getAttack(freddy) * 4, 'Freddy sleep bonus')
+  equalish(1e12 - result.state.teams.Enemies[0].hp, getAttack(freddy) * 4, 'Freddy sleep bonus')
 }
 
 // Two planted seeds keep independent clocks. The seed from turn 1 bursts
@@ -62,7 +62,7 @@ const equalish = (actual: number, expected: number, label: string) => {
 {
   const tree = find('Eerie Tree')
   const result = simulateBattleV2(deck(tree.name), enemy(), 4, 4, false, true)
-  equalish(1e24 - result.state.teams.Enemies[0].hp, getAttack(tree) * 3, 'Cursed Orchard burst')
+  equalish(1e12 - result.state.teams.Enemies[0].hp, getAttack(tree) * 3, 'Cursed Orchard burst')
   assert(result.debug?.events.some((event) => event.detail.includes('Cursed Orchard seed burst')),
     'Delayed seed explosion missing from battle trace')
 }

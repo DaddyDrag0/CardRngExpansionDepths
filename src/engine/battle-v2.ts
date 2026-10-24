@@ -1683,13 +1683,16 @@ function defensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
       }
       break
     case 'Intangible':
-      if (rand(runtime, target.team) < 0.35) {
+      // An already-missed or zero-damage attack cannot count as an evade.
+      // In particular, Venomous Web / curse accuracy failures must not charge
+      // Ghost's next-hit bonus or consume an extra defensive RNG roll.
+      if (damage > 0 && rand(runtime, target.team) < 0.35) {
         damage = 0
         target.flags.intangibleNextAttack = true
       }
       break
     case 'The Eight Pages':
-      if (rand(runtime, target.team) < Math.min(0.4, (target.counters.eightPages || 0) * 0.05)) damage = 0
+      if (damage > 0 && rand(runtime, target.team) < Math.min(0.4, (target.counters.eightPages || 0) * 0.05)) damage = 0
       break
     case 'Evasion': if (rand(runtime, target.team) > 0.9) damage = 0; break
     case 'Divine Ascension': if (rand(runtime, target.team) > Math.pow(damage / target.maxHp, 2)) damage = 0; break

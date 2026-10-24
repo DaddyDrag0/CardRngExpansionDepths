@@ -2472,11 +2472,7 @@ function applyOnDeathCore(runtime: Runtime, dead: CombatCard, opponent: CombatCa
   // Nightmare Melody's counter decrement is cleanup for an already-created field,
   // so keep that cleanup even while the ability itself is locked.
   if ((runtime.state.boosts[team].noAbilities || 0) > 0) {
-    if (name === 'Haunted Heirloom' && next && canReceiveExternalProtection(next)) {
-    next.counters.hauntedInheritedTurns = Math.max(next.counters.hauntedInheritedTurns || 0, 3)
-    pushAbilityDebug(runtime, dead, 'Haunted Heirloom passed 40% damage reduction to the next ally for three turns.')
-  }
-  if (name === 'Nightmare Melody' && runtime.state.boosts[team].composerCount) {
+    if (name === 'Nightmare Melody' && runtime.state.boosts[team].composerCount) {
       runtime.state.boosts[team].composerCount = Math.max(0, (runtime.state.boosts[team].composerCount || 0) - 1)
     }
     return
@@ -2499,6 +2495,10 @@ function applyOnDeathCore(runtime: Runtime, dead: CombatCard, opponent: CombatCa
       return child
     })
     deck.unshift(...children)
+  }
+  if (name === 'Haunted Heirloom' && next && canReceiveExternalProtection(next)) {
+    next.counters.hauntedInheritedTurns = Math.max(next.counters.hauntedInheritedTurns || 0, 3)
+    pushAbilityDebug(runtime, dead, 'Haunted Heirloom passed 40% damage reduction to the next ally for three turns.')
   }
   if (name === 'Nightmare Melody' && runtime.state.boosts[team].composerCount) {
     runtime.state.boosts[team].composerCount = Math.max(0, (runtime.state.boosts[team].composerCount || 0) - 1)

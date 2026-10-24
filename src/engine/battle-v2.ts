@@ -1465,7 +1465,6 @@ function offensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
       break
     case 'Kitchen': bypass = true; break
     case 'Stone Vigil': if (attacker.flags.stoneAwakened) damage *= 2; break
-    case 'Never Fall Asleep': if (target.flags.freddySleeping) damage *= 2; break
     case 'War Scythe': if (attacker.flags.warScytheEntry) bypass = true; break
     case 'True Strike': if (rand(runtime, attacker.team) > 0.5) damage *= 2; break
     case 'Absolute Apex': damage *= 1.5; break
@@ -2236,6 +2235,7 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   if (attacker.status.burn > 0) damage *= 0.85
   const off = offensive(runtime, attacker, target, damage)
   damage = off.damage
+  if (target.flags.freddySleeping) damage *= 2
   bypass = bypass || off.bypass
 
   const executioner = runtime.state.boosts[attacker.team].executioner
@@ -2349,6 +2349,7 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   }
   const appliedHpDamage = Math.min(hpTarget.hp, damage)
   hpTarget.hp -= appliedHpDamage
+  if (appliedHpDamage > 0 && hpTarget.flags.freddySleeping) hpTarget.flags.freddySleeping = false
 
   const mirrorKnight = runtime.state.boosts[hpTarget.team].mirrorKnight
   if (appliedHpDamage > 0 && attacker !== hpTarget && mirrorKnight && alive(attacker)) {
@@ -3549,7 +3550,6 @@ export function simulateBattleV2(
         state.moving = nextTeam
       } else if (next && next.status.stunned > 0) {
         next.status.stunned -= 1
-        if (next.status.stunned <= 0) next.flags.freddySleeping = false
       } else if (next && next.flags.slowed) {
         next.counters.slowed = (next.counters.slowed || 0) + 1
         if ((next.counters.slowTurns || 0) > 0) {

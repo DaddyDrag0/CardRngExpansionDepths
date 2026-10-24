@@ -81,3 +81,117 @@ const equalish = (actual: number, expected: number, label: string) => {
     'Living Armor did not pass inherited protection to the next ally')
 }
 console.log('Five Pumpkin Moon combat regression checks passed.')
+
+const near = (actual: number, expected: number, label: string) => {
+  assert(Math.abs(actual - expected) <= Math.max(4, Math.abs(expected) * 1e-8),
+    label + ': expected ' + expected + ', got ' + actual)
+}
+const manySeeds = Array.from({ length: 64 }, (_, i) => i + 1)
+
+// Trick or Treat uses two distinct outcomes, selected with a 50% entry roll.
+{
+  const card = find('Trick or Treater')
+  let treats = 0
+  let tricks = 0
+  for (const seed of manySeeds) {
+    const result = simulateBattleV2(deck(card.name), enemy(10000), seed, 1)
+    const ally = result.state.teams.Allies[0]
+    const foe = result.state.teams.Enemies[0]
+    if (ally.damage > getAttack(card)) {
+      treats += 1
+      near(ally.damage, getAttack(card) * 1.25, 'Treat boosts ATK by 25%')
+      near(foe.damage, 10000, 'Treat leaves enemy ATK unchanged')
+    } else {
+      tricks += 1
+      near(foe.damage, 7500, 'Trick cuts enemy ATK by 25%')
+    }
+  }
+  assert(treats > 0 && tricks > 0, 'Both Trick or Treat outcomes must occur')
+}
+
+// Neighbor counters the actual incoming hit and reduces enemy ATK once.
+{
+  const card = find('Neighbor')
+  const result = simulateBattleV2(deck(card.name), enemy(100), 3, 2)
+  near(result.state.teams.Enemies[0].damage, 80, 'First Neighbor counter debuff')
+  near(1e12 - result.state.teams.Enemies[0].hp, getAttack(card) * 1.4, 'Neighbor 40% counter damage')
+  assert(result.state.teams.Allies[0].flags.neighborCountered, 'Neighbor never countered')
+  const mirror = simulateBattleV2(deck(card.name), [{
+    card, attack: 100, health: 1e12, power: 1e12,
+  }], 3, 2)
+  assert(mirror.turns === 2, 'Mirror counterattack loop did not terminate')
+}
+
+// Venomous Web applies timed poison and consumes its next-attack miss roll.
+{
+  const card = find('Tarantula')
+  const first = simulateBattleV2(deck(card.name), enemy(100), 5, 1)
+  const poisoned = first.state.teams.Enemies[0]
+  assert(poisoned.counters.poisonTurns === 2, 'Venom poison should last two turns')
+  near(poisoned.counters.poisonFlat || 0, getAttack(card), 'Venom poison strength')
+  assert(poisoned.counters.venomWebPending === 1, 'Venom miss should be pending')
+  let missed = 0
+  for (const seed of manySeeds) {
+    const result = simulateBattleV2(deck(card.name), enemy(100), seed, 2, false, true)
+    assert((result.state.teams.Enemies[0].counters.venomWebPending || 0) === 0,
+      'Venom miss roll must be consumed by the next attack')
+    if (result.debug?.events.some((e) => e.detail.includes('Venomous Web caused the next attack to miss'))) missed++
+  }
+  assert(missed > 0, 'Venomous Web never caused a miss across seeded battles')
+}
+
+// Ghost dodges 35% of incoming strikes; each dodge charges its next attack.
+{
+  const card = find('Ghost')
+  let dodges = 0
+  for (const seed of manySeeds) {
+    const result = simulateBattleV2(deck(card.name), enemy(100), seed, 2)
+    const ghost = result.state.teams.Allies[0]
+    if (ghost.flags.intangibleNextAttack) {
+      dodges++
+      near(ghost.hp, ghost.maxHp, 'Intangible dodged all incoming damage')
+      const followup = simulateBattleV2(deck(card.name), enemy(100), seed, 3)
+      assert(!followup.state.teams.Allies[0].flags.intangibleNextAttack, 'Dodge bonus did not get consumed')
+      near(1e12 - followup.state.teams.Enemies[0].hp, getAttack(card) * 2.5, 'Intangible next-attack bonus')
+    }
+  }
+  assert(dodges > 0, 'Intangible dodge never triggered')
+}
+
+// Murder of Crows entry splash hits all living enemies, and every third
+// normal attack is replaced with a second all-enemy splash for 30%.
+{
+  const card = find('Crow')
+  const result = simulateBattleV2(deck(card.name), [...enemy(0), ...enemy(0)], 9, 5)
+  const foes = result.state.teams.Enemies
+  assert(foes.length === 2, 'Crow fixture lost a target')
+  near(1e12 - foes[0].hp, getAttack(card) * 2.5, 'Crow front damage after three attacks')
+  near(1e12 - foes[1].hp, getAttack(card) * 0.5, 'Crow bench splash damage')
+  assert(result.state.teams.Allies[0].counters.crowAttacks === 3, 'Crow attack counter')
+}
+
+// The curse stacks once per affected enemy turn, capped at 75% ATK loss.
+{
+  const card = find('Grey Pumpkin')
+  const result = simulateBattleV2(deck(card.name), enemy(100), 1, 6)
+  const foe = result.state.teams.Enemies[0]
+  assert(foe.counters.witheringCurseStacks === 3, 'Withering Curse stacks at enemy turn end: ' + JSON.stringify({ stacks: foe.counters.witheringCurseStacks, cursed: foe.counters.witheringCursed, turns: result.turns, moving: result.state.moving, enemyDamage: foe.damage, allyHp: result.state.teams.Allies[0]?.hp }))
+  near(foe.damage, 25, 'Withering Curse final ATK')
+}
+
+// The Faceless grows eight pages, including while the card is benched.
+{
+  const card = find('The Faceless')
+  const result = simulateBattleV2(deck('Ghost', card.name), enemy(0), 1, 5)
+  const faceless = result.state.teams.Allies.find((c) => c.definition.name === card.name)
+  assert(faceless, 'The Faceless missing')
+  assert(faceless.counters.eightPages === 3, 'Benched Faceless should have three pages')
+  near(faceless.damage, getAttack(card) * 1.6, 'Three pages grant +60% ATK')
+  const capped = simulateBattleV2(deck('Ghost', card.name), enemy(0), 1, 19)
+  const maxed = capped.state.teams.Allies.find((c) => c.definition.name === card.name)
+  assert(maxed?.counters.eightPages === 8, 'Page stack cap should be eight')
+  near(maxed!.damage, getAttack(card) * 2.6, 'Eight pages grant +160% ATK')
+}
+
+console.log('Seven additional Halloween3 ability regression checks passed.')
+

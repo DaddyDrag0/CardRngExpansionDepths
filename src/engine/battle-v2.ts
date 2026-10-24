@@ -87,6 +87,8 @@ const FULLY_SUPPORTED = new Set([
   'Frozen Solitude', 'The D8', 'Fortify', 'Divine Arrogance', 'Void Heart',
   'Hidden Blade', 'Glory Kill', 'Split In Two', 'Ruler of Humans', 'Joy', 'Sorrow',
   'King of Horror', 'Stone Vigil', 'Never Fall Asleep', 'Cursed Orchard', 'Haunted Heirloom',
+  'Trick or Treat!', 'Get Off My Lawn!', 'Venomous Web', 'Intangible',
+  'Murder of Crows', 'Withering Curse', 'The Eight Pages',
 ])
 
 const BENCH_AFFECTING_UNSUPPORTED = new Set<string>()
@@ -100,7 +102,7 @@ const DODGE_ABILITIES = new Set([
   'Danger Sense', 'Deadly Ambush', 'Evasion', 'Untouchable', 'Guerilla Warfare',
   'The Loser', 'Invisibility', 'Limitless', 'Transcend Time', 'Snowbound',
   'Sky Drop', 'Shadow Predator', 'Run As Fast As You Can', 'Heard but not Seen',
-  'Lights Way', 'Mastered Ascension',
+  'Lights Way', 'Mastered Ascension', 'Intangible', 'The Eight Pages',
 ])
 
 const GENERAL_MOON_ZOO_ABILITY = cards.find((card) => card.name === 'General Moon Zoo')?.ability
@@ -124,6 +126,7 @@ interface Runtime {
   debug: BattleDebug
   captureDebug: boolean
   deathEpoch: number
+  counterDepth: number
   // Independent seeds retain their own delay and strength, even across deaths.
   orchardSeeds: Map<CombatCard, Array<{ turns: number; damage: number }>>
 }
@@ -857,6 +860,30 @@ function onEntry(runtime: Runtime, card: CombatCard) {
   const entryTraceEventStart = runtime.debug.events.length
 
   switch (name) {
+    case 'Trick or Treat!':
+      if (rand(runtime, card.team) < 0.5) {
+        card.damage *= 1.25
+        card.hp = Math.min(card.maxHp, card.hp + card.maxHp * 0.2)
+        pushAbilityDebug(runtime, card, 'Trick or Treat! gave a Treat: +25% ATK and healed 20% Max HP.')
+      } else {
+        enemy.damage *= 0.75
+        pushAbilityDebug(runtime, card, 'Trick or Treat! played a Trick: enemy lost 25% ATK.')
+      }
+      break
+    case 'Withering Curse':
+      if (!statusProtected(runtime, enemyTeam)) {
+        enemy.counters.witheringCursed = 1
+        if (!enemy.counters.witheringBaseDamage) enemy.counters.witheringBaseDamage = enemy.damage
+        pushAbilityDebug(runtime, card, 'Withering Curse applied; enemy loses ATK and accuracy at the end of its turns.')
+      }
+      break
+    case 'Murder of Crows': {
+      // Entry splash hits every living enemy, not only the front card.
+      for (const victim of [...runtime.state.teams[enemyTeam]].filter(alive)) {
+        if (alive(card) && alive(victim)) dealDamage(runtime, card, victim, 0.2)
+      }
+      break
+    }
     case 'King of Horror': {
       let gainedDamage = 0
       let gainedHealth = 0
@@ -1454,6 +1481,12 @@ function offensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
         special = true
       }
       break
+    case 'Intangible':
+      if (attacker.flags.intangibleNextAttack) {
+        damage *= 1.5
+        attacker.flags.intangibleNextAttack = false
+      }
+      break
     case 'Void Heart':
       if (attacker.flags.voidReady) { attacker.flags.voidReady = false; damage *= 2 }
       break
@@ -1648,6 +1681,15 @@ function defensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
           deck[index + 1] = target
         }
       }
+      break
+    case 'Intangible':
+      if (rand(runtime, target.team) < 0.35) {
+        damage = 0
+        target.flags.intangibleNextAttack = true
+      }
+      break
+    case 'The Eight Pages':
+      if (rand(runtime, target.team) < Math.min(0.4, (target.counters.eightPages || 0) * 0.05)) damage = 0
       break
     case 'Evasion': if (rand(runtime, target.team) > 0.9) damage = 0; break
     case 'Divine Ascension': if (rand(runtime, target.team) > Math.pow(damage / target.maxHp, 2)) damage = 0; break
@@ -1878,6 +1920,20 @@ function targetRetroCore(runtime: Runtime, attacker: CombatCard, target: CombatC
   const name = resolvedAbility(runtime, target)
   if (!name || !hasAbility(runtime, target, name)) return
   switch (name) {
+    case 'Get Off My Lawn!':
+      if (damage > 0 && alive(target) && alive(attacker) && runtime.counterDepth === 0) {
+        const first = !target.flags.neighborCountered
+        target.flags.neighborCountered = true
+        runtime.counterDepth += 1
+        try {
+          dealDamage(runtime, target, attacker, 0.4)
+        } finally {
+          runtime.counterDepth -= 1
+        }
+        if (first) attacker.damage = Math.max(0, attacker.damage * 0.8)
+        pushAbilityDebug(runtime, target, 'Get Off My Lawn! counterattacked for 40% damage' + (first ? ' and reduced attacker ATK by 20%.' : '.'))
+      }
+      break
     case 'Ruler of Humans':
       for (const ally of runtime.state.teams[target.team]) if (alive(ally)) ally.damage += damage * 1.25
       break
@@ -2013,6 +2069,14 @@ function attackerRetroCore(runtime: Runtime, attacker: CombatCard, target: Comba
       if (damage > 0 && !statusProtected(runtime, target.team)) {
         target.counters.poisonFlat = Math.max(target.counters.poisonFlat || 0, attacker.damage)
         target.counters.poisonTurns = Math.max(target.counters.poisonTurns || 0, 2)
+      }
+      break
+    case 'Venomous Web':
+      if (damage > 0 && !statusProtected(runtime, target.team)) {
+        target.counters.poisonFlat = Math.max(target.counters.poisonFlat || 0, attacker.damage)
+        target.counters.poisonTurns = Math.max(target.counters.poisonTurns || 0, 2)
+        target.counters.venomWebPending = 1
+        pushAbilityDebug(runtime, attacker, 'Venomous Web poisoned the enemy for two turns and applied a 20% miss chance.')
       }
       break
     case 'Never Fall Asleep':
@@ -2243,6 +2307,19 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
     damage *= 1 + executioner / 100
   }
 
+  if ((attacker.counters.venomWebPending || 0) > 0) {
+    attacker.counters.venomWebPending = 0
+    if (!statusProtected(runtime, attacker.team) && rand(runtime, attacker.team) < 0.2) {
+      damage = 0
+      pushAbilityDebug(runtime, attacker, 'Venomous Web caused the next attack to miss.')
+    }
+  }
+  if ((attacker.counters.witheringCurseStacks || 0) > 0
+    && !statusProtected(runtime, attacker.team)
+    && rand(runtime, attacker.team) < Math.min(0.75, attacker.counters.witheringCurseStacks * 0.25)) {
+    damage = 0
+    pushAbilityDebug(runtime, attacker, 'Withering Curse caused the attack to miss.')
+  }
   if (attacker.status.blind && rand(runtime, attacker.team) > 0.4) { damage = 0; pushAbilityDebug(runtime, attacker, 'Blind caused the attack to miss.') }
 
   if (!bypass && !off.special && hasAbility(runtime, target, 'All Father') && damage > 0) {
@@ -2804,6 +2881,15 @@ function tickOuroborosDecay(attacker: CombatCard) {
 
 function statusEnd(runtime: Runtime, attacker: CombatCard) {
   tickOuroborosDecay(attacker)
+  if ((attacker.counters.witheringCursed || 0) > 0 && !statusProtected(runtime, attacker.team)) {
+    const stacks = Math.min(3, (attacker.counters.witheringCurseStacks || 0) + 1)
+    if (stacks > (attacker.counters.witheringCurseStacks || 0)) {
+      const base = attacker.counters.witheringBaseDamage || attacker.damage
+      attacker.damage = Math.max(0, attacker.damage - base * 0.25)
+      attacker.counters.witheringCurseStacks = stacks
+      pushAbilityDebug(runtime, attacker, 'Withering Curse applied stack ' + stacks + '/3 (-25% ATK and accuracy per stack).')
+    }
+  }
   if ((attacker.counters.hauntedGuardTurns || 0) > 0) attacker.counters.hauntedGuardTurns -= 1
   if ((attacker.counters.hauntedInheritedTurns || 0) > 0) attacker.counters.hauntedInheritedTurns -= 1
   const orchardSeeds = runtime.orchardSeeds.get(attacker)
@@ -3148,6 +3234,16 @@ function applyCollateralAfterHit(runtime: Runtime, attacker: CombatCard, target:
 }
 
 function processTeamTurnAbilities(runtime: Runtime, movedTeam: BattleTeam, movedCard: CombatCard) {
+  // The Faceless collects pages while benched as well as while active.
+  for (const ally of runtime.state.teams[movedTeam]) {
+    if (!alive(ally) || !hasAbility(runtime, ally, 'The Eight Pages')) continue
+    const pages = ally.counters.eightPages || 0
+    if (pages >= 8) continue
+    if (pages === 0) ally.counters.eightPagesBaseDamage = ally.damage
+    ally.counters.eightPages = pages + 1
+    ally.damage += (ally.counters.eightPagesBaseDamage || ally.damage) * 0.2
+    pushAbilityDebug(runtime, ally, 'The Eight Pages gained page ' + ally.counters.eightPages + '/8.')
+  }
   const defendingTeam = OTHER_TEAM[movedTeam]
   const dispel = active(runtime, defendingTeam)
   if (dispel && alive(dispel) && hasAbility(runtime, dispel, 'Dispel') && alive(movedCard)) {
@@ -3242,6 +3338,19 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
     for (let i = 0; i < count; i++) {
       target = active(runtime, enemyTeam)
       if (!target || !alive(attacker)) break
+      if (hasAbility(runtime, attacker, 'Murder of Crows')) {
+        attacker.counters.crowAttacks = (attacker.counters.crowAttacks || 0) + 1
+        if (attacker.counters.crowAttacks % 3 === 0) {
+          const victims = [...runtime.state.teams[enemyTeam]].filter(alive)
+          for (const victim of victims) {
+            if (!alive(attacker) || !alive(victim)) break
+            dealDamage(runtime, attacker, victim, 0.3)
+          }
+          pushAbilityDebug(runtime, attacker, 'Murder of Crows third attack hit the enemy team for 30% damage.')
+          resolveDeaths(runtime)
+          continue
+        }
+      }
       const critical = hasAbility(runtime, attacker, 'Jackpot') && rand(runtime, attacker.team) < 0.3
       const dealt = dealDamage(runtime, attacker, target, dance ? 0.5 : critical ? 1.5 : 1)
       const armageddonLethal = Boolean(attacker.flags.armageddonLethalThisHit)
@@ -3455,7 +3564,7 @@ export function simulateBattleV2(
     statAura: loadout.statAura ? { name: loadout.statAura.auraName, border: loadout.statAura.border || null, value: state.boosts.Allies.statAuraValue } : undefined,
     abilityAura: loadout.abilityAura ? { name: loadout.abilityAura.auraName, border: loadout.abilityAura.border || null, value: state.boosts.Allies.skillAuraValue } : undefined,
   }
-  const runtime: Runtime = { state, rng: new SeededRng(seed), debug, captureDebug, deathEpoch: 0, orchardSeeds: new Map() }
+  const runtime: Runtime = { state, rng: new SeededRng(seed), debug, captureDebug, deathEpoch: 0, counterDepth: 0, orchardSeeds: new Map() }
   resolveConstellarArts(runtime)
   if (captureDebug) {
     debug.initialAllies = state.teams.Allies.map(debugCard)

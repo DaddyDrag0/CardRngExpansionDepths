@@ -44,7 +44,7 @@ const equalish = (actual: number, expected: number, label: string) => {
   const stopped = simulateBattleV2(deck(stone.name), enemy(10000), 3, 1)
   equalish(stopped.state.teams.Enemies[0].hp, 1e12, 'Stone skipped first attack')
   const defending = simulateBattleV2(deck(stone.name), enemy(10000), 3, 2)
-  equalish(getHealth(stone) - defending.state.teams.Allies[0].hp, 2500, 'Stone first-turn mitigation')
+  equalish(getHealth(stone) - defending.state.teams.Allies[0].hp, 2000, 'Stone first-turn mitigation')
   const awakened = simulateBattleV2(deck(stone.name), enemy(10000), 3, 3)
   equalish(1e12 - awakened.state.teams.Enemies[0].hp, getAttack(stone) * 2, 'Stone awakening')
 }

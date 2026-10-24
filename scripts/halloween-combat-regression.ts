@@ -71,10 +71,10 @@ const equalish = (actual: number, expected: number, label: string) => {
 // passes 40% reduction to the next ally for three turns on death.
 {
   const armor = find('Living Armor')
-  const defended = simulateBattleV2(deck(armor.name), enemy(10000), 5, 2)
-  equalish(getHealth(armor) - defended.state.teams.Allies[0].hp, 2500, 'Haunted guard reduction')
-  const expired = simulateBattleV2(deck(armor.name), enemy(10000), 5, 4)
-  equalish(getHealth(armor) - expired.state.teams.Allies[0].hp, 12500, 'Haunted guard expiry')
+  const defended = simulateBattleV2(deck(armor.name), enemy(100), 5, 2)
+  equalish(getHealth(armor) - defended.state.teams.Allies[0].hp, 25, 'Haunted guard reduction')
+  const expired = simulateBattleV2(deck(armor.name), enemy(100), 5, 4)
+  equalish(getHealth(armor) - expired.state.teams.Allies[0].hp, 125, 'Haunted guard expiry')
   const inherited = simulateBattleV2(deck(armor.name, 'Ghost'), enemy(1e20), 6, 2)
   const ghost = inherited.state.teams.Allies.find((c) => c.definition.name === 'Ghost')
   assert(ghost && ghost.counters.hauntedInheritedTurns === 3,

@@ -173,10 +173,10 @@ const manySeeds = Array.from({ length: 64 }, (_, i) => i + 1)
 // The curse stacks once per affected enemy turn, capped at 75% ATK loss.
 {
   const card = find('Grey Pumpkin')
-  const result = simulateBattleV2(deck(card.name), enemy(10000), 1, 6)
+  const result = simulateBattleV2(deck(card.name), enemy(100), 1, 6)
   const foe = result.state.teams.Enemies[0]
   assert(foe.counters.witheringCurseStacks === 3, 'Withering Curse stacks at enemy turn end: ' + JSON.stringify({ stacks: foe.counters.witheringCurseStacks, cursed: foe.counters.witheringCursed, turns: result.turns, moving: result.state.moving, enemyDamage: foe.damage, allyHp: result.state.teams.Allies[0]?.hp }))
-  near(foe.damage, 2500, 'Withering Curse final ATK')
+  near(foe.damage, 25, 'Withering Curse final ATK')
 }
 
 // The Faceless grows eight pages, including while the card is benched.

@@ -4,6 +4,8 @@ on:
     branches: [halloween3-combat-seven-phase3-20261024]
     paths:
       - '.github/workflows/rebuild-halloween3-phase3.yml'
+      - 'scripts/halloween-combat-regression.ts'
+      - 'src/engine/battle-v2.ts'
 permissions:
   contents: write
 jobs:

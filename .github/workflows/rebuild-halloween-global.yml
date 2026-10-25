@@ -1,4 +1,5 @@
 name: Build global Halloween deck search workers
+# Final build: default 1qd engine model and all-card placement coverage.
 on:
   push:
     branches: [halloween-global-strategy-search-20261025]

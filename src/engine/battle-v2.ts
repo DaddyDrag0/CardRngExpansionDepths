@@ -493,11 +493,24 @@ function clearStatuses(card: CombatCard) {
   card.counters.weaknessTurns = 0
 }
 
-function makePlayerCard(name: string, borders: CombatCard['borders'], index: number, mutationWeather?: CombatCard['mutationWeather']): CombatCard | null {
+export interface BattleModeOptions {
+  /** Halloween Tower's empirically fitted rarity-based stat normalization. */
+  halloweenNormalizedPlayers?: boolean
+  /** Halloween Soul Guide / Resting Place suppresses the player's aura cards. */
+  disablePlayerAuras?: boolean
+  /** Optional fifth, non-combat aura in a fixed enemy stage. */
+  enemySkillAura?: { auraName: string; border?: 'Platinum' | 'Crystal' | 'Galaxy' | null } | null
+}
+
+function makePlayerCard(name: string, borders: CombatCard['borders'], index: number, mutationWeather?: CombatCard['mutationWeather'], halloweenNormalized = false): CombatCard | null {
   const card = definition(name)
   if (!card) return null
-  const power = getPower(card, borders, mutationWeather)
-  const hp = getHealth(card, borders, mutationWeather)
+  // Stage 14–17 measurements support ATK = ceil((200 + 10 log10(rarity))/2)
+  // before deck passives. HP and how special HP multipliers behave are provisional.
+  const power = halloweenNormalized
+    ? Math.ceil(200 + 10 * Math.log10(Math.max(1, rarityWithBorders(card, borders))))
+    : getPower(card, borders, mutationWeather)
+  const hp = halloweenNormalized ? power * (card.hpMultiplier || 1) : getHealth(card, borders, mutationWeather)
   return {
     id: `Allies:${index}:${name}`,
     definition: card,
@@ -508,7 +521,7 @@ function makePlayerCard(name: string, borders: CombatCard['borders'], index: num
     power,
     hp,
     maxHp: hp,
-    damage: getAttack(card, borders, mutationWeather),
+    damage: halloweenNormalized ? Math.ceil(power / 2) : getAttack(card, borders, mutationWeather),
     entered: false,
     dead: false,
     boss: Boolean(card.boss),
@@ -644,9 +657,9 @@ function applyDraconianSetup(team: CombatCard[]) {
   }
 }
 
-export function createBattleStateV2(loadout: TeamLoadout, enemies: DepthsEnemy[]): BattleState {
+export function createBattleStateV2(loadout: TeamLoadout, enemies: DepthsEnemy[], mode: BattleModeOptions = {}): BattleState {
   const allies = loadout.cards
-    .map((slot, index) => makePlayerCard(slot.cardName, slot.borders, index + 1, slot.mutationWeather))
+    .map((slot, index) => makePlayerCard(slot.cardName, slot.borders, index + 1, slot.mutationWeather, mode.halloweenNormalizedPlayers))
     .filter((card): card is CombatCard => Boolean(card))
   const enemyCards = enemies.map((enemy, index) => makeEnemyCard(enemy, index + 1))
 
@@ -663,9 +676,18 @@ export function createBattleStateV2(loadout: TeamLoadout, enemies: DepthsEnemy[]
   applyDeckPassives(enemyCards)
   applyDraconianSetup(allies)
   applyDraconianSetup(enemyCards)
-  const stat = applyStatAura(allies, loadout.statAura)
-  const skillTeam = applySkillAuraTeamEffects(allies, loadout.abilityAura)
-  state.boosts = buildBoosts(loadout, state)
+  const effectiveLoadout = mode.disablePlayerAuras ? { ...loadout, statAura: null, abilityAura: null } : loadout
+  const stat = applyStatAura(allies, effectiveLoadout.statAura)
+  const skillTeam = applySkillAuraTeamEffects(allies, effectiveLoadout.abilityAura)
+  state.boosts = buildBoosts(effectiveLoadout, state)
+  if (mode.enemySkillAura) {
+    const skill = applySkillAuraTeamEffects(enemyCards, mode.enemySkillAura)
+    const aura = buildSkillAuraBoosts(mode.enemySkillAura)
+    state.boosts.Enemies = { ...state.boosts.Enemies, ...aura.boosts }
+    if ((skill.aura && !skill.implemented) || (aura.aura && !aura.implemented)) {
+      state.unsupportedAbilities.add('Enemy aura: ' + mode.enemySkillAura.auraName)
+    }
+  }
   for (const team of ['Allies', 'Enemies'] as BattleTeam[]) {
     const composerCount = state.teams[team].filter((card) => card.definition.ability === 'Nightmare Melody').length
     if (composerCount > 0) {
@@ -3560,8 +3582,9 @@ export function simulateBattleV2(
   markTurnCap = false,
   captureDebug = false,
   onProgress?: (turn: number) => void,
+  mode: BattleModeOptions = {},
 ): BattleResult {
-  const state = createBattleStateV2(loadout, enemies)
+  const state = createBattleStateV2(loadout, enemies, mode)
   const debug: BattleDebug = {
     initialAllies: [], initialEnemies: [], finalAllies: [], finalEnemies: [], events: [], forcedStallResolutions: 0,
     statAura: loadout.statAura ? { name: loadout.statAura.auraName, border: loadout.statAura.border || null, value: state.boosts.Allies.statAuraValue } : undefined,

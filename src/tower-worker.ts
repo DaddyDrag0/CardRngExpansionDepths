@@ -2,7 +2,8 @@
 
 import { searchTowerCheese, searchTowerCheeseIntensive, type TowerCheeseSearchProgress, type TowerDifficulty } from './engine/tower'
 import { replayTowerWinningRun, simulateTowerBatchLogged } from './engine/tower-logged'
-import type { TeamLoadout } from './types'
+import type { TeamLoadout, BorderName } from './types'
+import { halloweenStage, simulateHalloweenTower, searchHalloweenTower } from './engine/halloween-tower'
 
 interface TowerSimulationRequest {
   id: number
@@ -42,12 +43,50 @@ interface TowerCheeseSearchRequest {
   shardCount?: number
 }
 
-type TowerRequest = TowerSimulationRequest | TowerWinDebugRequest | TowerCheeseSearchRequest
+interface HalloweenTowerRequest {
+  id: number
+  kind: 'halloween-stage' | 'halloween-sim' | 'halloween-search'
+  floor: number
+  seed: number
+  enemyNames?: string[]
+  loadout?: TeamLoadout
+  current?: TeamLoadout
+  runs?: number
+  pool?: string[]
+  borders?: BorderName[]
+  extraBans?: string[]
+}
+
+type TowerRequest = TowerSimulationRequest | TowerWinDebugRequest | TowerCheeseSearchRequest | HalloweenTowerRequest
 
 self.onmessage = (event: MessageEvent<TowerRequest>) => {
   const request = event.data
   const started = performance.now()
   try {
+    if (request.kind === 'halloween-stage') {
+      self.postMessage({kind:'halloween-stage-result',id:request.id,ok:true,
+        result:{enemies:halloweenStage(request.floor,request.seed)}})
+      return
+    }
+    if (request.kind === 'halloween-sim') {
+      if (!request.loadout || !request.enemyNames) throw new Error('Halloween loadout and opponents required')
+      const result=simulateHalloweenTower(request.loadout,request.enemyNames,request.floor,request.runs||100,
+        request.seed,request.extraBans||[],(done,total)=>{
+          self.postMessage({kind:'halloween-progress',id:request.id,done,total})
+        })
+      self.postMessage({kind:'halloween-result',id:request.id,ok:true,elapsedMs:performance.now()-started,result})
+      return
+    }
+    if (request.kind === 'halloween-search') {
+      if (!request.enemyNames) throw new Error('Halloween opponents required')
+      const result=searchHalloweenTower(request.enemyNames,request.floor,request.seed,{
+        pool:request.pool,borders:request.borders,extraBans:request.extraBans,current:request.current,
+      },(done,total)=>{
+        self.postMessage({kind:'halloween-progress',id:request.id,done,total})
+      })
+      self.postMessage({kind:'halloween-result',id:request.id,ok:true,elapsedMs:performance.now()-started,result})
+      return
+    }
     if (request.kind === 'tower-cheese-search') {
       const progress = (update: TowerCheeseSearchProgress) =>
         self.postMessage({ kind: 'tower-cheese-progress', id: request.id, ...update })
@@ -92,13 +131,14 @@ self.onmessage = (event: MessageEvent<TowerRequest>) => {
       return
     }
 
+    const batch = request as TowerSimulationRequest
     const result = simulateTowerBatchLogged(
-      request.loadout,
-      request.enemyNames,
-      request.floor,
-      request.difficulty,
-      request.runs,
-      request.seed,
+      batch.loadout,
+      batch.enemyNames,
+      batch.floor,
+      batch.difficulty,
+      batch.runs,
+      batch.seed,
       (completed, total) => {
         self.postMessage({ kind: 'tower-progress', id: request.id, completed, total })
       },
@@ -111,7 +151,8 @@ self.onmessage = (event: MessageEvent<TowerRequest>) => {
       result,
     })
   } catch (error) {
-    const kind = request.kind === 'tower-cheese-search'
+    const kind = request.kind.startsWith('halloween-') ? (request.kind === 'halloween-stage' ? 'halloween-stage-result' : 'halloween-result')
+      : request.kind === 'tower-cheese-search'
       ? 'tower-cheese-result'
       : request.kind === 'tower-win-debug'
         ? 'tower-win-debug-result'

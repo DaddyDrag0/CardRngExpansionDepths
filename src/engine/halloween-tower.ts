@@ -42,6 +42,7 @@ export const HALLOWEEN_RANDOM_ENEMIES = [
 // Reported by players, not a recovered server-side validation table.
 export const HALLOWEEN_REPORTED_BANS = [
   'Vampire Lord','Fuxi','Priest','Pandora','Black Plague','Wendigo','Glamour',
+  'Fate Seamstress','Behemoth','Parallax',
 ] as const
 export const HALLOWEEN_ONE_COPY = ['Julius Leader'] as const
 export const HALLOWEEN_SKILL_CANDIDATES = [
@@ -54,8 +55,9 @@ export const HALLOWEEN_SKILL_CANDIDATES = [
 ] as const
 const CARD_MAP = new Map(cards.map(c=>[c.name,c] as const))
 
-export function halloweenPlayerPower(card: CardDefinition, borders: BorderName[] = []): number {
-  return Math.ceil(200 + 10 * Math.log10(Math.max(1,rarityWithBorders(card,borders))))
+export const HALLOWEEN_DEFAULT_MIN_RARITY = 1e15 // 1 quadrillion effective rarity, a search assumption, not a free border
+export function halloweenPlayerPower(card: CardDefinition, borders: BorderName[] = [], minimumRarity = 1): number {
+  return Math.ceil(200 + 10 * Math.log10(Math.max(1,minimumRarity,rarityWithBorders(card,borders))))
 }
 export function halloweenEnemyPower(floor:number):number {
   return Math.ceil(300 + 2.5 * Math.max(1,Math.min(105,Math.floor(floor))))
@@ -113,10 +115,12 @@ export interface HalloweenRunSummary {
 export interface HalloweenRecommendation extends HalloweenRunSummary {loadout:TeamLoadout}
 export interface HalloweenSearchResult {
   recommendations:HalloweenRecommendation[];tested:number;battles:number;eligiblePool:string[]
+  coveredCards:number;searchMethod:string;minimumRarity:number
 }
 export function simulateHalloweenTower(
   loadout:TeamLoadout,enemyNames:string[],floor:number,runs=100,seed=1,extraBans:readonly string[]=[],
   onProgress?:(done:number,total:number)=>void,
+  minimumRarity = 1,
 ):HalloweenRunSummary{
   const errors=halloweenCheckTeam(loadout,extraBans)
   if(errors.length)throw new Error(errors.join('; '))
@@ -128,7 +132,7 @@ export function simulateHalloweenTower(
   const unsupported=new Set<string>()
   for(let i=0;i<total;i++){
     const battle=simulateBattleV2(loadout,enemies,Math.floor(rng.next()*0x7fffffff)||i+1,500,true,false,undefined,{
-      halloweenNormalizedPlayers:true,disablePlayerAuras:true,
+      halloweenNormalizedPlayers:true,halloweenMinimumRarity:minimumRarity,disablePlayerAuras:true,
       enemySkillAura:aura?{auraName:aura,border:'Galaxy'}:null,
     })
     if(battle.winner==='Allies')wins++
@@ -150,64 +154,157 @@ function rank(a:HalloweenRunSummary,b:HalloweenRunSummary):number {
   return b.winRate-a.winRate||b.progress-a.progress||a.averageTurns-b.averageTurns
 }
 /**
- * Skill-oriented stochastic deck search. Uses ACTUAL normalized combat simulations,
- * not raw-ATK scoring. Users own/edit the candidate pool; no ownership is assumed.
- * The broad search is a heuristic shortlist, never an exhaustive optimality claim.
+ * A bounded evolutionary combat search, not a neural network.
+ * Every eligible card is actually evaluated in at least two candidate orders.
+ * The best mixed-skill decks are then mutated, reranked on common RNG seeds,
+ * and independently verified. Order, matchups and abilities determine the score.
  */
 export function searchHalloweenTower(
   enemyNames:string[],floor:number,seed=1,
-  options:{pool?:string[];borders?:BorderName[];extraBans?:string[];current?:TeamLoadout}={},
+  options:{
+    pool?:string[];borders?:BorderName[];extraBans?:string[];current?:TeamLoadout
+    minimumRarity?:number
+  }={},
   onProgress?:(done:number,total:number)=>void,
 ):HalloweenSearchResult {
   halloweenEnemyCards(enemyNames,floor)
   const extra=options.extraBans||[]
-  const pool=[...new Set((options.pool?.length?options.pool:[...HALLOWEEN_SKILL_CANDIDATES])
-    .filter(name=>CARD_MAP.has(name)&&!halloweenBanReason(name,extra)))]
+  // With no explicit pool the search covers the ENTIRE obtainable, unbanned catalog.
+  const pool=[...new Set((options.pool===undefined?cards.map(c=>c.name):options.pool)
+    .filter(name=>CARD_MAP.has(name)&&!halloweenBanReason(name,extra)))].sort()
   if(!pool.length)throw new Error('No eligible cards in the Halloween search pool')
   if(pool.length===1&&pool[0]==='Julius Leader')throw new Error('Julius Leader is limited to one copy; add at least one other card to search')
-  const border=options.borders||['Platinum','Crystal','Galaxy']
+  const minimumRarity=Math.max(1,Number(options.minimumRarity)||1)
+  const border=options.borders||[]
   const rng=new SeededRng(seed||1)
-  const seedForCandidates=Math.floor(rng.next()*0x7fffffff)||1
-  const seedForVerification=Math.floor(rng.next()*0x7fffffff)||2
-  const teams:TeamLoadout[]=[]
+  const draw=()=>Math.floor(rng.next()*0x7fffffff)||1
+  const discoverySeed=draw(), evolutionSeed=draw(), verificationSeed=draw()
+  const randomName=()=>pool[Math.floor(rng.next()*pool.length)]
+  const anchorNames=[...HALLOWEEN_SKILL_CANDIDATES].filter(name=>pool.includes(name))
+  const randomWeighted=()=>{
+    // Keep novel catalog cards in play, but also test established synergy cards.
+    if(anchorNames.length&&rng.next()<0.32)return anchorNames[Math.floor(rng.next()*anchorNames.length)]
+    return randomName()
+  }
+  const validNames=(names:string[])=>names.length===4
+    &&names.filter(n=>n==='Julius Leader').length<=1
   const seen=new Set<string>()
-  const append=(names:string[],current?:TeamLoadout)=>{
-    if(names.length!==4)return
-    const trial:TeamLoadout={cards:names.map((cardName,i)=>{
-      const original=current?.cards.find(c=>c.cardName===cardName)
-      return {cardName,borders:original?[...original.borders]:[...border]}
+  const currentCards=options.current?.cards||[]
+  const build=(names:string[],preserveCurrent=false):TeamLoadout=>{
+    return {cards:names.map((cardName,i)=>{
+      const original=preserveCurrent?currentCards[i]:undefined
+      return {cardName,borders:original&&original.cardName===cardName?[...original.borders]:[...border]}
     })}
-    if(halloweenCheckTeam(trial,extra).length)return
-    const key=trial.cards.map(c=>c.cardName+':'+c.borders.join('+')).join('|')
-    if(seen.has(key))return
-    seen.add(key);teams.push(trial)
   }
-  if(options.current?.cards.length===4)append(options.current.cards.map(c=>c.cardName),options.current)
-  const favorite=pool.filter(name=>['Julius Leader','Anubis','Serket','Triceratops','Mothman','Tarantula','Living Armor','The Faceless'].includes(name))
-  for(let i=0;i<240;i++){
+  const candidates:TeamLoadout[]=[]
+  const add=(names:string[],preserveCurrent=false)=>{
+    if(!validNames(names)||names.some(n=>!pool.includes(n)))return
+    const deck=build(names,preserveCurrent)
+    if(halloweenCheckTeam(deck,extra).length)return
+    const key=deck.cards.map(c=>c.cardName+':'+c.borders.join('+')).join('|')
+    if(!seen.has(key)){seen.add(key);candidates.push(deck)}
+  }
+  const filler=(avoid:string[])=>{
+    let result:string
+    let attempts=0
+    do {result=randomWeighted();attempts++}
+    while(result==='Julius Leader'&&avoid.includes(result)&&attempts<500)
+    return result
+  }
+  const randomTeam=(first?:string,position=0):string[]=>{
     const names:string[]=[]
-    if(i%4===0&&favorite.length)names.push(favorite[i%favorite.length])
-    while(names.length<4){
-      const selected=pool[Math.floor(rng.next()*pool.length)]
-      if(selected==='Julius Leader'&&names.includes(selected))continue
-      names.push(selected)
+    for(let i=0;i<4;i++)names.push(i===position&&first?first:filler(names))
+    return names
+  }
+  if(options.current?.cards.length===4)add(currentCards.map(c=>c.cardName),true)
+  // Guaranteed catalog coverage: all selectable cards appear as both lead and
+  // closer at least once (unless impossible due to Julius's one-copy limit).
+  for(const name of pool){
+    add(randomTeam(name,0))
+    add(randomTeam(name,3))
+  }
+  for(let i=0;i<Math.min(320,Math.max(80,pool.length));i++){
+    add(randomTeam())
+  }
+  const evaluate=(set:TeamLoadout[],runs:number,battleSeed:number,progressStart:number,total:number,
+    onItem?:(entry:HalloweenRecommendation)=>void):HalloweenRecommendation[]=>{
+    const scored:HalloweenRecommendation[]=[]
+    for(let i=0;i<set.length;i++){
+      const score=simulateHalloweenTower(set[i],enemyNames,floor,runs,battleSeed,extra,undefined,minimumRarity)
+      const entry={...score,loadout:set[i]}
+      scored.push(entry);onItem?.(entry)
+      if(onProgress&&(i%12===11||i===set.length-1))onProgress(progressStart+i+1,total)
     }
-    append(names)
+    return scored.sort(rank)
   }
-  const broad:Array<HalloweenRecommendation>=[]
-  let battles=0
-  for(let i=0;i<teams.length;i++){
-    const score=simulateHalloweenTower(teams[i],enemyNames,floor,3,seedForCandidates,extra)
-    battles+=score.runs
-    broad.push({...score,loadout:teams[i]})
-    if(onProgress&&(i%10===9||i===teams.length-1))onProgress(i+1,teams.length)
+  const initial= evaluate(candidates,2,discoverySeed,0,candidates.length+420+24)
+  const parents=initial.slice(0,Math.min(40,initial.length))
+  const generated:TeamLoadout[]=[]
+  const evolutionSeen=new Set<string>()
+  const pushEvolution=(names:string[])=>{
+    if(!validNames(names))return
+    const deck=build(names)
+    if(halloweenCheckTeam(deck,extra).length)return
+    const key=deck.cards.map(c=>c.cardName+':'+c.borders.join('+')).join('|')
+    if(!seen.has(key)&&!evolutionSeen.has(key)){
+      evolutionSeen.add(key);generated.push(deck)
+    }
   }
-  broad.sort(rank)
-  const verified:HalloweenRecommendation[]=[]
-  for(const item of broad.slice(0,Math.min(18,broad.length))){
-    const score=simulateHalloweenTower(item.loadout,enemyNames,floor,64,seedForVerification,extra)
-    battles+=score.runs;verified.push({...score,loadout:item.loadout})
+  // Multistart evolutionary mutations: single/double replacement, crossover,
+  // and position swaps. We do not assume the first good team is globally best.
+  let tries=0
+  while(generated.length<420&&tries<5000){
+    tries++
+    const selected=parents[Math.floor(rng.next()*parents.length)].loadout.cards.map(c=>c.cardName)
+    const names=[...selected],kind=tries%5
+    if(kind===0){
+      const other=parents[Math.floor(rng.next()*parents.length)].loadout.cards.map(c=>c.cardName)
+      const cut=1+Math.floor(rng.next()*3)
+      for(let j=cut;j<4;j++)names[j]=other[j]
+    }else if(kind===1){
+      const i=Math.floor(rng.next()*4),j=Math.floor(rng.next()*4)
+      ;[names[i],names[j]]=[names[j],names[i]]
+    }else{
+      const count=kind===4?2:1
+      for(let j=0;j<count;j++){
+        const slot=Math.floor(rng.next()*4)
+        names[slot]=filler(names.filter((_,i)=>i!==slot))
+      }
+    }
+    pushEvolution(names)
   }
-  verified.sort(rank)
-  return {recommendations:verified.slice(0,10),tested:teams.length,battles,eligiblePool:pool}
+  const second=evaluate(generated,4,evolutionSeed,candidates.length,
+    candidates.length+generated.length+24)
+  const finalistMap=new Map<string,TeamLoadout>()
+  const queue=[...initial.slice(0,14),...second.slice(0,24)]
+  for(const entry of queue){
+    const key=entry.loadout.cards.map(c=>c.cardName+':'+c.borders.join('+')).join('|')
+    if(!finalistMap.has(key))finalistMap.set(key,entry.loadout)
+  }
+  const contenders=[...finalistMap.values()].slice(0,24)
+  const verified=evaluate(contenders,128,verificationSeed,candidates.length+generated.length,
+    candidates.length+generated.length+contenders.length)
+  return {
+    recommendations:verified.slice(0,10),tested:candidates.length+generated.length,
+    battles:initial.reduce((s,r)=>s+r.runs,0)+second.reduce((s,r)=>s+r.runs,0)+verified.reduce((s,r)=>s+r.runs,0),
+    eligiblePool:pool,coveredCards:pool.length,minimumRarity,
+    searchMethod:'Catalog-wide combat screening → evolutionary deck mutations → independent verification',
+  }
+}
+
+/** Probe sampled Halloween floors with a selected four-card team.
+ * It does NOT prove that a floor is impossible for all possible teams. */
+export function probeHalloweenFloors(
+  loadout:TeamLoadout,seed=1,extraBans:readonly string[]=[],minimumRarity=HALLOWEEN_DEFAULT_MIN_RARITY,
+  onProgress?:(done:number,total:number)=>void,
+):Array<{floor:number;wins:number;runs:number;winRate:number;progress:number;trusted:boolean}>{
+  const floors=[1,5,10,15,17,25,35,50,75,95,105]
+  const result:Array<{floor:number;wins:number;runs:number;winRate:number;progress:number;trusted:boolean}>=[]
+  for(let i=0;i<floors.length;i++){
+    const floor=floors[i],names=halloweenStage(floor,seed)
+    const score=simulateHalloweenTower(loadout,names.slice(0,4),floor,16,seed+floor,extraBans,undefined,minimumRarity)
+    result.push({floor,wins:score.wins,runs:score.runs,winRate:score.winRate,progress:score.progress,trusted:score.trusted})
+    onProgress?.(i+1,floors.length)
+  }
+  return result
 }

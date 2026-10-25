@@ -6,7 +6,7 @@ import {
   HALLOWEEN_FIXED, HALLOWEEN_RANDOM_ENEMIES, halloweenStage,
   halloweenEnemyPower, halloweenEnemyCards, halloweenPackReward,
   halloweenPlayerPower, halloweenBanReason, halloweenCheckTeam,
-  simulateHalloweenTower, searchHalloweenTower,
+  simulateHalloweenTower, searchHalloweenTower, probeHalloweenFloors, HALLOWEEN_DEFAULT_MIN_RARITY,
 } from '../src/engine/halloween-tower'
 import type { BorderName, TeamLoadout } from '../src/types'
 
@@ -48,6 +48,9 @@ assert.equal(halloweenPackReward(16),8_000)
 assert.equal(halloweenPackReward(105),25_600_000)
 assert.equal(halloweenBanReason('Vampire Lord'), 'Reported Halloween Tower ban')
 assert.equal(halloweenBanReason('Fuxi'), 'Reported Halloween Tower ban')
+for(const name of ['Behemoth','Parallax','Fate Seamstress']){
+  assert.equal(halloweenBanReason(name),'Reported Halloween Tower ban',name+' must be excluded')
+}
 assert.ok(cards.some(c=>c.weather==='Rapture'))
 for(const c of cards.filter(c=>c.weather==='Rapture'))assert.match(halloweenBanReason(c.name)||'',/Rapture/)
 assert.ok(halloweenCheckTeam(own('Julius Leader','Julius Leader','Triceratops','Mothman')).some(x=>x.includes('at most one copy')))
@@ -75,13 +78,44 @@ const search=searchHalloweenTower(['Zombie','Zombie','Zombie','Zombie'],5,15,{
 })
 assert.ok(search.recommendations.length>0)
 for(const rec of search.recommendations)assert.deepEqual(halloweenCheckTeam(rec.loadout),[])
+assert.equal(search.coveredCards,3)
+assert.equal(search.minimumRarity,1)
+assert.ok(search.tested>=search.coveredCards)
+assert.match(search.searchMethod,/evolutionary/i)
 assert.ok(!search.eligiblePool.includes('Fuxi')&&!search.eligiblePool.includes('Vampire Lord'))
+// The assumed 1qd rarity floor normalizes low-odds card stats; real borders
+// remain available to exceed the floor. No source-server claim is made.
+assert.equal(HALLOWEEN_DEFAULT_MIN_RARITY,1e15)
+assert.equal(halloweenPlayerPower(find('Triceratops'),[],1e15),350)
+assert.equal(Math.ceil(halloweenPlayerPower(find('Triceratops'),[],1e15)/2),175)
+assert.equal(halloweenPlayerPower(find('Triceratops'),borders,1e15),370)
+const rawUnbordered=createBattleStateV2(own('Triceratops','Pterodactylus','Mothman','Julius Leader').cards.length===4
+  ?{cards:['Triceratops','Pterodactylus','Mothman','Julius Leader'].map(cardName=>({cardName,borders:[]}))}
+  :tri,enemies,{halloweenNormalizedPlayers:true,halloweenMinimumRarity:1e15,disablePlayerAuras:true})
+assert.equal(rawUnbordered.teams.Allies[0].damage,210,'1qd min 175 ATK + Julius 20% should produce 210')
+for(const name of ['Behemoth','Parallax','Fate Seamstress']){
+  assert.ok(!search.eligiblePool.includes(name))
+}
+const allSearchCards=cards.filter(c=>!halloweenBanReason(c.name))
+assert.ok(allSearchCards.length>120,'Global search has many eligible cards')
+const baseline={cards:['Julius Leader','Anubis','Serket','Triceratops'].map(cardName=>({cardName,borders:[]}))}
+const baselineFloor1=simulateHalloweenTower(baseline,halloweenStage(1,41).slice(0,4),1,16,818,[],undefined,1e15)
+assert.equal(baselineFloor1.runs,16)
+const floorSamples=probeHalloweenFloors(baseline,817,[],1e15)
+assert.equal(floorSamples.length,11)
+assert.deepEqual(floorSamples.map(x=>x.floor),[1,5,10,15,17,25,35,50,75,95,105])
+console.log('1qd modeled baseline: stage 1 '+baselineFloor1.wins+'/16 wins; floor probes '+floorSamples.map(r=>r.floor+':'+r.wins+'/'+r.runs).join(', '))
+
 const ui=readFileSync('src/halloween-ui.js','utf8')
 const base=readFileSync('index-base.html','utf8')
 const core=readFileSync('src/depths-ui.js','utf8')
-assert.match(ui,/Find best decks/)
+assert.match(ui,/Search '\+pool.length\+' cards/)
 assert.match(ui,/Ban card/)
 assert.match(ui,/Only one Julius Leader/)
+assert.match(ui,/All available cards/)
+assert.match(ui,/hwt-min-rarity/)
+assert.match(ui,/hwt-probe/)
+assert.match(ui,/poolMode==='all'/)
 assert.match(base,/halloween-ui.js/)
 assert.match(core,/data-halloween-tab/)
 assert.match(core,/view==='halloween'/)

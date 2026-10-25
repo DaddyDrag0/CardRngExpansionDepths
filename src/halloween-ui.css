@@ -1,0 +1,52 @@
+/* Halloween Tower has its own compact layout and does not override Depths/Tower. */
+.hwt-shell{max-width:1450px}
+.hwt-tabs{margin-bottom:14px}
+.hwt-banner{border:1px solid #72502b;border-radius:12px;padding:13px 16px;background:#241a11;color:#e8c88b;font-size:12px;line-height:1.55;margin:14px 0 18px}
+.hwt-banner b{color:#ffe4ae}
+.hwt-layout{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+.hwt-panel{padding:19px;min-width:0}
+.hwt-panel .panel-head{margin-bottom:12px}
+.hwt-muted{font-size:11px;line-height:1.55;color:var(--muted,#8693a4);display:block}
+.hwt-input-row,.hwt-actions{display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin:12px 0}
+.hwt-input-row label,.hwt-actions label{display:flex;flex-direction:column;gap:6px;font-size:11px;color:var(--muted)}
+.hwt-panel input,.hwt-panel select{min-width:0;width:100%;box-sizing:border-box;padding:10px 11px;border:1px solid #344155;border-radius:9px;background:#080e15;color:#e6ebf3;font-size:12px}
+.hwt-input-row input{flex:1 1 135px}
+.hwt-input-row label input{max-width:120px}
+.hwt-panel button{background:#182434;border:1px solid #334559;border-radius:8px;color:#dce5ef;cursor:pointer;padding:9px 11px;font-size:11px}
+.hwt-panel button:hover{border-color:#ba8552;background:#2a2929}
+.hwt-panel button:disabled{opacity:.45;cursor:default}
+.hwt-panel .hwt-actions>button:first-of-type{background:#633c1e;color:#fff1dd;border-color:#a36b35}
+.hwt-encounter-meta{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0;color:#c89f70;font-size:10px}
+.hwt-encounter-meta span{border:1px solid #4b3624;border-radius:7px;padding:6px 8px;background:#1d1713}
+.hwt-roster,.hwt-members{display:grid;gap:10px;margin-bottom:12px}
+.hwt-roster{grid-template-columns:repeat(2,minmax(0,1fr))}
+.hwt-field>span{font-size:10px;color:#8fa2b8;display:block;margin-bottom:5px}
+.hwt-card,.hwt-team-card{display:flex;gap:10px;align-items:flex-start;padding:9px;border:1px solid #273449;background:#0b121d;border-radius:10px;min-width:0}
+.hwt-avatar{width:47px;height:52px;object-fit:cover;border-radius:7px;border:1px solid #39475b;flex:none}
+.hwt-missing{display:grid;place-items:center;background:#263041;color:#9da6b5;font-weight:700}
+.hwt-field-copy,.hwt-member-data{min-width:0;flex:1}
+.hwt-field-copy input,.hwt-member-data input{padding:7px 6px;font-weight:600}
+.hwt-field-copy small,.hwt-member-data small{display:block;font-size:10px;color:#9aa7b7;line-height:1.5;padding-top:4px;overflow-wrap:anywhere}
+.hwt-slot{display:block;color:#d6a46c;font-size:9px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:2px}
+.hwt-stat{font-size:11px;font-weight:600;color:#e6c58e;margin-top:6px}
+.hwt-borders{display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.hwt-borders button{padding:5px 8px!important;font-size:10px!important}
+.hwt-borders button.on{background:#543a22;color:#ffe1af;border-color:#c69457}
+.hwt-error{padding:8px 10px;color:#ffb6aa;background:#3c1819;border:1px solid #77433d;border-radius:8px;font-size:11px;line-height:1.5;overflow-wrap:anywhere}
+.hwt-banned{border-color:#a2544a}
+.hwt-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:10px 0}
+.hwt-summary>div{display:flex;flex-direction:column;border-radius:8px;background:#131e2a;padding:10px 8px;gap:4px}
+.hwt-summary strong{font-size:15px;color:#ead1a6}
+.hwt-summary small{font-size:10px;color:#8593a3}
+.hwt-pool,.hwt-bans{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0;max-height:145px;overflow:auto}
+.hwt-pool button,.hwt-ban-tag{padding:6px 8px!important;border:1px solid #384353;border-radius:7px;background:#131b26;color:#bac6d5;font-size:10px}
+.hwt-ban-tag{background:#2b1d1f;border-color:#603c40;color:#e9b6b5}
+.hwt-ban-tag button{padding:0 3px!important;margin-left:6px!important;border:0!important;background:transparent!important;color:#ffdedb!important}
+.hwt-rec{display:flex;gap:10px;align-items:center;justify-content:space-between;border-top:1px solid #2d3545;padding:9px 0}
+.hwt-rec>div{min-width:0}
+.hwt-rec b{display:block;color:#e2e7f0;font-size:11px;line-height:1.4}
+.hwt-rec small{display:block;color:#b19a80;font-size:10px;margin-top:4px;line-height:1.5}
+.hwt-rec button{flex:none}
+.hwt-results{margin-top:12px}
+@media(max-width:900px){.hwt-layout{grid-template-columns:1fr}.hwt-panel{padding:14px}.hwt-roster{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:550px){.hwt-roster{grid-template-columns:1fr}.hwt-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.hwt-avatar{width:40px;height:45px}}

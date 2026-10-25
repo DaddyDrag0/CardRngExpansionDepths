@@ -1,5 +1,5 @@
 name: Build Halloween Tower calculator workers
-# Second pass: TypeScript request union corrected.
+# Final validation: preserve direct Tower routing checks and rebuild generated workers.
 on:
   push:
     branches: [halloween-tower-mode-20261024]

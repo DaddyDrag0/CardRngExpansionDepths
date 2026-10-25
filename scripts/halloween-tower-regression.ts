@@ -79,7 +79,7 @@ const search=searchHalloweenTower(['Zombie','Zombie','Zombie','Zombie'],5,15,{
 assert.ok(search.recommendations.length>0)
 for(const rec of search.recommendations)assert.deepEqual(halloweenCheckTeam(rec.loadout),[])
 assert.equal(search.coveredCards,3)
-assert.equal(search.minimumRarity,1)
+assert.equal(search.minimumRarity,HALLOWEEN_DEFAULT_MIN_RARITY)
 assert.ok(search.tested>=search.coveredCards)
 assert.match(search.searchMethod,/evolutionary/i)
 assert.ok(!search.eligiblePool.includes('Fuxi')&&!search.eligiblePool.includes('Vampire Lord'))

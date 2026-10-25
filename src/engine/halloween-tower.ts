@@ -120,7 +120,7 @@ export interface HalloweenSearchResult {
 export function simulateHalloweenTower(
   loadout:TeamLoadout,enemyNames:string[],floor:number,runs=100,seed=1,extraBans:readonly string[]=[],
   onProgress?:(done:number,total:number)=>void,
-  minimumRarity = 1,
+  minimumRarity = HALLOWEEN_DEFAULT_MIN_RARITY,
 ):HalloweenRunSummary{
   const errors=halloweenCheckTeam(loadout,extraBans)
   if(errors.length)throw new Error(errors.join('; '))
@@ -174,7 +174,7 @@ export function searchHalloweenTower(
     .filter(name=>CARD_MAP.has(name)&&!halloweenBanReason(name,extra)))].sort()
   if(!pool.length)throw new Error('No eligible cards in the Halloween search pool')
   if(pool.length===1&&pool[0]==='Julius Leader')throw new Error('Julius Leader is limited to one copy; add at least one other card to search')
-  const minimumRarity=Math.max(1,Number(options.minimumRarity)||1)
+  const minimumRarity=Math.max(1,Number(options.minimumRarity)||HALLOWEEN_DEFAULT_MIN_RARITY)
   const border=options.borders||[]
   const rng=new SeededRng(seed||1)
   const draw=()=>Math.floor(rng.next()*0x7fffffff)||1

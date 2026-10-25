@@ -113,6 +113,13 @@ assert.ok(interval[0]>=0&&interval[1]<=1)
 assert.ok(Number.isFinite(optimisticHalloweenScore(example)))
 const labelExample=halloweenBattleLabel(example,5,example.loadout.cards.map(c=>c.cardName),['Zombie','Zombie','Zombie','Zombie'],42)
 assert.equal(labelExample.estimated,true)
+const unfinishedExample=halloweenBattleLabel({
+  wins:1,losses:1,draws:2,unresolved:1,runs:4,progress:0.4,trusted:false,unsupportedAbilities:['Battle turn cap reached'],
+},5,['Triceratops','Mothman','Julius Leader','Serket'],['Zombie','Zombie','Zombie','Zombie'],1)
+assert.equal(unfinishedExample.unfinished,0.25)
+assert.equal(unfinishedExample.pDraw,0.25)
+assert.equal(unfinishedExample.pWin,0.25)
+assert.equal(unfinishedExample.estimated,true)
 // The assumed 1qd rarity floor normalizes low-odds card stats; real borders
 // remain available to exceed the floor. No source-server claim is made.
 assert.equal(HALLOWEEN_DEFAULT_MIN_RARITY,1e15)

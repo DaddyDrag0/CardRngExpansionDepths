@@ -126,7 +126,7 @@ export function halloweenEnemyCards(names:readonly string[],floor:number):Depths
   })
 }
 export interface HalloweenRunSummary {
-  wins:number;losses:number;draws:number;runs:number;winRate:number
+  wins:number;losses:number;draws:number;unresolved:number;runs:number;winRate:number
   progress:number;averageTurns:number;trusted:boolean;unsupportedAbilities:string[]
 }
 export interface HalloweenRecommendation extends HalloweenRunSummary {loadout:TeamLoadout}
@@ -147,7 +147,7 @@ export function simulateHalloweenTower(
   const total=Math.min(2000,Math.max(1,Math.floor(runs)))
   const rng=new SeededRng(seed||1)
   const aura=HALLOWEEN_FIXED[Math.floor(floor)]?.[4]
-  let wins=0,losses=0,draws=0,progress=0,turns=0,trusted=true
+  let wins=0,losses=0,draws=0,unresolved=0,progress=0,turns=0,trusted=true
   const unsupported=new Set<string>()
   for(let i=0;i<total;i++){
     const battle=simulateBattleV2(loadout,enemies,Math.floor(rng.next()*0x7fffffff)||i+1,500,true,false,undefined,{
@@ -157,6 +157,7 @@ export function simulateHalloweenTower(
     if(battle.winner==='Allies')wins++
     else if(battle.winner==='Enemies')losses++
     else draws++
+    if(battle.winner==='Draw'&&battle.turns>=500)unresolved++
     const remaining=battle.state.teams.Enemies
     const cleared=battle.state.fallen.Enemies.length
     const damage=remaining.reduce((sum,c)=>sum+(c.maxHp>0?Math.min(1,Math.max(0,1-c.hp/c.maxHp)):0),0)
@@ -166,7 +167,7 @@ export function simulateHalloweenTower(
     for(const ability of battle.unsupportedAbilities)unsupported.add(ability)
     if(onProgress&&(i%10===9||i===total-1))onProgress(i+1,total)
   }
-  return {wins,losses,draws,runs:total,winRate:wins/total,progress:progress/total,
+  return {wins,losses,draws,unresolved,runs:total,winRate:wins/total,progress:progress/total,
     averageTurns:turns/total,trusted,unsupportedAbilities:[...unsupported].sort()}
 }
 function rank(a:HalloweenRunSummary,b:HalloweenRunSummary):number {

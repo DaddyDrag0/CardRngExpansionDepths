@@ -14,7 +14,8 @@
     "test:ui": "node --check src/depths-ui.js && node --check src/feedback.js && node --check src/theme-controller.js && node --check src/site-version-watch.js && node --check server/feedback-worker.mjs && node scripts/feedback-snapshot-regression.mjs && node scripts/validate-ui.mjs",
     "check": "node --check src/halloween-ui.js && npm run build && npm run test:data && npm run test:engine && npm run test:depths && npm run test:player && npm run test:ui",
     "preview": "vite preview",
-    "test:video-game": "node --import tsx scripts/video-game-update-regression.ts"
+    "test:video-game": "node --import tsx scripts/video-game-update-regression.ts",
+    "halloween:labels": "tsx scripts/generate-halloween-labels.ts"
   },
   "devDependencies": {
     "esbuild": "latest",

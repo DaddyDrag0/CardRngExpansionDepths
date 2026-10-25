@@ -3,6 +3,7 @@ import type { BorderName, CardDefinition, DepthsEnemy, TeamLoadout } from '../ty
 import { simulateBattleV2 } from './battle-v2'
 import { rarityWithBorders } from './stats'
 import { SeededRng } from './rng'
+import { halloweenBattleLabel, optimisticHalloweenScore, HALLOWEEN_RULESET, type HalloweenBattleLabel } from './halloween-learning'
 
 /**
  * Halloween Tower (difficulty 4): source stage roster and client display formula.
@@ -42,8 +43,19 @@ export const HALLOWEEN_RANDOM_ENEMIES = [
 // Reported by players, not a recovered server-side validation table.
 export const HALLOWEEN_REPORTED_BANS = [
   'Vampire Lord','Fuxi','Priest','Pandora','Black Plague','Wendigo','Glamour',
-  'Fate Seamstress','Behemoth','Parallax',
+  'Fate Seamstress','Behemoth','Parallax','Sable The Envious','Supreme Ozzy',
 ] as const
+// Old limited event cards are excluded by default; this status isn't a permanent ban.
+export const HALLOWEEN_UNAVAILABLE_EVENT_NAMES = ['Santa Claus','Anubis & Hades','Supreme Frank'] as const
+const CURRENT_REISSUED_NAMES = new Set(['Pestilence','Famine','War','Death'])
+export function halloweenUnavailableEvent(name:string):boolean {
+  const card=CARD_MAP.get(name)
+  if(!card)return false
+  if((HALLOWEEN_UNAVAILABLE_EVENT_NAMES as readonly string[]).includes(name))return true
+  return Boolean(card.expires && card.pack !== 'Halloween3' && !CURRENT_REISSUED_NAMES.has(name))
+}
+// Halloween Part 2 rules prohibit ALL duplicate player cards, not just Julius.
+export const HALLOWEEN_MAX_COPIES = 1
 export const HALLOWEEN_ONE_COPY = ['Julius Leader'] as const
 export const HALLOWEEN_SKILL_CANDIDATES = [
   'Triceratops','Pterodactylus','Mothman','Julius Leader','Anubis','Serket',
@@ -78,24 +90,29 @@ export function halloweenPackReward(floor:number):number {
   if(f%5===0)return 20_000*(f/5)
   return 2_000*Math.ceil(f/5)
 }
-export function halloweenBanReason(name:string,extraBans:readonly string[]=[]):string|null{
+export function halloweenBanReason(name:string,extraBans:readonly string[]=[],includeLegacy=false):string|null{
   const card=CARD_MAP.get(name)
   if(!card)return 'Unknown card'
   if(card.unobtainable)return 'Not an obtainable card'
   if(card.weather==='Rapture')return 'All Rapture cards are reportedly banned'
   if(extraBans.includes(name))return 'Banned in your personal restrictions'
   if((HALLOWEEN_REPORTED_BANS as readonly string[]).includes(name))return 'Reported Halloween Tower ban'
+  if((HALLOWEEN_UNAVAILABLE_EVENT_NAMES as readonly string[]).includes(name))
+    return 'Event-exclusive card reported not owned by players'
+  if(!includeLegacy&&halloweenUnavailableEvent(name))return 'Legacy event card not known to be re-released (opt in if owned)'
   return null
 }
-export function halloweenCheckTeam(loadout:TeamLoadout,extraBans:readonly string[]=[]):string[]{
+export function halloweenCheckTeam(loadout:TeamLoadout,extraBans:readonly string[]=[],includeLegacy=false):string[]{
   const errors:string[]=[]
   if(loadout.cards.length!==4)errors.push('Exactly four cards are required')
   for(const slot of loadout.cards){
-    const banned=halloweenBanReason(slot.cardName,extraBans)
+    const banned=halloweenBanReason(slot.cardName,extraBans,includeLegacy)
     if(banned)errors.push(slot.cardName+': '+banned)
   }
-  for(const restricted of HALLOWEEN_ONE_COPY){
-    if(loadout.cards.filter(c=>c.cardName===restricted).length>1)errors.push(restricted+': at most one copy')
+  const seen=new Set<string>()
+  for(const slot of loadout.cards){
+    if(seen.has(slot.cardName))errors.push(slot.cardName+': duplicate copies not allowed in Halloween Tower')
+    seen.add(slot.cardName)
   }
   return [...new Set(errors)]
 }
@@ -109,26 +126,28 @@ export function halloweenEnemyCards(names:readonly string[],floor:number):Depths
   })
 }
 export interface HalloweenRunSummary {
-  wins:number;losses:number;draws:number;runs:number;winRate:number
+  wins:number;losses:number;draws:number;unresolved:number;runs:number;winRate:number
   progress:number;averageTurns:number;trusted:boolean;unsupportedAbilities:string[]
 }
 export interface HalloweenRecommendation extends HalloweenRunSummary {loadout:TeamLoadout}
 export interface HalloweenSearchResult {
   recommendations:HalloweenRecommendation[];tested:number;battles:number;eligiblePool:string[]
   coveredCards:number;searchMethod:string;minimumRarity:number
+  ruleVersion:string;labels:HalloweenBattleLabel[]
 }
 export function simulateHalloweenTower(
   loadout:TeamLoadout,enemyNames:string[],floor:number,runs=100,seed=1,extraBans:readonly string[]=[],
   onProgress?:(done:number,total:number)=>void,
   minimumRarity = HALLOWEEN_DEFAULT_MIN_RARITY,
+  includeLegacy = false,
 ):HalloweenRunSummary{
-  const errors=halloweenCheckTeam(loadout,extraBans)
+  const errors=halloweenCheckTeam(loadout,extraBans,includeLegacy)
   if(errors.length)throw new Error(errors.join('; '))
   const enemies=halloweenEnemyCards(enemyNames,floor)
   const total=Math.min(2000,Math.max(1,Math.floor(runs)))
   const rng=new SeededRng(seed||1)
   const aura=HALLOWEEN_FIXED[Math.floor(floor)]?.[4]
-  let wins=0,losses=0,draws=0,progress=0,turns=0,trusted=true
+  let wins=0,losses=0,draws=0,unresolved=0,progress=0,turns=0,trusted=true
   const unsupported=new Set<string>()
   for(let i=0;i<total;i++){
     const battle=simulateBattleV2(loadout,enemies,Math.floor(rng.next()*0x7fffffff)||i+1,500,true,false,undefined,{
@@ -138,6 +157,7 @@ export function simulateHalloweenTower(
     if(battle.winner==='Allies')wins++
     else if(battle.winner==='Enemies')losses++
     else draws++
+    if(battle.winner==='Draw'&&battle.turns>=500)unresolved++
     const remaining=battle.state.teams.Enemies
     const cleared=battle.state.fallen.Enemies.length
     const damage=remaining.reduce((sum,c)=>sum+(c.maxHp>0?Math.min(1,Math.max(0,1-c.hp/c.maxHp)):0),0)
@@ -147,7 +167,7 @@ export function simulateHalloweenTower(
     for(const ability of battle.unsupportedAbilities)unsupported.add(ability)
     if(onProgress&&(i%10===9||i===total-1))onProgress(i+1,total)
   }
-  return {wins,losses,draws,runs:total,winRate:wins/total,progress:progress/total,
+  return {wins,losses,draws,unresolved,runs:total,winRate:wins/total,progress:progress/total,
     averageTurns:turns/total,trusted,unsupportedAbilities:[...unsupported].sort()}
 }
 function rank(a:HalloweenRunSummary,b:HalloweenRunSummary):number {
@@ -163,22 +183,24 @@ export function searchHalloweenTower(
   enemyNames:string[],floor:number,seed=1,
   options:{
     pool?:string[];borders?:BorderName[];extraBans?:string[];current?:TeamLoadout
-    minimumRarity?:number
+    minimumRarity?:number;includeLegacy?:boolean
   }={},
   onProgress?:(done:number,total:number)=>void,
 ):HalloweenSearchResult {
   halloweenEnemyCards(enemyNames,floor)
   const extra=options.extraBans||[]
+  const includeLegacy=options.includeLegacy===true
   // With no explicit pool the search covers the ENTIRE obtainable, unbanned catalog.
   const pool=[...new Set((options.pool===undefined?cards.map(c=>c.name):options.pool)
-    .filter(name=>CARD_MAP.has(name)&&!halloweenBanReason(name,extra)))].sort()
+    .filter(name=>CARD_MAP.has(name)&&!halloweenBanReason(name,extra,includeLegacy)))].sort()
   if(!pool.length)throw new Error('No eligible cards in the Halloween search pool')
-  if(pool.length===1&&pool[0]==='Julius Leader')throw new Error('Julius Leader is limited to one copy; add at least one other card to search')
+  if(pool.length<4)throw new Error('Halloween Tower requires four distinct available cards in the search pool')
   const minimumRarity=Math.max(1,Number(options.minimumRarity)||HALLOWEEN_DEFAULT_MIN_RARITY)
   const border=options.borders||[]
   const rng=new SeededRng(seed||1)
   const draw=()=>Math.floor(rng.next()*0x7fffffff)||1
   const discoverySeed=draw(), evolutionSeed=draw(), verificationSeed=draw()
+  const advancedSeed=draw(), finalSeed=draw()
   const randomName=()=>pool[Math.floor(rng.next()*pool.length)]
   const anchorNames=[...HALLOWEEN_SKILL_CANDIDATES].filter(name=>pool.includes(name))
   const randomWeighted=()=>{
@@ -187,7 +209,7 @@ export function searchHalloweenTower(
     return randomName()
   }
   const validNames=(names:string[])=>names.length===4
-    &&names.filter(n=>n==='Julius Leader').length<=1
+    &&new Set(names).size===4
   const seen=new Set<string>()
   const currentCards=options.current?.cards||[]
   const build=(names:string[],preserveCurrent=false):TeamLoadout=>{
@@ -200,20 +222,24 @@ export function searchHalloweenTower(
   const add=(names:string[],preserveCurrent=false)=>{
     if(!validNames(names)||names.some(n=>!pool.includes(n)))return
     const deck=build(names,preserveCurrent)
-    if(halloweenCheckTeam(deck,extra).length)return
+    if(halloweenCheckTeam(deck,extra,includeLegacy).length)return
     const key=deck.cards.map(c=>c.cardName+':'+c.borders.join('+')).join('|')
     if(!seen.has(key)){seen.add(key);candidates.push(deck)}
   }
   const filler=(avoid:string[])=>{
+    // Reject duplicates before creating a candidate, not after wasting simulations.
     let result:string
     let attempts=0
-    do {result=randomWeighted();attempts++}
-    while(result==='Julius Leader'&&avoid.includes(result)&&attempts<500)
+    do{result=randomWeighted();attempts++}while(avoid.includes(result)&&attempts<100)
+    if(avoid.includes(result)){
+      const rest=pool.filter(name=>!avoid.includes(name))
+      return rest[Math.floor(rng.next()*rest.length)]
+    }
     return result
   }
   const randomTeam=(first?:string,position=0):string[]=>{
     const names:string[]=[]
-    for(let i=0;i<4;i++)names.push(i===position&&first?first:filler(first==='Julius Leader'?['Julius Leader',...names]:names))
+    for(let i=0;i<4;i++)names.push(i===position&&first?first:filler(first?[first,...names]:names))
     return names
   }
   if(options.current?.cards.length===4)add(currentCards.map(c=>c.cardName),true)
@@ -230,7 +256,7 @@ export function searchHalloweenTower(
     onItem?:(entry:HalloweenRecommendation)=>void):HalloweenRecommendation[]=>{
     const scored:HalloweenRecommendation[]=[]
     for(let i=0;i<set.length;i++){
-      const score=simulateHalloweenTower(set[i],enemyNames,floor,runs,battleSeed,extra,undefined,minimumRarity)
+      const score=simulateHalloweenTower(set[i],enemyNames,floor,runs,battleSeed,extra,undefined,minimumRarity,includeLegacy)
       const entry={...score,loadout:set[i]}
       scored.push(entry);onItem?.(entry)
       if(onProgress&&(i%12===11||i===set.length-1))onProgress(progressStart+i+1,total)
@@ -244,7 +270,7 @@ export function searchHalloweenTower(
   const pushEvolution=(names:string[])=>{
     if(!validNames(names))return
     const deck=build(names)
-    if(halloweenCheckTeam(deck,extra).length)return
+    if(halloweenCheckTeam(deck,extra,includeLegacy).length)return
     const key=deck.cards.map(c=>c.cardName+':'+c.borders.join('+')).join('|')
     if(!seen.has(key)&&!evolutionSeen.has(key)){
       evolutionSeen.add(key);generated.push(deck)
@@ -276,19 +302,34 @@ export function searchHalloweenTower(
   const second=evaluate(generated,4,evolutionSeed,candidates.length,
     candidates.length+generated.length+24)
   const finalistMap=new Map<string,TeamLoadout>()
-  const queue=[...initial.slice(0,14),...second.slice(0,24)]
+  const queue=[...initial.slice(0,24),...second.slice(0,30)]
   for(const entry of queue){
     const key=entry.loadout.cards.map(c=>c.cardName+':'+c.borders.join('+')).join('|')
     if(!finalistMap.has(key))finalistMap.set(key,entry.loadout)
   }
-  const contenders=[...finalistMap.values()].slice(0,24)
-  const verified=evaluate(contenders,128,verificationSeed,candidates.length+generated.length,
-    candidates.length+generated.length+contenders.length)
+  // Adaptive best-first tournament: 16 seed-matched battles for the frontier,
+  // spend 64 on contenders with the largest upper confidence bounds, then
+  // 256 on the final 12. Each round gets independent seeds, preventing overfit.
+  const frontier=[...finalistMap.values()].slice(0,48)
+  const frontierScores=evaluate(frontier,16,verificationSeed,candidates.length+generated.length,
+    candidates.length+generated.length+frontier.length+24+12)
+  frontierScores.sort((a,b)=>optimisticHalloweenScore(b)-optimisticHalloweenScore(a))
+  const promising=frontierScores.slice(0,24).map(entry=>entry.loadout)
+  const deep=evaluate(promising,64,advancedSeed,candidates.length+generated.length+frontier.length,
+    candidates.length+generated.length+frontier.length+promising.length+12)
+  deep.sort((a,b)=>optimisticHalloweenScore(b)-optimisticHalloweenScore(a))
+  const finalists=deep.slice(0,12).map(entry=>entry.loadout)
+  const verified=evaluate(finalists,256,finalSeed,candidates.length+generated.length+
+    frontier.length+promising.length,candidates.length+generated.length+
+    frontier.length+promising.length+finalists.length)
+  const labels=verified.slice(0,10).map(entry=>halloweenBattleLabel(entry,floor,
+    entry.loadout.cards.map(c=>c.cardName),enemyNames,finalSeed))
   return {
-    recommendations:verified.slice(0,10),tested:candidates.length+generated.length,
-    battles:initial.reduce((s,r)=>s+r.runs,0)+second.reduce((s,r)=>s+r.runs,0)+verified.reduce((s,r)=>s+r.runs,0),
-    eligiblePool:pool,coveredCards:pool.length,minimumRarity,
-    searchMethod:'Catalog-wide combat screening → evolutionary deck mutations → independent verification',
+    recommendations:verified.slice(0,10),tested:candidates.length+generated.length+
+      frontier.length+promising.length+finalists.length,
+    battles:[...initial,...second,...frontierScores,...deep,...verified].reduce((count,result)=>count+result.runs,0),
+    eligiblePool:pool,coveredCards:pool.length,minimumRarity,ruleVersion:HALLOWEEN_RULESET,
+    labels,searchMethod:'Catalog-wide screening → evolutionary crossovers → confidence-guided 16/64/256 battle verification',
   }
 }
 
@@ -297,12 +338,13 @@ export function searchHalloweenTower(
 export function probeHalloweenFloors(
   loadout:TeamLoadout,seed=1,extraBans:readonly string[]=[],minimumRarity=HALLOWEEN_DEFAULT_MIN_RARITY,
   onProgress?:(done:number,total:number)=>void,
+  includeLegacy=false,
 ):Array<{floor:number;wins:number;runs:number;winRate:number;progress:number;trusted:boolean}>{
   const floors=[1,5,10,15,17,25,35,50,75,95,105]
   const result:Array<{floor:number;wins:number;runs:number;winRate:number;progress:number;trusted:boolean}>=[]
   for(let i=0;i<floors.length;i++){
     const floor=floors[i],names=halloweenStage(floor,seed)
-    const score=simulateHalloweenTower(loadout,names.slice(0,4),floor,16,seed+floor,extraBans,undefined,minimumRarity)
+    const score=simulateHalloweenTower(loadout,names.slice(0,4),floor,16,seed+floor,extraBans,undefined,minimumRarity,includeLegacy)
     result.push({floor,wins:score.wins,runs:score.runs,winRate:score.winRate,progress:score.progress,trusted:score.trusted})
     onProgress?.(i+1,floors.length)
   }

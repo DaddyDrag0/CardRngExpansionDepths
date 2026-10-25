@@ -7,8 +7,10 @@ import {
   halloweenEnemyPower, halloweenEnemyCards, halloweenPackReward,
   halloweenPlayerPower, halloweenBanReason, halloweenCheckTeam,
   simulateHalloweenTower, searchHalloweenTower, probeHalloweenFloors, HALLOWEEN_DEFAULT_MIN_RARITY,
+  halloweenUnavailableEvent, HALLOWEEN_UNAVAILABLE_EVENT_NAMES,
 } from '../src/engine/halloween-tower'
 import type { BorderName, TeamLoadout } from '../src/types'
+import { HALLOWEEN_RULESET, halloweenBattleLabel, optimisticHalloweenScore, wilsonBounds } from '../src/engine/halloween-learning'
 
 const find=(name:string)=>{
   const card=cards.find(c=>c.name===name)
@@ -48,12 +50,23 @@ assert.equal(halloweenPackReward(16),8_000)
 assert.equal(halloweenPackReward(105),25_600_000)
 assert.equal(halloweenBanReason('Vampire Lord'), 'Reported Halloween Tower ban')
 assert.equal(halloweenBanReason('Fuxi'), 'Reported Halloween Tower ban')
-for(const name of ['Behemoth','Parallax','Fate Seamstress']){
+for(const name of ['Behemoth','Parallax','Fate Seamstress','Sable The Envious','Supreme Ozzy']){
   assert.equal(halloweenBanReason(name),'Reported Halloween Tower ban',name+' must be excluded')
 }
 assert.ok(cards.some(c=>c.weather==='Rapture'))
 for(const c of cards.filter(c=>c.weather==='Rapture'))assert.match(halloweenBanReason(c.name)||'',/Rapture/)
-assert.ok(halloweenCheckTeam(own('Julius Leader','Julius Leader','Triceratops','Mothman')).some(x=>x.includes('at most one copy')))
+assert.ok(halloweenCheckTeam(own('Julius Leader','Julius Leader','Triceratops','Mothman')).some(x=>x.includes('duplicate copies')))
+assert.ok(halloweenCheckTeam(own('Ghost','Ghost','Triceratops','Mothman')).some(x=>x.includes('duplicate copies')))
+for(const name of ['Santa Claus','Supreme Frank','Anubis & Hades']){
+  assert.ok(HALLOWEEN_UNAVAILABLE_EVENT_NAMES.some(x=>x===name))
+  assert.ok(halloweenUnavailableEvent(name))
+  assert.match(halloweenBanReason(name)||'',/not owned/)
+  assert.ok(halloweenBanReason(name,[],true),'Unavailable event card must not appear even with legacy toggle')
+}
+assert.equal(halloweenBanReason('Trick or Treater'),null,'Current Halloween3 cards stay available')
+assert.equal(halloweenBanReason('Pestilence'),null,'Current Four Horsemen can be obtained')
+assert.ok(halloweenBanReason('100 Men'),'Old event exclusives excluded by default')
+assert.equal(halloweenBanReason('100 Men',[],true),null,'Legacy toggle allows old exclusives when actually owned')
 assert.ok(halloweenCheckTeam(own('Triceratops','Mothman','Fuxi','Julius Leader')).some(x=>x.includes('Fuxi')))
 assert.ok(halloweenCheckTeam(own('Triceratops','Mothman','Banshee','Julius Leader'),['Banshee']).some(x=>x.includes('Banshee')))
 assert.equal(halloweenCheckTeam(own('Triceratops','Mothman','Banshee','Julius Leader')).length,0)
@@ -72,17 +85,41 @@ assert.equal(summary.wins+summary.losses+summary.draws,8)
 assert.ok(summary.progress>=0&&summary.progress<=1)
 // Small configurable pool: check all recommendation decks against reported bans.
 const search=searchHalloweenTower(['Zombie','Zombie','Zombie','Zombie'],5,15,{
-  pool:['Triceratops','Mothman','Julius Leader','Fuxi','Vampire Lord'],
+  pool:['Triceratops','Mothman','Pterodactylus','Serket','Julius Leader','Fuxi','Vampire Lord','Santa Claus','Anubis & Hades','Supreme Frank'],
   borders,
   extraBans:[],
 })
 assert.ok(search.recommendations.length>0)
 for(const rec of search.recommendations)assert.deepEqual(halloweenCheckTeam(rec.loadout),[])
-assert.equal(search.coveredCards,3)
+assert.equal(search.coveredCards,5)
 assert.equal(search.minimumRarity,HALLOWEEN_DEFAULT_MIN_RARITY)
 assert.ok(search.tested>=search.coveredCards)
-assert.match(search.searchMethod,/evolutionary/i)
+assert.match(search.searchMethod,/confidence-guided/i)
+assert.equal(search.ruleVersion,HALLOWEEN_RULESET)
+assert.ok(search.labels.length>0)
+for(const label of search.labels){
+  assert.equal(label.estimated,true)
+  assert.equal(label.ruleset,HALLOWEEN_RULESET)
+  assert.ok(label.winInterval[0]<=label.pWin&&label.winInterval[1]>=label.pWin)
+  assert.equal(new Set(label.allies).size,4)
+}
 assert.ok(!search.eligiblePool.includes('Fuxi')&&!search.eligiblePool.includes('Vampire Lord'))
+for(const n of ['Santa Claus','Anubis & Hades','Supreme Frank','Sable The Envious','Supreme Ozzy']){
+  assert.ok(!search.eligiblePool.includes(n),n+' excluded')
+}
+const example=search.recommendations[0]
+const interval=wilsonBounds(example.wins,example.runs)
+assert.ok(interval[0]>=0&&interval[1]<=1)
+assert.ok(Number.isFinite(optimisticHalloweenScore(example)))
+const labelExample=halloweenBattleLabel(example,5,example.loadout.cards.map(c=>c.cardName),['Zombie','Zombie','Zombie','Zombie'],42)
+assert.equal(labelExample.estimated,true)
+const unfinishedExample=halloweenBattleLabel({
+  wins:1,losses:1,draws:2,unresolved:1,runs:4,progress:0.4,trusted:false,unsupportedAbilities:['Battle turn cap reached'],
+},5,['Triceratops','Mothman','Julius Leader','Serket'],['Zombie','Zombie','Zombie','Zombie'],1)
+assert.equal(unfinishedExample.unfinished,0.25)
+assert.equal(unfinishedExample.pDraw,0.25)
+assert.equal(unfinishedExample.pWin,0.25)
+assert.equal(unfinishedExample.estimated,true)
 // The assumed 1qd rarity floor normalizes low-odds card stats; real borders
 // remain available to exceed the floor. No source-server claim is made.
 assert.equal(HALLOWEEN_DEFAULT_MIN_RARITY,1e15)
@@ -93,7 +130,7 @@ const rawUnbordered=createBattleStateV2(own('Triceratops','Pterodactylus','Mothm
   ?{cards:['Triceratops','Pterodactylus','Mothman','Julius Leader'].map(cardName=>({cardName,borders:[]}))}
   :tri,enemies,{halloweenNormalizedPlayers:true,halloweenMinimumRarity:1e15,disablePlayerAuras:true})
 assert.equal(rawUnbordered.teams.Allies[0].damage,210,'1qd min 175 ATK + Julius 20% should produce 210')
-for(const name of ['Behemoth','Parallax','Fate Seamstress']){
+for(const name of ['Behemoth','Parallax','Fate Seamstress','Sable The Envious','Supreme Ozzy']){
   assert.ok(!search.eligiblePool.includes(name))
 }
 const allSearchCards=cards.filter(c=>!halloweenBanReason(c.name))
@@ -111,8 +148,10 @@ const base=readFileSync('index-base.html','utf8')
 const core=readFileSync('src/depths-ui.js','utf8')
 assert.match(ui,/Search '\+pool.length\+' cards/)
 assert.match(ui,/Ban card/)
-assert.match(ui,/Only one Julius Leader/)
+assert.match(ui,/duplicate cards are not allowed/)
 assert.match(ui,/All available cards/)
+assert.match(ui,/hwt-legacy/)
+assert.match(ui,/Santa Claus/)
 assert.match(ui,/hwt-min-rarity/)
 assert.match(ui,/hwt-probe/)
 assert.match(ui,/poolMode==='all'/)

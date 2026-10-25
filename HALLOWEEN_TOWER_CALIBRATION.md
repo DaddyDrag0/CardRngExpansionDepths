@@ -45,3 +45,45 @@ Existing Depths and regular Tower tools must remain independent; Halloween-only 
 - The search algorithm is a *bounded evolutionary combat tournament*, not a trained AI or exhaustive search. Every eligible catalog card appears in an evaluated lead and closer position; promising ordered teams are bred, mutated, reranked, then independently verified with fresh seeded full combat simulations.
 - A "Check floors 1–105" probe runs the current four-card loadout against eleven representative stage samples. It tests *that deck only*. No wins in the samples **cannot** establish a stage is globally impossible.
 - Existing browser settings from the earlier version are migrated to the all-cards mode with no assumed premium borders. Explicitly chosen player deck borders remain intact.
+
+## Adaptive battle lab and event availability (2026-10-25)
+
+**Availability rules:** `Sable The Envious` and `Supreme Ozzy` are now reported banned.
+The update log explicitly bans **multiple entries of the same player card**,
+so all duplicate player cards are blocked, including duplicate Julius Leader.
+
+`Santa Claus`, `Anubis & Hades`, and `Supreme Frank` are excluded from
+the default player search as reported inaccessible event exclusives.
+Older cards marked `expires=true` are also excluded by default, **except**
+currently released Halloween3 and the four horsemen (Death, War, Famine, Pestilence).
+The former legacy exclusions are an assumption, not a verified server-wide ban.
+The optional Include historical event cards checkbox re-enables those older
+exclusives for players who actually own them, while the three specific
+no-owner exclusions stay blocked. Enemy encounter generation is unaffected.
+
+**Adaptive battle search:** the game simulator, not a separate machine-learning
+model, labels matchups. The search first ensures lead and closer coverage across
+all eligible cards, screens them against the selected stage, breeds and mutates
+promising unique-card teams, and then uses progressive 16/64/256 battle
+verification with independent seeds. Estimated probabilities show Wilson 95%
+confidence ranges. Labels are explicitly marked `estimated: true`; incomplete
+or unsupported engine mechanics are surfaced rather than treated as exact.
+
+The uploaded Python code uses a native C kernel with probability-branch
+search and an exact tablebase. That C kernel is **not** available within this
+browser calculator, and the current TypeScript battle engine cannot exactly
+enumerate stochastic branches. So our implementation follows its **versioned
+training-label** and **adaptive rollout** architecture, not its exact-solver
+algorithm.
+
+**Export labels:** The Halloween tab's "Copy estimated training labels" exports
+JSONL rows for finalists. Offline bulk generation is available via:
+
+```bash
+npm run halloween:labels -- --rows 100 --runs 64 --seed 123 --out data/halloween-labels.jsonl
+```
+
+Each row has a rule fingerprint over engine, cards, and data; matchups; seed;
+outcome frequencies; confidence interval; and unsupported-ability flags.
+Future model training should drop unsupported/uncalibrated labels and reject
+stale rule fingerprints; there is **no neural model trained yet**.

@@ -27,11 +27,17 @@
   105:['Savior','Bloody Mary','Abomination','Sable The Envious','End Times']};
   const fresh=()=>({floor:15,seed:41,enemies:[...fixedStages[15].slice(0,4)],manual:false,
     slots:['Triceratops','Pterodactylus','Mothman','Julius Leader'].map(cardName=>({cardName,borders:['Platinum','Crystal','Galaxy']})),
-    defaultBorders:[],minimumRarity:1e15,poolMode:'all',runs:100,extraBans:[],pool:[...DEFAULT_POOL],
+    defaultBorders:[],minimumRarity:1e15,poolMode:'all',searchRevision:2,runs:100,extraBans:[],pool:[...DEFAULT_POOL],
     result:null,search:null,probe:null,editingBan:'',editingPool:''});
   let state=fresh(),root=null,all=[],thumbnails={},navigate=null,worker=null,requestId=0,busy='',loadingFloor=null;
   try{const saved=JSON.parse(localStorage.getItem(STORE)||'null');if(saved&&typeof saved==='object'){
     state={...fresh(),...saved,result:null,search:null,probe:null};
+    // Previous version assumed every deck owns 3 high-tier borders. The new
+    // catalog-wide baseline instead starts from a uniform 1qd stat floor.
+    if(state.searchRevision!==2){
+      state.poolMode='all';state.defaultBorders=[];state.minimumRarity=1e15;
+    }
+    state.searchRevision=2;
     state.poolMode=state.poolMode==='custom'?'custom':'all';
     state.minimumRarity=state.minimumRarity===1?1:1e15;
     if(!Array.isArray(state.slots)||state.slots.length!==4)state.slots=fresh().slots;

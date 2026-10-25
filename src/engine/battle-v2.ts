@@ -127,6 +127,8 @@ interface Runtime {
   captureDebug: boolean
   deathEpoch: number
   counterDepth: number
+  halloweenNormalizedPlayers?: boolean
+  halloweenMinimumRarity?: number
   // Independent seeds retain their own delay and strength, even across deaths.
   orchardSeeds: Map<CombatCard, Array<{ turns: number; damage: number }>>
 }
@@ -496,19 +498,21 @@ function clearStatuses(card: CombatCard) {
 export interface BattleModeOptions {
   /** Halloween Tower's empirically fitted rarity-based stat normalization. */
   halloweenNormalizedPlayers?: boolean
+  /** Minimum effective rarity assumed for every Halloween player card (e.g. 1e15 = 1qd). */
+  halloweenMinimumRarity?: number
   /** Halloween Soul Guide / Resting Place suppresses the player's aura cards. */
   disablePlayerAuras?: boolean
   /** Optional fifth, non-combat aura in a fixed enemy stage. */
   enemySkillAura?: { auraName: string; border?: 'Platinum' | 'Crystal' | 'Galaxy' | null } | null
 }
 
-function makePlayerCard(name: string, borders: CombatCard['borders'], index: number, mutationWeather?: CombatCard['mutationWeather'], halloweenNormalized = false): CombatCard | null {
+function makePlayerCard(name: string, borders: CombatCard['borders'], index: number, mutationWeather?: CombatCard['mutationWeather'], halloweenNormalized = false, minimumRarity = 1): CombatCard | null {
   const card = definition(name)
   if (!card) return null
   // Stage 14–17 measurements support ATK = ceil((200 + 10 log10(rarity))/2)
   // before deck passives. HP and how special HP multipliers behave are provisional.
   const power = halloweenNormalized
-    ? Math.ceil(200 + 10 * Math.log10(Math.max(1, rarityWithBorders(card, borders))))
+    ? Math.ceil(200 + 10 * Math.log10(Math.max(1, minimumRarity, rarityWithBorders(card, borders))))
     : getPower(card, borders, mutationWeather)
   const hp = halloweenNormalized ? power * (card.hpMultiplier || 1) : getHealth(card, borders, mutationWeather)
   return {
@@ -659,7 +663,7 @@ function applyDraconianSetup(team: CombatCard[]) {
 
 export function createBattleStateV2(loadout: TeamLoadout, enemies: DepthsEnemy[], mode: BattleModeOptions = {}): BattleState {
   const allies = loadout.cards
-    .map((slot, index) => makePlayerCard(slot.cardName, slot.borders, index + 1, slot.mutationWeather, mode.halloweenNormalizedPlayers))
+    .map((slot, index) => makePlayerCard(slot.cardName, slot.borders, index + 1, slot.mutationWeather, mode.halloweenNormalizedPlayers, mode.halloweenMinimumRarity))
     .filter((card): card is CombatCard => Boolean(card))
   const enemyCards = enemies.map((enemy, index) => makeEnemyCard(enemy, index + 1))
 
@@ -2590,7 +2594,8 @@ function applyOnDeathCore(runtime: Runtime, dead: CombatCard, opponent: CombatCa
 
   if (name === 'Split In Two' && !dead.flags.sealed) {
     const children = ['Joy', 'Sorrow'].map((childName, i) => {
-      const child = makePlayerCard(childName, dead.borders, dead.index)!
+      const child = makePlayerCard(childName, dead.borders, dead.index, dead.mutationWeather,
+        runtime.halloweenNormalizedPlayers, runtime.halloweenMinimumRarity)!
       child.team = team
       child.id = dead.id + ':' + childName
       child.maxHp = child.hp = dead.maxHp * 0.5
@@ -3590,7 +3595,8 @@ export function simulateBattleV2(
     statAura: loadout.statAura ? { name: loadout.statAura.auraName, border: loadout.statAura.border || null, value: state.boosts.Allies.statAuraValue } : undefined,
     abilityAura: loadout.abilityAura ? { name: loadout.abilityAura.auraName, border: loadout.abilityAura.border || null, value: state.boosts.Allies.skillAuraValue } : undefined,
   }
-  const runtime: Runtime = { state, rng: new SeededRng(seed), debug, captureDebug, deathEpoch: 0, counterDepth: 0, orchardSeeds: new Map() }
+  const runtime: Runtime = { state, rng: new SeededRng(seed), debug, captureDebug, deathEpoch: 0, counterDepth: 0, halloweenNormalizedPlayers: mode.halloweenNormalizedPlayers,
+    halloweenMinimumRarity: mode.halloweenMinimumRarity, orchardSeeds: new Map() }
   resolveConstellarArts(runtime)
   if (captureDebug) {
     debug.initialAllies = state.teams.Allies.map(debugCard)

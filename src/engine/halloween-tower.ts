@@ -3,6 +3,7 @@ import type { BorderName, CardDefinition, DepthsEnemy, TeamLoadout } from '../ty
 import { simulateBattleV2 } from './battle-v2'
 import { rarityWithBorders } from './stats'
 import { SeededRng } from './rng'
+import { halloweenBattleLabel, optimisticHalloweenScore, wilsonBounds, HALLOWEEN_RULESET, type HalloweenBattleLabel } from './halloween-learning'
 
 /**
  * Halloween Tower (difficulty 4): source stage roster and client display formula.
@@ -132,6 +133,7 @@ export interface HalloweenRecommendation extends HalloweenRunSummary {loadout:Te
 export interface HalloweenSearchResult {
   recommendations:HalloweenRecommendation[];tested:number;battles:number;eligiblePool:string[]
   coveredCards:number;searchMethod:string;minimumRarity:number
+  ruleVersion:string;labels:HalloweenBattleLabel[]
 }
 export function simulateHalloweenTower(
   loadout:TeamLoadout,enemyNames:string[],floor:number,runs=100,seed=1,extraBans:readonly string[]=[],
@@ -197,6 +199,7 @@ export function searchHalloweenTower(
   const rng=new SeededRng(seed||1)
   const draw=()=>Math.floor(rng.next()*0x7fffffff)||1
   const discoverySeed=draw(), evolutionSeed=draw(), verificationSeed=draw()
+  const advancedSeed=draw(), finalSeed=draw()
   const randomName=()=>pool[Math.floor(rng.next()*pool.length)]
   const anchorNames=[...HALLOWEEN_SKILL_CANDIDATES].filter(name=>pool.includes(name))
   const randomWeighted=()=>{
@@ -298,19 +301,34 @@ export function searchHalloweenTower(
   const second=evaluate(generated,4,evolutionSeed,candidates.length,
     candidates.length+generated.length+24)
   const finalistMap=new Map<string,TeamLoadout>()
-  const queue=[...initial.slice(0,14),...second.slice(0,24)]
+  const queue=[...initial.slice(0,24),...second.slice(0,30)]
   for(const entry of queue){
     const key=entry.loadout.cards.map(c=>c.cardName+':'+c.borders.join('+')).join('|')
     if(!finalistMap.has(key))finalistMap.set(key,entry.loadout)
   }
-  const contenders=[...finalistMap.values()].slice(0,24)
-  const verified=evaluate(contenders,128,verificationSeed,candidates.length+generated.length,
-    candidates.length+generated.length+contenders.length)
+  // Adaptive best-first tournament: 16 seed-matched battles for the frontier,
+  // spend 64 on contenders with the largest upper confidence bounds, then
+  // 256 on the final 12. Each round gets independent seeds, preventing overfit.
+  const frontier=[...finalistMap.values()].slice(0,48)
+  const frontierScores=evaluate(frontier,16,verificationSeed,candidates.length+generated.length,
+    candidates.length+generated.length+frontier.length+24+12)
+  frontierScores.sort((a,b)=>optimisticHalloweenScore(b)-optimisticHalloweenScore(a))
+  const promising=frontierScores.slice(0,24).map(entry=>entry.loadout)
+  const deep=evaluate(promising,64,advancedSeed,candidates.length+generated.length+frontier.length,
+    candidates.length+generated.length+frontier.length+promising.length+12)
+  deep.sort((a,b)=>optimisticHalloweenScore(b)-optimisticHalloweenScore(a))
+  const finalists=deep.slice(0,12).map(entry=>entry.loadout)
+  const verified=evaluate(finalists,256,finalSeed,candidates.length+generated.length+
+    frontier.length+promising.length,candidates.length+generated.length+
+    frontier.length+promising.length+finalists.length)
+  const labels=verified.slice(0,10).map(entry=>halloweenBattleLabel(entry,floor,
+    entry.loadout.cards.map(c=>c.cardName),enemyNames,finalSeed))
   return {
-    recommendations:verified.slice(0,10),tested:candidates.length+generated.length,
-    battles:initial.reduce((s,r)=>s+r.runs,0)+second.reduce((s,r)=>s+r.runs,0)+verified.reduce((s,r)=>s+r.runs,0),
-    eligiblePool:pool,coveredCards:pool.length,minimumRarity,
-    searchMethod:'Catalog-wide combat screening → evolutionary deck mutations → independent verification',
+    recommendations:verified.slice(0,10),tested:candidates.length+generated.length+
+      frontier.length+promising.length+finalists.length,
+    battles:[...initial,...second,...frontierScores,...deep,...verified].reduce((count,result)=>count+result.runs,0),
+    eligiblePool:pool,coveredCards:pool.length,minimumRarity,ruleVersion:HALLOWEEN_RULESET,
+    labels,searchMethod:'Catalog-wide screening → evolutionary crossovers → confidence-guided 16/64/256 battle verification',
   }
 }
 

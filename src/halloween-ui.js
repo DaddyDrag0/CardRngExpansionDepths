@@ -2,7 +2,11 @@
   'use strict';
   const STORE='crx-halloween-tower-v1';
   const DEFAULT_POOL=['Triceratops','Pterodactylus','Mothman','Julius Leader','Anubis','Serket','Neighbor','Tarantula','Ghost','Crow','Grey Pumpkin','The Faceless','Living Armor','Eerie Tree','Pumpkin King','Scarecrow','Banshee','Witch','Poison Witch','Night Witch','Robin Hood','Kuchisake-onna'];
-  const REPORTED=['Vampire Lord','Fuxi','Priest','Pandora','Black Plague','Wendigo','Glamour','Fate Seamstress','Behemoth','Parallax'];
+  const REPORTED=['Vampire Lord','Fuxi','Priest','Pandora','Black Plague','Wendigo','Glamour','Fate Seamstress','Behemoth','Parallax','Sable The Envious','Supreme Ozzy'];
+  const UNAVAILABLE_EVENTS=['Santa Claus','Anubis & Hades','Supreme Frank'];
+  const REISSUED_EVENTS=['Pestilence','Famine','War','Death'];
+  const legacyCard=c=>UNAVAILABLE_EVENTS.includes(c.name)||
+    (c.expires&&c.pack!=='Halloween3'&&!REISSUED_EVENTS.includes(c.name));
   const BORDER_MULT={Platinum:100,Crystal:10000,Ruby:100000,Galaxy:1000000};
   const BORDERS=Object.keys(BORDER_MULT);
   const fixedStages={5:['Zombie','Zombie','Zombie','Zombie'],10:['Zombie Nurse','Zombie Nurse','Zombie Nurse','Zombie Nurse'],
@@ -27,7 +31,7 @@
   105:['Savior','Bloody Mary','Abomination','Sable The Envious','End Times']};
   const fresh=()=>({floor:15,seed:41,enemies:[...fixedStages[15].slice(0,4)],manual:false,
     slots:['Triceratops','Pterodactylus','Mothman','Julius Leader'].map(cardName=>({cardName,borders:['Platinum','Crystal','Galaxy']})),
-    defaultBorders:[],minimumRarity:1e15,poolMode:'all',searchRevision:2,runs:100,extraBans:[],pool:[...DEFAULT_POOL],
+    defaultBorders:[],minimumRarity:1e15,poolMode:'all',searchRevision:3,includeLegacy:false,runs:100,extraBans:[],pool:[...DEFAULT_POOL],
     result:null,search:null,probe:null,editingBan:'',editingPool:''});
   let state=fresh(),root=null,all=[],thumbnails={},navigate=null,worker=null,requestId=0,busy='',loadingFloor=null;
   try{const saved=JSON.parse(localStorage.getItem(STORE)||'null');if(saved&&typeof saved==='object'){
@@ -37,7 +41,8 @@
     if(state.searchRevision!==2){
       state.poolMode='all';state.defaultBorders=[];state.minimumRarity=1e15;
     }
-    state.searchRevision=2;
+    state.searchRevision=3;
+    state.includeLegacy=state.includeLegacy===true;
     state.poolMode=state.poolMode==='custom'?'custom':'all';
     state.minimumRarity=state.minimumRarity===1?1:1e15;
     if(!Array.isArray(state.slots)||state.slots.length!==4)state.slots=fresh().slots;
@@ -62,12 +67,16 @@
     if(c.weather==='Rapture')return 'Rapture (reported banned)';
     if(REPORTED.includes(name))return 'Reported banned';
     if(state.extraBans.includes(name))return 'Custom ban';
+    if(UNAVAILABLE_EVENTS.includes(name))return 'Event-exclusive; no current owners reported';
+    if(!state.includeLegacy&&legacyCard(c))return 'Old event-exclusive; not known re-released';
     return '';
   };
   const problems=()=>{
     const names=state.slots.map(s=>s.cardName),issues=names.filter(n=>!n||!valid(n)).map(x=>'Unknown or empty slot: '+(x||'empty'));
     for(const name of names){const why=banReason(name);if(why)issues.push(name+': '+why)}
-    if(names.filter(n=>n==='Julius Leader').length>1)issues.push('Only one Julius Leader is allowed');
+    for(const name of [...new Set(names)]){
+      if(names.filter(n=>n===name).length>1)issues.push(name+': duplicate cards are not allowed in Halloween Tower');
+    }
     return [...new Set(issues)];
   };
   function save(){
@@ -124,7 +133,7 @@
     const loadout={cards:state.slots.map(c=>({cardName:c.cardName,borders:[...c.borders]}))};
     const args={kind,id,floor:state.floor,enemyNames:[...state.enemies],seed:(Date.now()>>>0)||1,
       loadout,current:loadout,runs:state.runs,extraBans:[...state.extraBans],
-      pool:state.poolMode==='all'?undefined:[...state.pool],borders:[...state.defaultBorders],minimumRarity:state.minimumRarity};
+      pool:state.poolMode==='all'?undefined:[...state.pool],borders:[...state.defaultBorders],minimumRarity:state.minimumRarity,includeLegacy:state.includeLegacy};
     if(kind==='halloween-search')state.search=null;else if(kind==='halloween-probe')state.probe=null;else state.result=null;
     w.postMessage(args);render();
   }
@@ -148,6 +157,8 @@
     }).join('');
     const globalPool=all.filter(c=>!banReason(c.name)),pool=state.poolMode==='all'?globalPool.map(c=>c.name):state.pool.filter(n=>valid(n)&&!banReason(n));
     const bannedSet=[...new Set([...all.filter(c=>c.weather==='Rapture').map(c=>c.name),...REPORTED,...state.extraBans])];
+    const unavailable=all.filter(legacyCard).map(c=>c.name);
+    const unavailableCount=unavailable.length;
     const bans=bannedSet.map(n=>'<span class="hwt-ban-tag">'+esc(n)+(state.extraBans.includes(n)?'<button data-hwt-unban="'+esc(n)+'" title="Remove custom ban">×</button>':'')+'</span>').join('');
     const results=state.result?state.result.error?'<div class="hwt-error">'+esc(state.result.error)+'</div>':('<div class="hwt-summary"><div><strong>'+pretty(state.result.wins)+' / '+pretty(state.result.runs)+'</strong><small>Wins</small></div><div><strong>'+(state.result.winRate*100).toFixed(1)+'%</strong><small>Win rate</small></div><div><strong>'+(state.result.progress*100).toFixed(1)+'%</strong><small>Average enemy progress</small></div><div><strong>'+state.result.averageTurns.toFixed(1)+'</strong><small>Turns</small></div></div>'+(state.result.trusted?'':'<p class="hwt-error">Approximate mechanics / unsupported: '+esc((state.result.unsupportedAbilities||[]).join(', '))+'</p>')):'<p class="hwt-muted">Run a sample after building your four-card deck.</p>';
     const probeHtml=Array.isArray(state.probe)?'<div class="hwt-probe-grid">'+state.probe.map(r=>'<div class="hwt-probe-item"><b>Floor '+r.floor+'</b><span>'+r.wins+'/'+r.runs+' wins · '+(r.winRate*100).toFixed(0)+'%</span><small>'+Math.round(r.progress*100)+'% encounter progress'+(r.trusted?'':' · model warning')+'</small></div>').join('')+'</div>':'<p class="hwt-muted">Test sampled floors from 1 to 105 with your current deck. Zero wins does not prove any floor impossible.</p>';
@@ -156,9 +167,9 @@
     root.innerHTML='<main class="shell hwt-shell"><header class="topbar"><div><p class="kicker">CARD RNG EXPANSION</p><h1>Halloween Tower</h1><p class="hwt-muted">A separate skill-based simulator. Player stats are normalized; enemies scale by stage.</p></div></header>'+navigation()+
     '<div class="hwt-banner"><b>Calibration mode</b> · Default assumption: every player card has at least 1qd effective rarity (~175 base ATK). This is hypothetical, not a verified inventory upgrade. Player ATK formula matches Triceratops, Pterodactylus, Mothman and Julius Leader tests. Player HP, server ban enforcement and some interactions are still provisional. The original Roblox server battle scripts were unavailable.</div>'+
     '<section class="hwt-layout"><article class="panel hwt-panel"><div class="panel-head"><div><span class="kicker">ENCOUNTER</span><h3>Halloween · Stage '+state.floor+'</h3></div></div><div class="hwt-input-row"><label>Stage <input type="number" id="hwt-floor" min="1" max="105" value="'+state.floor+'"></label><label>Sample seed <input type="number" id="hwt-seed" value="'+state.seed+'"></label><button id="hwt-reload">Load '+(fixed?'fixed':'sample')+' enemies</button></div><div class="hwt-encounter-meta"><span>'+pretty(power)+' HP · '+pretty(Math.ceil(power/2))+' ATK (base enemy)</span><span>'+ (fixed?'Source-defined fixed stage':'Generated enemy sample · edit to match Roblox')+'</span><span>Enemy aura: '+esc(fixedStages[state.floor]?.[4]||'None')+' · Soul Guide: active</span></div><div class="hwt-roster">'+roster+'</div><small class="hwt-muted">All Halloween fights include Soul Guide (Resting Place), modeled as suppressing the player’s aura cards. On non-fixed floors, Roblox’s random lineup will differ; enter the four enemies you actually see.</small></article>'+
-    '<article class="panel hwt-panel"><div class="panel-head"><div><span class="kicker">PLAYER TEAM</span><h3>Four-card deck</h3></div></div><div class="hwt-members">'+members+'</div><label class="hwt-minimum">Stat assumption <select id="hwt-min-rarity"><option value="1000000000000000" '+(state.minimumRarity===1e15?'selected':'')+'>Every player card ≥ 1qd effective rarity (175 base ATK)</option><option value="1" '+(state.minimumRarity===1?'selected':'')+'>Actual effective rarity only</option></select></label><small class="hwt-muted">Borders can raise rarity above this floor. Skill outcomes matter more than raw stats. Julius Leader is limited to one copy.</small>'+(errors.length?'<div class="hwt-error">'+errors.map(esc).join(' · ')+'</div>':'')+'<div class="hwt-actions"><label>Runs <select id="hwt-runs">'+[25,100,250,1000,2000].map(n=>'<option value="'+n+'" '+(state.runs===n?'selected':'')+'>'+n+'</option>').join('')+'</select></label><button id="hwt-test" '+(busy||!isValid?'disabled':'')+'>Test this deck</button><button id="hwt-probe" '+(busy||!isValid?'disabled':'')+'>Check floors 1–105</button><button id="hwt-copy">Copy deck</button></div><div class="hwt-results">'+results+'</div><div class="hwt-probe-panel"><b>Floor feasibility · sampled encounters</b>'+probeHtml+'</div></article>'+
-    '<article class="panel hwt-panel"><div class="panel-head"><div><span class="kicker">RECOMMENDATIONS</span><h3>Skill-based deck finder</h3></div></div><p class="hwt-muted">Full-catalog optimizer: screens every obtainable unbanned card in lead and closer slots, evolves four-card combinations, then verifies the finalists on independent combat seeds. This is not a neural AI.</p><div class="hwt-search-modes"><button data-hwt-pool-mode="all" class="'+(state.poolMode==='all'?'on':'')+'">All available cards · '+globalPool.length+'</button><button data-hwt-pool-mode="custom" class="'+(state.poolMode==='custom'?'on':'')+'">Custom shortlist</button></div><div class="hwt-borders"><span class="hwt-muted">Extra border assumption above the 1qd floor:</span>'+BORDERS.map(b=>'<button data-hwt-default-border="'+b+'" class="'+(state.defaultBorders.includes(b)?'on':'')+'">'+b+'</button>').join('')+'</div><div class="hwt-pool" style="display:'+(state.poolMode==='custom'?'flex':'none')+'">'+(state.poolMode==='custom'?pool:[]).map(name=>'<button data-hwt-remove-pool="'+esc(name)+'" title="Remove from search pool">'+esc(name)+' ×</button>').join('')+'</div><div class="hwt-input-row" style="display:'+(state.poolMode==='custom'?'flex':'none')+'"><input id="hwt-pool-add" list="hwt-card-list" placeholder="Add a card you own…" value="'+esc(state.editingPool||'')+'"><button id="hwt-add-pool">Add</button></div><div class="hwt-actions"><button id="hwt-find" '+(busy||!pool.length?'disabled':'')+'>Search '+pool.length+' cards</button>'+(busy?'<button id="hwt-cancel">Cancel</button><b class="hwt-muted">'+esc(busy)+'</b>':'')+'</div>'+search+'</article>'+
-    '<article class="panel hwt-panel"><div class="panel-head"><div><span class="kicker">RESTRICTIONS</span><h3>Community bans</h3></div></div><p class="hwt-muted">Rapture cards and the listed cards are blocked based on player reports. Fuxi is tentative. These are NOT the recovered server ban rules. Add newly discovered bans here; they are saved in this browser.</p><div class="hwt-bans">'+bans+'</div><div class="hwt-input-row"><input id="hwt-ban-add" list="hwt-card-list" placeholder="Card found banned in-game…" value="'+esc(state.editingBan||'')+'"><button id="hwt-add-ban">Ban card</button></div><small class="hwt-muted">One-copy rule: Julius Leader. Extra-turn and on-kill scaling cards are not blanket-banned until confirmed.</small></article></section><datalist id="hwt-card-list">'+refs+'</datalist><datalist id="hwt-enemy-list">'+names.map(n=>'<option value="'+esc(n)+'"></option>').join('')+'</datalist><footer><span>Halloween Tower calculator · calibrated model · original Tower unaffected</span></footer></main>';
+    '<article class="panel hwt-panel"><div class="panel-head"><div><span class="kicker">PLAYER TEAM</span><h3>Four-card deck</h3></div></div><div class="hwt-members">'+members+'</div><label class="hwt-minimum">Stat assumption <select id="hwt-min-rarity"><option value="1000000000000000" '+(state.minimumRarity===1e15?'selected':'')+'>Every player card ≥ 1qd effective rarity (175 base ATK)</option><option value="1" '+(state.minimumRarity===1?'selected':'')+'>Actual effective rarity only</option></select></label><small class="hwt-muted">Borders can raise rarity above this floor. Skill outcomes matter more than raw stats. <b>No duplicate cards of any kind</b> are permitted in Halloween Tower.</small>'+(errors.length?'<div class="hwt-error">'+errors.map(esc).join(' · ')+'</div>':'')+'<div class="hwt-actions"><label>Runs <select id="hwt-runs">'+[25,100,250,1000,2000].map(n=>'<option value="'+n+'" '+(state.runs===n?'selected':'')+'>'+n+'</option>').join('')+'</select></label><button id="hwt-test" '+(busy||!isValid?'disabled':'')+'>Test this deck</button><button id="hwt-probe" '+(busy||!isValid?'disabled':'')+'>Check floors 1–105</button><button id="hwt-copy">Copy deck</button></div><div class="hwt-results">'+results+'</div><div class="hwt-probe-panel"><b>Floor feasibility · sampled encounters</b>'+probeHtml+'</div></article>'+
+    '<article class="panel hwt-panel"><div class="panel-head"><div><span class="kicker">RECOMMENDATIONS</span><h3>Skill-based deck finder</h3></div></div><p class="hwt-muted">Adaptive simulator-based deck search: compares real ability interactions, tests each allowed card, refines promising teams, then rechecks finalists with more random battles. No trained AI model is involved yet.</p><label class="hwt-legacy"><input id="hwt-legacy" type="checkbox" '+(state.includeLegacy?'checked':'')+'> Include historical event cards that may have owners</label><small class="hwt-muted">'+unavailableCount+' event-only cards flagged in the catalog. Santa Claus, Anubis & Hades and Supreme Frank stay excluded because no current owners were reported.</small><div class="hwt-search-modes"><button data-hwt-pool-mode="all" class="'+(state.poolMode==='all'?'on':'')+'">All available cards · '+globalPool.length+'</button><button data-hwt-pool-mode="custom" class="'+(state.poolMode==='custom'?'on':'')+'">Custom shortlist</button></div><div class="hwt-borders"><span class="hwt-muted">Extra border assumption above the 1qd floor:</span>'+BORDERS.map(b=>'<button data-hwt-default-border="'+b+'" class="'+(state.defaultBorders.includes(b)?'on':'')+'">'+b+'</button>').join('')+'</div><div class="hwt-pool" style="display:'+(state.poolMode==='custom'?'flex':'none')+'">'+(state.poolMode==='custom'?pool:[]).map(name=>'<button data-hwt-remove-pool="'+esc(name)+'" title="Remove from search pool">'+esc(name)+' ×</button>').join('')+'</div><div class="hwt-input-row" style="display:'+(state.poolMode==='custom'?'flex':'none')+'"><input id="hwt-pool-add" list="hwt-card-list" placeholder="Add a card you own…" value="'+esc(state.editingPool||'')+'"><button id="hwt-add-pool">Add</button></div><div class="hwt-actions"><button id="hwt-find" '+(busy||!pool.length?'disabled':'')+'>Search '+pool.length+' cards</button>'+(busy?'<button id="hwt-cancel">Cancel</button><b class="hwt-muted">'+esc(busy)+'</b>':'')+'</div>'+search+'</article>'+
+    '<article class="panel hwt-panel"><div class="panel-head"><div><span class="kicker">RESTRICTIONS</span><h3>Community bans</h3></div></div><p class="hwt-muted">Rapture cards and the listed cards are blocked based on player reports. Fuxi is tentative. These are NOT the recovered server ban rules. Add newly discovered bans here; they are saved in this browser.</p><div class="hwt-bans">'+bans+'</div><div class="hwt-input-row"><input id="hwt-ban-add" list="hwt-card-list" placeholder="Card found banned in-game…" value="'+esc(state.editingBan||'')+'"><button id="hwt-add-ban">Ban card</button></div><small class="hwt-muted">One-copy rule applies to <b>every player card</b>. Other old event exclusives are unavailable by default, but can be included for players who own them. Unconfirmed extra-turn or on-kill cards are not automatically banned.</small></article></section><datalist id="hwt-card-list">'+refs+'</datalist><datalist id="hwt-enemy-list">'+names.map(n=>'<option value="'+esc(n)+'"></option>').join('')+'</datalist><footer><span>Halloween Tower calculator · calibrated model · original Tower unaffected</span></footer></main>';
     bind();
   }
   function bind(){
@@ -180,13 +191,14 @@
       const name=b.dataset.hwtDefaultBorder;state.defaultBorders=state.defaultBorders.includes(name)?state.defaultBorders.filter(x=>x!==name):[...state.defaultBorders,name];save();render()
     }));
     root.querySelector('#hwt-min-rarity')?.addEventListener('change',e=>{state.minimumRarity=Number(e.target.value)===1?1:1e15;state.result=null;state.search=null;state.probe=null;save();render()});
+    root.querySelector('#hwt-legacy')?.addEventListener('change',e=>{state.includeLegacy=e.target.checked;state.search=null;state.result=null;state.probe=null;save();render()});
     root.querySelectorAll('[data-hwt-pool-mode]').forEach(b=>b.addEventListener('click',()=>{state.poolMode=b.dataset.hwtPoolMode==='custom'?'custom':'all';state.search=null;save();render()}));
     root.querySelector('#hwt-runs')?.addEventListener('change',e=>{state.runs=Number(e.target.value)||100;save()});
     root.querySelector('#hwt-test')?.addEventListener('click',()=>send('halloween-sim'));
     root.querySelector('#hwt-find')?.addEventListener('click',()=>send('halloween-search'));
     root.querySelector('#hwt-probe')?.addEventListener('click',()=>send('halloween-probe'));
     root.querySelector('#hwt-copy')?.addEventListener('click',()=>{
-      const data=JSON.stringify({floor:state.floor,enemies:state.enemies,cards:state.slots,extraBans:state.extraBans,minimumRarity:state.minimumRarity});
+      const data=JSON.stringify({floor:state.floor,enemies:state.enemies,cards:state.slots,extraBans:state.extraBans,minimumRarity:state.minimumRarity,includeLegacy:state.includeLegacy});
       if(navigator.clipboard?.writeText)navigator.clipboard.writeText(data).catch(()=>prompt('Copy deck JSON',data));
       else prompt('Copy deck JSON',data)
     });

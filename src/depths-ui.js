@@ -31,7 +31,8 @@
   const cloneJson=value=>value==null?value:JSON.parse(JSON.stringify(value));
   function syncViewUrl(view){
     const url=new URL(location.href);
-    if(view==='tower'||view==='halloween')url.searchParams.set('view',view);
+    if(view==='tower')url.searchParams.set('view','tower');
+    else if(view==='halloween')url.searchParams.set('view','halloween');
     else url.searchParams.delete('view');
     history.replaceState(history.state,'',url.pathname+url.search+url.hash);
   }

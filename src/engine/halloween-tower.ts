@@ -3,7 +3,7 @@ import type { BorderName, CardDefinition, DepthsEnemy, TeamLoadout } from '../ty
 import { simulateBattleV2 } from './battle-v2'
 import { rarityWithBorders } from './stats'
 import { SeededRng } from './rng'
-import { halloweenBattleLabel, optimisticHalloweenScore, wilsonBounds, HALLOWEEN_RULESET, type HalloweenBattleLabel } from './halloween-learning'
+import { halloweenBattleLabel, optimisticHalloweenScore, HALLOWEEN_RULESET, type HalloweenBattleLabel } from './halloween-learning'
 
 /**
  * Halloween Tower (difficulty 4): source stage roster and client display formula.

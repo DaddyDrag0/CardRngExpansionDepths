@@ -164,6 +164,7 @@ export function searchHalloweenTower(
   const pool=[...new Set((options.pool?.length?options.pool:[...HALLOWEEN_SKILL_CANDIDATES])
     .filter(name=>CARD_MAP.has(name)&&!halloweenBanReason(name,extra)))]
   if(!pool.length)throw new Error('No eligible cards in the Halloween search pool')
+  if(pool.length===1&&pool[0]==='Julius Leader')throw new Error('Julius Leader is limited to one copy; add at least one other card to search')
   const border=options.borders||['Platinum','Crystal','Galaxy']
   const rng=new SeededRng(seed||1)
   const seedForCandidates=Math.floor(rng.next()*0x7fffffff)||1

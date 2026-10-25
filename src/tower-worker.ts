@@ -131,13 +131,14 @@ self.onmessage = (event: MessageEvent<TowerRequest>) => {
       return
     }
 
+    const batch = request as TowerSimulationRequest
     const result = simulateTowerBatchLogged(
-      request.loadout,
-      request.enemyNames,
-      request.floor,
-      request.difficulty,
-      request.runs,
-      request.seed,
+      batch.loadout,
+      batch.enemyNames,
+      batch.floor,
+      batch.difficulty,
+      batch.runs,
+      batch.seed,
       (completed, total) => {
         self.postMessage({ kind: 'tower-progress', id: request.id, completed, total })
       },

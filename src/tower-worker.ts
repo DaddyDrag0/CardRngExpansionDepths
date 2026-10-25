@@ -3,7 +3,7 @@
 import { searchTowerCheese, searchTowerCheeseIntensive, type TowerCheeseSearchProgress, type TowerDifficulty } from './engine/tower'
 import { replayTowerWinningRun, simulateTowerBatchLogged } from './engine/tower-logged'
 import type { TeamLoadout, BorderName } from './types'
-import { halloweenStage, simulateHalloweenTower, searchHalloweenTower } from './engine/halloween-tower'
+import { halloweenStage, simulateHalloweenTower, searchHalloweenTower, probeHalloweenFloors } from './engine/halloween-tower'
 
 interface TowerSimulationRequest {
   id: number
@@ -45,7 +45,7 @@ interface TowerCheeseSearchRequest {
 
 interface HalloweenTowerRequest {
   id: number
-  kind: 'halloween-stage' | 'halloween-sim' | 'halloween-search'
+  kind: 'halloween-stage' | 'halloween-sim' | 'halloween-search' | 'halloween-probe'
   floor: number
   seed: number
   enemyNames?: string[]
@@ -55,6 +55,7 @@ interface HalloweenTowerRequest {
   pool?: string[]
   borders?: BorderName[]
   extraBans?: string[]
+  minimumRarity?: number
 }
 
 type TowerRequest = TowerSimulationRequest | TowerWinDebugRequest | TowerCheeseSearchRequest | HalloweenTowerRequest
@@ -73,7 +74,14 @@ self.onmessage = (event: MessageEvent<TowerRequest>) => {
       const result=simulateHalloweenTower(request.loadout,request.enemyNames,request.floor,request.runs||100,
         request.seed,request.extraBans||[],(done,total)=>{
           self.postMessage({kind:'halloween-progress',id:request.id,done,total})
-        })
+        },request.minimumRarity)
+      self.postMessage({kind:'halloween-result',id:request.id,ok:true,elapsedMs:performance.now()-started,result})
+      return
+    }
+    if (request.kind === 'halloween-probe') {
+      if (!request.loadout) throw new Error('Select a Halloween loadout to probe floors')
+      const result=probeHalloweenFloors(request.loadout,request.seed,request.extraBans||[],request.minimumRarity,
+        (done,total)=>self.postMessage({kind:'halloween-progress',id:request.id,done,total}))
       self.postMessage({kind:'halloween-result',id:request.id,ok:true,elapsedMs:performance.now()-started,result})
       return
     }
@@ -81,6 +89,7 @@ self.onmessage = (event: MessageEvent<TowerRequest>) => {
       if (!request.enemyNames) throw new Error('Halloween opponents required')
       const result=searchHalloweenTower(request.enemyNames,request.floor,request.seed,{
         pool:request.pool,borders:request.borders,extraBans:request.extraBans,current:request.current,
+        minimumRarity:request.minimumRarity,
       },(done,total)=>{
         self.postMessage({kind:'halloween-progress',id:request.id,done,total})
       })

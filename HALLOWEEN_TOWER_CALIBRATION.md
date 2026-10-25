@@ -35,3 +35,13 @@ Source: the user's `HALLOWEEN Card RNG Expansion(1).rbxl`, specifically `Replica
 For each matchup, capture the stage, exact enemy order, candidate player card order, each card's full borders, **opening** HP/ATK (before combat buffs), applied auras, and eventual win/loss. Record banned-card error messages separately. Report discrepancies so the formulas and bans can be updated. Current search is a bounded, skill-based stochastic shortlist, not an exhaustive optimum or a guarantee of real-game wins.
 
 Existing Depths and regular Tower tools must remain independent; Halloween-only normalization is opt-in via `BattleModeOptions`.
+
+## Global search and 1qd floor (2026-10-25)
+
+- Player-reported bans now additionally include **Fate Seamstress**, **Behemoth**, and **Parallax**, on top of prior bans and all Rapture weather cards. **One Julius Leader** limit remains.
+- The entire obtainable, non-reported-banned card catalog is the **default** search pool; a manual shortlist remains available.
+- The "everybody owns every card with 1qd effective rarity at minimum" option is an explicit **hypothetical stat floor** of 1e15 rarity. Player attack is still derived from `ceil((200+10*log10(max(actual_effective_rarity,1e15)))/2)`. This means 1qd is **175 base ATK**, not 100, under the currently screenshot-fitted formula; exact server stats need additional calibration.
+- Existing better card borders and effective rarity are preserved; no increase if already at or above 1qd. Other card differences, especially skills and HP multipliers, still matter.
+- The search algorithm is a *bounded evolutionary combat tournament*, not a trained AI or exhaustive search. Every eligible catalog card appears in an evaluated lead and closer position; promising ordered teams are bred, mutated, reranked, then independently verified with fresh seeded full combat simulations.
+- A "Check floors 1–105" probe runs the current four-card loadout against eleven representative stage samples. It tests *that deck only*. No wins in the samples **cannot** establish a stage is globally impossible.
+- Existing browser settings from the earlier version are migrated to the all-cards mode with no assumed premium borders. Explicitly chosen player deck borders remain intact.

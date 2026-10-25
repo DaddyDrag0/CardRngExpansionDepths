@@ -50,3 +50,16 @@
 .hwt-results{margin-top:12px}
 @media(max-width:900px){.hwt-layout{grid-template-columns:1fr}.hwt-panel{padding:14px}.hwt-roster{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:550px){.hwt-roster{grid-template-columns:1fr}.hwt-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.hwt-avatar{width:40px;height:45px}}
+
+/* Full-roster combat evolution and stage-feasibility panels. */
+.hwt-search-modes{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0}
+.hwt-search-modes button.on{border-color:#cb975b;background:#49321d;color:#ffe2b0}
+.hwt-minimum{display:flex;flex-direction:column;gap:8px;color:#c7aa85;font-size:11px;margin:12px 0}
+.hwt-minimum select{max-width:100%;font-weight:600}
+.hwt-probe-panel{margin:16px 0 4px;border-top:1px solid #2c3b4a;padding-top:12px}
+.hwt-probe-panel>b{font-size:12px;color:#e2be86;display:block;margin-bottom:9px}
+.hwt-probe-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.hwt-probe-item{display:flex;flex-direction:column;gap:5px;padding:9px;border:1px solid #364455;background:#101a27;border-radius:8px}
+.hwt-probe-item b{font-size:11px;color:#e4bd87}
+.hwt-probe-item span{font-size:12px;color:#e5edf8}
+.hwt-probe-item small{font-size:10px;color:#91a3b5}

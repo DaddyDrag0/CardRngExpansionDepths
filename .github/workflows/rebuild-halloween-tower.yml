@@ -1,4 +1,5 @@
 name: Build Halloween Tower calculator workers
+# Second pass: TypeScript request union corrected.
 on:
   push:
     branches: [halloween-tower-mode-20261024]

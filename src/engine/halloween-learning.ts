@@ -10,6 +10,7 @@ export interface HalloweenWinEstimate {
   wins:number
   losses:number
   draws:number
+  unresolved?:number
   runs:number
   progress:number
   trusted:boolean
@@ -57,7 +58,8 @@ export function halloweenBattleLabel(
 ):HalloweenBattleLabel{
   return {ruleset:HALLOWEEN_RULESET,floor,allies:[...allies],enemies:[...enemies],seed,
     wins:sample.wins,losses:sample.losses,draws:sample.draws,runs:sample.runs,
-    pWin:sample.wins/sample.runs,pLose:sample.losses/sample.runs,pDraw:sample.draws/sample.runs,
-    unfinished:0,winInterval:wilsonBounds(sample.wins,sample.runs),estimated:true,
+    pWin:sample.wins/sample.runs,pLose:sample.losses/sample.runs,
+    pDraw:(sample.draws-(sample.unresolved||0))/sample.runs,
+    unfinished:(sample.unresolved||0)/sample.runs,winInterval:wilsonBounds(sample.wins,sample.runs),estimated:true,
     trusted:sample.trusted,unsupportedAbilities:[...sample.unsupportedAbilities]}
 }

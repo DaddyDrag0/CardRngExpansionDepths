@@ -163,18 +163,18 @@
   }
   function bind(){
     root.querySelectorAll('[data-hwt-nav]').forEach(b=>b.addEventListener('click',()=>navigate?.(b.dataset.hwtNav)));
-    root.querySelector('#hwt-floor')?.addEventListener('change',e=>{state.floor=Math.max(1,Math.min(105,Math.floor(Number(e.target.value)||1)));state.result=null;state.search=null;save();previewStage();render()});
-    root.querySelector('#hwt-seed')?.addEventListener('change',e=>{state.seed=Math.floor(Number(e.target.value)||1);save();previewStage();render()});
+    root.querySelector('#hwt-floor')?.addEventListener('change',e=>{state.floor=Math.max(1,Math.min(105,Math.floor(Number(e.target.value)||1)));state.result=null;state.search=null;state.probe=null;save();previewStage();render()});
+    root.querySelector('#hwt-seed')?.addEventListener('change',e=>{state.seed=Math.floor(Number(e.target.value)||1);state.probe=null;save();previewStage();render()});
     root.querySelector('#hwt-reload')?.addEventListener('click',()=>{previewStage();render()});
     root.querySelectorAll('[data-hwt-enemy]').forEach(el=>el.addEventListener('change',()=>{
       const i=Number(el.dataset.hwtEnemy);state.enemies[i]=el.value.trim();state.manual=true;state.result=null;state.search=null;save();render()
     }));
     root.querySelectorAll('[data-hwt-slot]').forEach(el=>el.addEventListener('change',()=>{
-      const i=Number(el.dataset.hwtSlot);state.slots[i].cardName=el.value.trim();state.result=null;save();render()
+      const i=Number(el.dataset.hwtSlot);state.slots[i].cardName=el.value.trim();state.result=null;state.probe=null;save();render()
     }));
     root.querySelectorAll('[data-hwt-border]').forEach(b=>b.addEventListener('click',()=>{
       const slot=state.slots[Number(b.dataset.hwtIndex)],name=b.dataset.hwtBorder;
-      slot.borders=slot.borders.includes(name)?slot.borders.filter(x=>x!==name):[...slot.borders,name];state.result=null;save();render()
+      slot.borders=slot.borders.includes(name)?slot.borders.filter(x=>x!==name):[...slot.borders,name];state.result=null;state.probe=null;save();render()
     }));
     root.querySelectorAll('[data-hwt-default-border]').forEach(b=>b.addEventListener('click',()=>{
       const name=b.dataset.hwtDefaultBorder;state.defaultBorders=state.defaultBorders.includes(name)?state.defaultBorders.filter(x=>x!==name):[...state.defaultBorders,name];save();render()
@@ -205,14 +205,14 @@
     root.querySelector('#hwt-add-ban')?.addEventListener('click',()=>{
       const name=root.querySelector('#hwt-ban-add')?.value.trim();
       if(valid(name)&&!state.extraBans.includes(name))state.extraBans.push(name);
-      state.editingBan='';state.search=null;state.result=null;save();render()
+      state.editingBan='';state.search=null;state.result=null;state.probe=null;save();render()
     });
     root.querySelectorAll('[data-hwt-unban]').forEach(b=>b.addEventListener('click',()=>{
       state.extraBans=state.extraBans.filter(x=>x!==b.dataset.hwtUnban);save();render()
     }));
     root.querySelectorAll('[data-hwt-load]').forEach(b=>b.addEventListener('click',()=>{
       const pick=state.search?.recommendations?.[Number(b.dataset.hwtLoad)];
-      if(!pick)return;state.slots=pick.loadout.cards.map(x=>({cardName:x.cardName,borders:[...x.borders]}));state.result=null;save();render()
+      if(!pick)return;state.slots=pick.loadout.cards.map(x=>({cardName:x.cardName,borders:[...x.borders]}));state.result=null;state.probe=null;save();render()
     }));
   }
   window.CRXHalloween={render:(el,cards,thumbs,nav)=>{

@@ -96,6 +96,8 @@ export function halloweenBanReason(name:string,extraBans:readonly string[]=[],in
   if(card.weather==='Rapture')return 'All Rapture cards are reportedly banned'
   if(extraBans.includes(name))return 'Banned in your personal restrictions'
   if((HALLOWEEN_REPORTED_BANS as readonly string[]).includes(name))return 'Reported Halloween Tower ban'
+  if((HALLOWEEN_UNAVAILABLE_EVENT_NAMES as readonly string[]).includes(name))
+    return 'Event-exclusive card reported not owned by players'
   if(!includeLegacy&&halloweenUnavailableEvent(name))return 'Legacy event card not known to be re-released (opt in if owned)'
   return null
 }
@@ -317,12 +319,13 @@ export function searchHalloweenTower(
 export function probeHalloweenFloors(
   loadout:TeamLoadout,seed=1,extraBans:readonly string[]=[],minimumRarity=HALLOWEEN_DEFAULT_MIN_RARITY,
   onProgress?:(done:number,total:number)=>void,
+  includeLegacy=false,
 ):Array<{floor:number;wins:number;runs:number;winRate:number;progress:number;trusted:boolean}>{
   const floors=[1,5,10,15,17,25,35,50,75,95,105]
   const result:Array<{floor:number;wins:number;runs:number;winRate:number;progress:number;trusted:boolean}>=[]
   for(let i=0;i<floors.length;i++){
     const floor=floors[i],names=halloweenStage(floor,seed)
-    const score=simulateHalloweenTower(loadout,names.slice(0,4),floor,16,seed+floor,extraBans,undefined,minimumRarity)
+    const score=simulateHalloweenTower(loadout,names.slice(0,4),floor,16,seed+floor,extraBans,undefined,minimumRarity,includeLegacy)
     result.push({floor,wins:score.wins,runs:score.runs,winRate:score.winRate,progress:score.progress,trusted:score.trusted})
     onProgress?.(i+1,floors.length)
   }

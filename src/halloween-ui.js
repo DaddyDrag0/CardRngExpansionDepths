@@ -38,7 +38,7 @@
     state={...fresh(),...saved,result:null,search:null,probe:null};
     // Previous version assumed every deck owns 3 high-tier borders. The new
     // catalog-wide baseline instead starts from a uniform 1qd stat floor.
-    if(state.searchRevision!==2){
+    if(state.searchRevision!==2 && state.searchRevision!==3){
       state.poolMode='all';state.defaultBorders=[];state.minimumRarity=1e15;
     }
     state.searchRevision=3;
@@ -110,6 +110,7 @@
           const wasSearch=busy.startsWith('Searching'),wasProbe=busy.startsWith('Checking');
           busy='';
           if(msg.ok){if(wasSearch)state.search=msg.result;else if(wasProbe)state.probe=msg.result;else state.result=msg.result}
+          else if(wasSearch)state.search={error:msg.error||'Halloween search failed'};
           else state.result={error:msg.error||'Halloween worker failed'};
           render();
         }
@@ -162,7 +163,7 @@
     const bans=bannedSet.map(n=>'<span class="hwt-ban-tag">'+esc(n)+(state.extraBans.includes(n)?'<button data-hwt-unban="'+esc(n)+'" title="Remove custom ban">×</button>':'')+'</span>').join('');
     const results=state.result?state.result.error?'<div class="hwt-error">'+esc(state.result.error)+'</div>':('<div class="hwt-summary"><div><strong>'+pretty(state.result.wins)+' / '+pretty(state.result.runs)+'</strong><small>Wins</small></div><div><strong>'+(state.result.winRate*100).toFixed(1)+'%</strong><small>Win rate</small></div><div><strong>'+(state.result.progress*100).toFixed(1)+'%</strong><small>Average enemy progress</small></div><div><strong>'+state.result.averageTurns.toFixed(1)+'</strong><small>Turns</small></div></div>'+(state.result.trusted?'':'<p class="hwt-error">Approximate mechanics / unsupported: '+esc((state.result.unsupportedAbilities||[]).join(', '))+'</p>')):'<p class="hwt-muted">Run a sample after building your four-card deck.</p>';
     const probeHtml=Array.isArray(state.probe)?'<div class="hwt-probe-grid">'+state.probe.map(r=>'<div class="hwt-probe-item"><b>Floor '+r.floor+'</b><span>'+r.wins+'/'+r.runs+' wins · '+(r.winRate*100).toFixed(0)+'%</span><small>'+Math.round(r.progress*100)+'% encounter progress'+(r.trusted?'':' · model warning')+'</small></div>').join('')+'</div>':'<p class="hwt-muted">Test sampled floors from 1 to 105 with your current deck. Zero wins does not prove any floor impossible.</p>';
-    const search=state.search?.recommendations?.length?'<div class="hwt-results">'+state.search.recommendations.map((r,i)=>
+    const search=state.search?.error?'<p class="hwt-error">'+esc(state.search.error)+'</p>':state.search?.recommendations?.length?'<div class="hwt-results">'+state.search.recommendations.map((r,i)=>
       '<div class="hwt-rec"><div><b>#'+(i+1)+' · '+r.loadout.cards.map(c=>esc(c.cardName)).join(' / ')+'</b><small>'+r.wins+'/'+r.runs+' wins · '+(r.winRate*100).toFixed(1)+'%'+(state.search.labels?.[i]?.winInterval?' · 95% CI '+(100*state.search.labels[i].winInterval[0]).toFixed(1)+'–'+(100*state.search.labels[i].winInterval[1]).toFixed(1)+'%':'')+' · '+(r.progress*100).toFixed(1)+'% enemy progress'+(r.trusted?'':' · unverified ability interactions')+'</small></div><button data-hwt-load="'+i+'">Use team</button></div>').join('')+'</div><small class="hwt-muted">'+state.search.tested+' ordered teams evaluated · '+pretty(state.search.battles)+' battles · '+state.search.coveredCards+' eligible cards covered. '+esc(state.search.searchMethod||'Evolutionary combat search')+'. Not guaranteed optimal.</small>':state.search?'<p class="hwt-muted">No recommendations found. Add more eligible cards to the search pool.</p>':'<p class="hwt-muted">The optimizer tests every eligible card, evolves team order and abilities, then independently verifies recommendations.</p>';
     root.innerHTML='<main class="shell hwt-shell"><header class="topbar"><div><p class="kicker">CARD RNG EXPANSION</p><h1>Halloween Tower</h1><p class="hwt-muted">A separate skill-based simulator. Player stats are normalized; enemies scale by stage.</p></div></header>'+navigation()+
     '<div class="hwt-banner"><b>Calibration mode</b> · Default assumption: every player card has at least 1qd effective rarity (~175 base ATK). This is hypothetical, not a verified inventory upgrade. Player ATK formula matches Triceratops, Pterodactylus, Mothman and Julius Leader tests. Player HP, server ban enforcement and some interactions are still provisional. The original Roblox server battle scripts were unavailable.</div>'+

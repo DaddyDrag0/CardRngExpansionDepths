@@ -82,7 +82,7 @@ self.onmessage = (event: MessageEvent<TowerRequest>) => {
     if (request.kind === 'halloween-probe') {
       if (!request.loadout) throw new Error('Select a Halloween loadout to probe floors')
       const result=probeHalloweenFloors(request.loadout,request.seed,request.extraBans||[],request.minimumRarity,
-        (done,total)=>self.postMessage({kind:'halloween-progress',id:request.id,done,total}))
+        (done,total)=>self.postMessage({kind:'halloween-progress',id:request.id,done,total}),request.includeLegacy===true)
       self.postMessage({kind:'halloween-result',id:request.id,ok:true,elapsedMs:performance.now()-started,result})
       return
     }

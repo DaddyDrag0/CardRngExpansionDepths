@@ -1,4 +1,5 @@
 name: Build adaptive Halloween Tower labels and workers
+# Retry after fixing the label-export button JavaScript.
 on:
   push:
     branches: [halloween-adaptive-tablebase-availability-20261025]

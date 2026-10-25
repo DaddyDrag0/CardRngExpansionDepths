@@ -213,7 +213,7 @@ export function searchHalloweenTower(
   }
   const randomTeam=(first?:string,position=0):string[]=>{
     const names:string[]=[]
-    for(let i=0;i<4;i++)names.push(i===position&&first?first:filler(names))
+    for(let i=0;i<4;i++)names.push(i===position&&first?first:filler(first==='Julius Leader'?['Julius Leader',...names]:names))
     return names
   }
   if(options.current?.cards.length===4)add(currentCards.map(c=>c.cardName),true)

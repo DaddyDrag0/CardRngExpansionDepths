@@ -80,7 +80,7 @@ self.onmessage = (event: MessageEvent<TowerRequest>) => {
         }:{enemies:halloweenStage(request.floor,request.seed)}})
       return
     }
-    if (request.kind.startsWith('halloween-') && request.mode==='infinite') {
+    if (request.kind.startsWith('halloween-') && 'mode' in request && request.mode==='infinite') {
       throw new Error('Infinite player battle stats and card bans are not verified; only encounter previews are available')
     }
     if (request.kind === 'halloween-sim') {

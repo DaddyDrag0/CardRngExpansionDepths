@@ -44,7 +44,7 @@ export const HALLOWEEN_RANDOM_ENEMIES = [
 export const HALLOWEEN_REPORTED_BANS = [
   'Vampire Lord','Fuxi','Priest','Pandora','Black Plague','Wendigo','Glamour',
   'Fate Seamstress','Behemoth','Parallax','Sable The Envious','Supreme Ozzy',
-  'Ice King','Chaos','Mrs. Claus','Abomination',
+  'Ice King','Chaos','Mrs. Claus','Abomination','Pumpkin King',
 ] as const
 // Old limited event cards are excluded by default; this status isn't a permanent ban.
 export const HALLOWEEN_UNAVAILABLE_EVENT_NAMES = ['Santa Claus','Anubis & Hades','Supreme Frank'] as const

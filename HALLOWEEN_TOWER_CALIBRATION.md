@@ -87,3 +87,31 @@ Each row has a rule fingerprint over engine, cards, and data; matchups; seed;
 outcome frequencies; confidence interval; and unsupported-ability flags.
 Future model training should drop unsupported/uncalibrated labels and reject
 stale rule fingerprints; there is **no neural model trained yet**.
+
+## Simplified Halloween Tower UI and fixed 160 starting ATK (2026-10-25)
+
+The standalone Halloween Tower screen now presents just the stage/encounter, four-card deck,
+and one `Search Decks` button with recommendations. The Community Bans
+panel, custom search pool, border selectors, event legacy switch, floor-probe UI, and
+training-label export UI were removed to prioritize clarity. The internal
+adaptive search and offline training-label generator still exist.
+
+The default browser simulation and deck search use **fixed 160 starting ATK for every
+player card**, with provisional 320 base HP times that card's HP multiplier.
+Skills and passive buffs are applied after initialization, so cards may
+have a different displayed damage during battle. This is a user-requested
+common-stat benchmark, **not** a newly verified server-side game formula.
+The older rarity-based calibration helpers remain in source but are not used
+for this Halloween interface; Depths and normal Tower are unchanged.
+
+New reported bans include **Ice King, Chaos, Mrs. Claus**. The Christmas
+pack is excluded from Halloween player searches by default, including
+Santa Claus, Santa Claws, Krampus, and other prior Christmas cards. These
+are Halloween player-eligibility rules only; fixed **enemy** boss encounters
+remain untouched. All existing Rapture and community banned cards,
+one-copy-per-card, and legacy unavailability rules remain enforced.
+
+The user interface deliberately keeps only a brief model-warning note
+rather than exposing developer diagnostics, training labels, and ban tables.
+Additional bans can be added to the central rule set as confirmed by
+in-game tests.

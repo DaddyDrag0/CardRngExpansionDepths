@@ -28,7 +28,7 @@
   90:['Pestilence','Famine','War','Death'],
   95:["Hell's Army",'Heavenly Demon',"Heaven's Armor",'Judgment Day','End Times'],
   100:['Surtr','Odin','Thor','Loki'],
-  105:['Savior','Bloody Mary','Abomination','Sable The Envious','End Times']};
+  105:['Savior','Bloody Mary','Living Armor','Sable The Envious','End Times']};
   const fresh=()=>({mode:'normal',floor:15,seed:41,enemies:[...fixedStages[15].slice(0,4)],manual:false,
     slots:['Triceratops','Pterodactylus','Mothman','Julius Leader'].map(cardName=>({cardName,borders:[]})),
     searchRevision:4,runs:256,result:null,search:null});

@@ -2,7 +2,7 @@
   'use strict';
   const STORE='crx-halloween-tower-v1';
   const DEFAULT_POOL=['Triceratops','Pterodactylus','Mothman','Julius Leader','Anubis','Serket','Neighbor','Tarantula','Ghost','Crow','Grey Pumpkin','The Faceless','Living Armor','Eerie Tree','Pumpkin King','Scarecrow','Banshee','Witch','Poison Witch','Night Witch','Robin Hood','Kuchisake-onna'];
-  const REPORTED=['Vampire Lord','Fuxi','Priest','Pandora','Black Plague','Wendigo','Glamour','Fate Seamstress','Behemoth','Parallax','Sable The Envious','Supreme Ozzy','Ice King','Chaos','Mrs. Claus','Abomination'];
+  const REPORTED=['Vampire Lord','Fuxi','Priest','Pandora','Black Plague','Wendigo','Glamour','Fate Seamstress','Behemoth','Parallax','Sable The Envious','Supreme Ozzy','Ice King','Chaos','Mrs. Claus','Abomination','Pumpkin King'];
   const UNAVAILABLE_EVENTS=['Santa Claus','Anubis & Hades','Supreme Frank'];
   const REISSUED_EVENTS=['Pestilence','Famine','War','Death'];
   const legacyCard=c=>UNAVAILABLE_EVENTS.includes(c.name)||

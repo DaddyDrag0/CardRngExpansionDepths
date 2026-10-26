@@ -2,7 +2,7 @@
   'use strict';
   const STORE='crx-halloween-tower-v1';
   const DEFAULT_POOL=['Triceratops','Pterodactylus','Mothman','Julius Leader','Anubis','Serket','Neighbor','Tarantula','Ghost','Crow','Grey Pumpkin','The Faceless','Living Armor','Eerie Tree','Pumpkin King','Scarecrow','Banshee','Witch','Poison Witch','Night Witch','Robin Hood','Kuchisake-onna'];
-  const REPORTED=['Vampire Lord','Fuxi','Priest','Pandora','Black Plague','Wendigo','Glamour','Fate Seamstress','Behemoth','Parallax','Sable The Envious','Supreme Ozzy'];
+  const REPORTED=['Vampire Lord','Fuxi','Priest','Pandora','Black Plague','Wendigo','Glamour','Fate Seamstress','Behemoth','Parallax','Sable The Envious','Supreme Ozzy','Ice King','Chaos','Mrs. Claus'];
   const UNAVAILABLE_EVENTS=['Santa Claus','Anubis & Hades','Supreme Frank'];
   const REISSUED_EVENTS=['Pestilence','Famine','War','Death'];
   const legacyCard=c=>UNAVAILABLE_EVENTS.includes(c.name)||
@@ -30,57 +30,37 @@
   100:['Surtr','Odin','Thor','Loki'],
   105:['Savior','Bloody Mary','Abomination','Sable The Envious','End Times']};
   const fresh=()=>({floor:15,seed:41,enemies:[...fixedStages[15].slice(0,4)],manual:false,
-    slots:['Triceratops','Pterodactylus','Mothman','Julius Leader'].map(cardName=>({cardName,borders:['Platinum','Crystal','Galaxy']})),
-    defaultBorders:[],minimumRarity:1e15,poolMode:'all',searchRevision:3,includeLegacy:false,runs:100,extraBans:[],pool:[...DEFAULT_POOL],
-    result:null,search:null,probe:null,editingBan:'',editingPool:''});
+    slots:['Triceratops','Pterodactylus','Mothman','Julius Leader'].map(cardName=>({cardName,borders:[]})),
+    searchRevision:4,runs:256,result:null,search:null});
   let state=fresh(),root=null,all=[],thumbnails={},navigate=null,worker=null,requestId=0,busy='',loadingFloor=null;
   try{const saved=JSON.parse(localStorage.getItem(STORE)||'null');if(saved&&typeof saved==='object'){
     state={...fresh(),...saved,result:null,search:null,probe:null};
-    // Previous version assumed every deck owns 3 high-tier borders. The new
-    // catalog-wide baseline instead starts from a uniform 1qd stat floor.
-    if(state.searchRevision!==2 && state.searchRevision!==3){
-      state.poolMode='all';state.defaultBorders=[];state.minimumRarity=1e15;
-    }
-    state.searchRevision=3;
-    state.includeLegacy=state.includeLegacy===true;
-    state.poolMode=state.poolMode==='custom'?'custom':'all';
-    state.minimumRarity=state.minimumRarity===1?1:1e15;
+    state.searchRevision=4;
     if(!Array.isArray(state.slots)||state.slots.length!==4)state.slots=fresh().slots;
-    state.slots=state.slots.map(c=>({cardName:String(c.cardName||''),borders:Array.isArray(c.borders)?c.borders.filter(b=>BORDERS.includes(b)):[]}));
-    state.extraBans=Array.isArray(state.extraBans)?state.extraBans.filter(x=>typeof x==='string'):[];
-    state.pool=Array.isArray(state.pool)?state.pool.filter(x=>typeof x==='string'):[...DEFAULT_POOL];
-    state.defaultBorders=Array.isArray(state.defaultBorders)?state.defaultBorders.filter(x=>BORDERS.includes(x)):[...fresh().defaultBorders];
+    state.slots=state.slots.map(c=>({cardName:String(c.cardName||''),borders:[]}));
+    state.runs=[64,256,1000,2000].includes(Number(state.runs))?Number(state.runs):256;
     state.floor=Math.max(1,Math.min(105,Math.floor(Number(state.floor)||15)));
   }}catch(_){}
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const card=name=>all.find(x=>x.name===name);
   const valid=name=>Boolean(card(name));
   const pretty=n=>Math.round(n).toLocaleString('en-US');
-  const playerPower=slot=>{
-    const c=card(slot.cardName);if(!c)return 0;
-    let rarity=Math.max(1,c.rarity||1);for(const b of slot.borders)rarity*=BORDER_MULT[b]||1;
-    return Math.ceil(200+10*Math.log10(Math.max(rarity,state.minimumRarity)));
-  };
   const banReason=name=>{
     const c=card(name);if(!c)return 'Unknown card';
-    if(c.unobtainable)return 'Unobtainable';
-    if(c.weather==='Rapture')return 'Rapture (reported banned)';
-    if(REPORTED.includes(name))return 'Reported banned';
-    if(state.extraBans.includes(name))return 'Custom ban';
-    if(UNAVAILABLE_EVENTS.includes(name))return 'Event-exclusive; no current owners reported';
-    if(!state.includeLegacy&&legacyCard(c))return 'Old event-exclusive; not known re-released';
+    if(c.unobtainable)return 'Unavailable card';
+    if(c.weather==='Rapture'||REPORTED.includes(name))return 'Banned in Halloween Tower';
+    if(c.pack==='Christmas'||UNAVAILABLE_EVENTS.includes(name)||
+       (c.expires&&c.pack!=='Halloween3'&&!REISSUED_EVENTS.includes(name)))return 'Unavailable event card';
     return '';
   };
   const problems=()=>{
-    const names=state.slots.map(s=>s.cardName),issues=names.filter(n=>!n||!valid(n)).map(x=>'Unknown or empty slot: '+(x||'empty'));
+    const names=state.slots.map(c=>c.cardName),issues=[];
     for(const name of names){const why=banReason(name);if(why)issues.push(name+': '+why)}
-    for(const name of [...new Set(names)]){
-      if(names.filter(n=>n===name).length>1)issues.push(name+': duplicate cards are not allowed in Halloween Tower');
-    }
+    if(new Set(names).size!==4)issues.push('Use four different cards');
     return [...new Set(issues)];
   };
   function save(){
-    try{const {result,search,probe,...stored}=state;localStorage.setItem(STORE,JSON.stringify(stored))}catch(_){}
+    try{const {result,search,...stored}=state;localStorage.setItem(STORE,JSON.stringify(stored))}catch(_){}
   }
   const art=c=>{
     if(!c)return '<div class="hwt-avatar hwt-missing">?</div>';

@@ -75,7 +75,7 @@
       worker.onmessage=event=>{
         const msg=event.data||{};if(msg.id!==requestId)return;
         if(msg.kind==='halloween-progress'){
-          busy=(busy.startsWith('Searching')?'Searching':busy.startsWith('Checking')?'Checking floors':'Testing')+' · '+msg.done+'/'+msg.total;
+          busy=(busy.startsWith('Searching')?'Searching decks':'Testing deck')+' · '+msg.done+'/'+msg.total;
           render();return;
         }
         if(msg.kind==='halloween-stage-result'){
@@ -107,15 +107,20 @@
   }
   function send(kind){
     if(busy)return;
-    if(problems().length&&kind!=='halloween-search'){state.result={error:problems().join(' · ')};render();return}
-    if(kind!=='halloween-probe'&&state.enemies.some(x=>!valid(x))){state.result={error:'Select four valid enemy cards'};render();return}
+    if(kind==='halloween-sim'&&problems().length){
+      state.result={error:problems().join(' · ')};render();return;
+    }
+    if(state.enemies.length!==4||state.enemies.some(name=>!valid(name))){
+      state.result={error:'Choose four valid enemy cards first.'};render();return;
+    }
     const w=getWorker();if(!w)return;
-    const id=++requestId;busy=kind==='halloween-search'?'Searching · starting':kind==='halloween-probe'?'Checking floors · starting':'Testing · starting';
-    const loadout={cards:state.slots.map(c=>({cardName:c.cardName,borders:[...c.borders]}))};
-    const args={kind,id,floor:state.floor,enemyNames:[...state.enemies],seed:kind==='halloween-search'?state.seed:((Date.now()>>>0)||1),
-      loadout,current:loadout,runs:state.runs,extraBans:[...state.extraBans],
-      pool:state.poolMode==='all'?undefined:[...state.pool],borders:[...state.defaultBorders],minimumRarity:state.minimumRarity,includeLegacy:state.includeLegacy};
-    if(kind==='halloween-search')state.search=null;else if(kind==='halloween-probe')state.probe=null;else state.result=null;
+    const id=++requestId;busy=kind==='halloween-search'?'Searching decks · starting':'Testing deck · starting';
+    const loadout={cards:state.slots.map(c=>({cardName:c.cardName,borders:[]}))};
+    const args={id,kind,floor:state.floor,enemyNames:[...state.enemies],
+      seed:kind==='halloween-search'?state.seed:((Date.now()>>>0)||1),
+      loadout,current:loadout,runs:state.runs,extraBans:[],
+      borders:[],fixedAttack:160,includeLegacy:false};
+    if(kind==='halloween-search')state.search=null;else state.result=null;
     w.postMessage(args);render();
   }
   function navigation(){

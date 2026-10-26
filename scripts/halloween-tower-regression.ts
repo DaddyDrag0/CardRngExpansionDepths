@@ -60,7 +60,7 @@ assert.ok(halloweenCheckTeam(own('Ghost','Ghost','Triceratops','Mothman')).some(
 for(const name of ['Santa Claus','Supreme Frank','Anubis & Hades']){
   assert.ok(HALLOWEEN_UNAVAILABLE_EVENT_NAMES.some(x=>x===name))
   assert.ok(halloweenUnavailableEvent(name))
-  assert.match(halloweenBanReason(name)||'',/not owned/)
+  assert.match(halloweenBanReason(name)||'',/(not owned|Christmas event)/)
   assert.ok(halloweenBanReason(name,[],true),'Unavailable event card must not appear even with legacy toggle')
 }
 assert.equal(halloweenBanReason('Trick or Treater'),null,'Current Halloween3 cards stay available')

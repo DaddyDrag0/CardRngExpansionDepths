@@ -2,7 +2,7 @@
  * Source-aligned Depths playback speed model recovered from Expansion BattleClient.
  *
  * In Depths, the user's normal BattleSpeed setting is capped at 3.
- * Chrono Shard adds +1 Battle Speed.
+ * Chrono Shard adds +1 to +2 Battle Speed based on its upgrade level.
  * Every 100 Depths floors adds +0.25 Battle Speed, capped at +4.5.
  *
  * BattleClient also accelerates long fights by multiplying animation speed after
@@ -22,6 +22,11 @@
  */
 export const DEPTHS_BASE_BATTLE_SPEED = 3
 export const CHRONO_SHARD_BONUS = 1
+export const CHRONO_SHARD_UPGRADE_BONUSES = [1, 1.25, 1.5, 1.75, 2] as const
+export function chronoShardRelicBonus(level=0):number {
+  const index=Math.max(0,Math.min(4,Math.floor(Number(level)||0)))
+  return CHRONO_SHARD_UPGRADE_BONUSES[index]
+}
 export const BATTLE_SPEED_STRUCTURE_MAX_LEVEL = 7
 export const BATTLE_SPEED_STRUCTURE_STEP = 0.25
 export const BATTLE_SPEED_SKILL_TREE_MAX_LEVEL = 4
@@ -56,9 +61,10 @@ export function effectiveDepthsBattleSpeed(
   chronoShard = true,
   structureLevel = 0,
   skillTreeLevel = 0,
+  chronoShardLevel = 0,
 ): number {
   return DEPTHS_BASE_BATTLE_SPEED
-    + (chronoShard ? CHRONO_SHARD_BONUS : 0)
+    + (chronoShard ? chronoShardRelicBonus(chronoShardLevel) : 0)
     + battleSpeedStructureBonus(structureLevel)
     + battleSpeedSkillTreeBonus(skillTreeLevel)
     + depthsFloorSpeedBonus(floor)
@@ -93,8 +99,9 @@ export function estimateBattleSeconds(
   chronoShard = true,
   structureLevel = 0,
   skillTreeLevel = 0,
+  chronoShardLevel = 0,
 ): number {
-  const speed = effectiveDepthsBattleSpeed(floor, chronoShard, structureLevel, skillTreeLevel)
+  const speed = effectiveDepthsBattleSpeed(floor, chronoShard, structureLevel, skillTreeLevel, chronoShardLevel)
   return INTER_FLOOR_OVERHEAD_SECONDS
     + BASE_BATTLE_START_SECONDS / speed
     + attackAnimationSecondsForCount(turns, speed)
@@ -107,12 +114,13 @@ export function estimateDepthClearSeconds(
   chronoShard = true,
   structureLevel = 0,
   skillTreeLevel = 0,
+  chronoShardLevel = 0,
 ): number {
   const endFloor = Math.max(0, Math.floor(Number(depth) || 0))
   const avgTurns = Math.max(0, Number(averageTurnsPerBattle) || 0)
   let seconds = 0
   for (let floor = 1; floor <= endFloor; floor++) {
-    seconds += estimateBattleSeconds(floor, avgTurns, chronoShard, structureLevel, skillTreeLevel)
+    seconds += estimateBattleSeconds(floor, avgTurns, chronoShard, structureLevel, skillTreeLevel, chronoShardLevel)
   }
   return seconds
 }

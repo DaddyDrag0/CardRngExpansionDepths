@@ -42,5 +42,6 @@
   "Haunted Heirloom": "Take 75% Reduced damage for 2 turns. On death, the armor moves to the next ally, granting it 40% Damage Reduction for 3 turns.",
   "Stone Vigil": "Every other turn, enter Stone Form, taking 80% less Damage but unable to attack. On awakening, strike for 2x Damage.",
   "Never Fall Asleep": "Every attack inflicts 1 Fatigue stack. At 2 stacks, the enemy falls asleep. Attacks against a sleeping enemy deals 2X Damage",
-  "King of Horror": "On entry, other Halloween allies gain +25% Stats. Gain the total flat stat increases granted to them."
+  "King of Horror": "On entry, other Halloween allies gain +25% Stats. Gain the total flat stat increases granted to them.",
+  "Experimental Treatment": "Every attack applies a random experimental effect: Poison, Bleed, Burn, Weakness, or Paralysis."
 }

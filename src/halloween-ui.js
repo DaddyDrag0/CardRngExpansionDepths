@@ -34,7 +34,7 @@
     searchRevision:4,runs:256,result:null,search:null});
   let state=fresh(),root=null,all=[],thumbnails={},navigate=null,worker=null,requestId=0,busy='',loadingFloor=null;
   try{const saved=JSON.parse(localStorage.getItem(STORE)||'null');if(saved&&typeof saved==='object'){
-    state={...fresh(),...saved,result:null,search:null,probe:null};
+    state={...fresh(),...saved,result:null,search:null,probe:null,infiniteReward:null};
     state.searchRevision=4;
     state.mode=state.mode==='infinite'?'infinite':'normal';
     if(!Array.isArray(state.slots)||state.slots.length!==4)state.slots=fresh().slots;
@@ -82,6 +82,7 @@
         if(msg.kind==='halloween-stage-result'){
           loadingFloor=null;
           if(msg.ok&&!state.manual){
+            state.infiniteReward=msg.result.reward||null;
             state.enemies=msg.result.enemies.slice(0,4);
             state.result=null;state.search=null;save();
           }
@@ -180,8 +181,9 @@
       +'<section class="hwt-section"><div class="hwt-heading"><div> <h2>'+(infinite?'Infinite · Floor ':'Stage ')+floor+'</h2></div><div class="hwt-stage-controls"><label for="hwt-floor">Floor<input id="hwt-floor" type="number" min="1" max="'+(infinite?1000000:105)+'" value="'+floor+'"></label><button id="hwt-reload" class="hwt-secondary">'+(fixed?'Reset':'Reroll enemies')+'</button></div></div>'
       +(fixedStages[cycle]?.[4]?'<div class="hwt-stage-meta"><span>'+esc(fixedStages[cycle][4])+' aura</span></div>':'')
       +(infinite?'<div class="hwt-infinite-info"><span>Cycle stage '+cycle+'</span><span>Base HP '+pretty(power)+'</span><span>ATK '+pretty(infiniteAttack)+'</span>'
+        +(state.infiniteReward?'<span>'+pretty(state.infiniteReward.packs)+' base packs</span>':'')
         +(floor%105===0?'<span>Pumpkin Moon Potion ×1</span>':'')
-        +'<span>Packs: source-based reward, before multipliers</span></div>':'')
+        +'</div>':'')
       +'<div class="hwt-card-grid">'+enemies+'</div>'
       +'<p class="hwt-hint">'+(infinite?'Client preview only. Infinite player stats and bans are not available in this file.':fixed?'':'Edit enemies to match your game.')+'</p></section>'
       +(infinite?'':'<section class="hwt-section"><div class="hwt-heading"><div> <h2>Your Deck</h2></div></div>'
@@ -204,7 +206,7 @@
       const mode=el.dataset.hwtMode==='infinite'?'infinite':'normal';
       if(mode===state.mode)return;
       state.mode=mode;state.floor=mode==='infinite'?1:15;
-      state.result=null;state.search=null;state.enemies=[];
+      state.result=null;state.search=null;state.infiniteReward=null;state.enemies=[];
       save();previewStage();render();
     }));
     root.querySelector('#hwt-floor')?.addEventListener('change',e=>{

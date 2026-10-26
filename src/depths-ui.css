@@ -64,3 +64,9 @@
 @media(max-width:760px){.hard-reward-grid,.hard-stat-aura-grid,.hard-result-metrics{grid-template-columns:1fr}.hard-reward-head,.hard-stat-aura-title{align-items:flex-start;flex-direction:column}.hard-stat-aura-title small{text-align:left}}
 
 .hard-reward-source-note{margin-top:8px;padding-top:8px;border-top:1px solid #3f2d25;color:#806f65;font-size:7px;line-height:1.45}
+
+.team-tabs a.relic-tab-link{min-width:112px;display:flex;align-items:center;justify-content:center;
+  text-decoration:none;flex:none;border:1px solid var(--line-card);
+  border-radius:11px;background:var(--surface-2);color:#c5a676;
+  padding:9px 13px;font-size:11px;font-weight:700;white-space:nowrap}
+.team-tabs a.relic-tab-link:hover{border-color:var(--accent-line);color:var(--accent-text-pale)}

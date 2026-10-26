@@ -432,7 +432,7 @@
     "name": "War",
     "imageAssetId": 113728448121086,
     "rarity": 3000000000,
-    "statMultiplier": 1,
+    "statMultiplier": 1.5,
     "hpMultiplier": 1,
     "ability": "Bloodlust",
     "weather": null,

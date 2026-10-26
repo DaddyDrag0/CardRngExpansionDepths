@@ -57,6 +57,7 @@ interface HalloweenTowerRequest {
   extraBans?: string[]
   minimumRarity?: number
   includeLegacy?: boolean
+  fixedAttack?: number
 }
 
 type TowerRequest = TowerSimulationRequest | TowerWinDebugRequest | TowerCheeseSearchRequest | HalloweenTowerRequest
@@ -75,7 +76,7 @@ self.onmessage = (event: MessageEvent<TowerRequest>) => {
       const result=simulateHalloweenTower(request.loadout,request.enemyNames,request.floor,request.runs||100,
         request.seed,request.extraBans||[],(done,total)=>{
           self.postMessage({kind:'halloween-progress',id:request.id,done,total})
-        },request.minimumRarity,request.includeLegacy===true)
+        },request.minimumRarity,request.includeLegacy===true,request.fixedAttack)
       self.postMessage({kind:'halloween-result',id:request.id,ok:true,elapsedMs:performance.now()-started,result})
       return
     }
@@ -91,6 +92,7 @@ self.onmessage = (event: MessageEvent<TowerRequest>) => {
       const result=searchHalloweenTower(request.enemyNames,request.floor,request.seed,{
         pool:request.pool,borders:request.borders,extraBans:request.extraBans,current:request.current,
         minimumRarity:request.minimumRarity,includeLegacy:request.includeLegacy===true,
+        fixedAttack:request.fixedAttack,
       },(done,total)=>{
         self.postMessage({kind:'halloween-progress',id:request.id,done,total})
       })

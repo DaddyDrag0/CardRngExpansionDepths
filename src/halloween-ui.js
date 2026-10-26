@@ -130,7 +130,7 @@
     w.postMessage(args);render();
   }
   function navigation(){
-    return '<nav class="team-tabs hwt-tabs"><button data-hwt-nav="depths"><span>Depths</span></button><button data-hwt-nav="tower"><span>Tower</span></button><button class="on tower-tab"><span>Halloween Tower</span></button><a class="relic-tab-link" href="./relics.html">Relic Upgrades</a></nav>';
+    return '<nav class="team-tabs hwt-tabs"><button data-hwt-nav="depths"><span>Depths</span></button><button data-hwt-nav="tower"><span>Tower</span></button><button class="on tower-tab"><span>Halloween Tower</span></button></nav>';
   }
   function render(){
     if(!root)return;

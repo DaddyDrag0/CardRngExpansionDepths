@@ -453,5 +453,18 @@
     "boss": false,
     "unobtainable": false,
     "expires": false
+  },
+  {
+    "name": "Witch Doctor",
+    "imageAssetId": 93905437526332,
+    "rarity": 5000000,
+    "statMultiplier": 6,
+    "hpMultiplier": 1,
+    "ability": "Experimental Treatment",
+    "weather": "Virus",
+    "pack": "Halloween3",
+    "boss": false,
+    "unobtainable": false,
+    "expires": true
   }
 ]

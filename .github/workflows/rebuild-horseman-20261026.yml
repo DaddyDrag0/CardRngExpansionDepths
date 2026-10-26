@@ -1,5 +1,5 @@
 name: Verify Horseman Infinite preview and build workers
-# Retry after type-narrowing fix for Infinite mode.
+# Re-run with mutation expectations updated to latest Horseman source.
 on:
   push:
     branches: [horseman-halloween-infinite-source-20261026]

@@ -31,7 +31,7 @@ export const HALLOWEEN_FIXED: Record<number, string[]> = {
   90:['Pestilence','Famine','War','Death'],
   95:["Hell's Army",'Heavenly Demon',"Heaven's Armor",'Judgment Day','End Times'],
   100:['Surtr','Odin','Thor','Loki'],
-  105:['Savior','Bloody Mary','Abomination','Sable The Envious','End Times'],
+  105:['Savior','Bloody Mary','Living Armor','Sable The Envious','End Times'],
 }
 export const HALLOWEEN_RANDOM_ENEMIES = [
   'Ghoul','Zombie Nurse','Night Witch','The Hanged Man','Walking Dead',

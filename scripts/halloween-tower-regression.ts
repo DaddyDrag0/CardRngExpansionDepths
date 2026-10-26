@@ -5,7 +5,7 @@ import { createBattleStateV2 } from '../src/engine/battle-v2'
 import {
   HALLOWEEN_FIXED, HALLOWEEN_RANDOM_ENEMIES, halloweenStage,
   halloweenEnemyPower, halloweenEnemyCards, halloweenPackReward,
-  halloweenPlayerPower, halloweenBanReason, halloweenCheckTeam,
+  halloweenPlayerPower, halloweenBanReason, halloweenCheckTeam, HALLOWEEN_FIXED_BASE_ATTACK,
   simulateHalloweenTower, searchHalloweenTower, probeHalloweenFloors, HALLOWEEN_DEFAULT_MIN_RARITY,
   halloweenUnavailableEvent, HALLOWEEN_UNAVAILABLE_EVENT_NAMES,
 } from '../src/engine/halloween-tower'
@@ -50,7 +50,7 @@ assert.equal(halloweenPackReward(16),8_000)
 assert.equal(halloweenPackReward(105),25_600_000)
 assert.equal(halloweenBanReason('Vampire Lord'), 'Reported Halloween Tower ban')
 assert.equal(halloweenBanReason('Fuxi'), 'Reported Halloween Tower ban')
-for(const name of ['Behemoth','Parallax','Fate Seamstress','Sable The Envious','Supreme Ozzy']){
+for(const name of ['Behemoth','Parallax','Fate Seamstress','Sable The Envious','Supreme Ozzy','Ice King','Chaos','Mrs. Claus']){
   assert.equal(halloweenBanReason(name),'Reported Halloween Tower ban',name+' must be excluded')
 }
 assert.ok(cards.some(c=>c.weather==='Rapture'))
@@ -64,6 +64,9 @@ for(const name of ['Santa Claus','Supreme Frank','Anubis & Hades']){
   assert.ok(halloweenBanReason(name,[],true),'Unavailable event card must not appear even with legacy toggle')
 }
 assert.equal(halloweenBanReason('Trick or Treater'),null,'Current Halloween3 cards stay available')
+for(const name of ['Santa Claws','Krampus','Frosty The Snowman']){
+  assert.ok(halloweenBanReason(name),'Unreleased Christmas card must not appear in default search: '+name)
+}
 assert.equal(halloweenBanReason('Pestilence'),null,'Current Four Horsemen can be obtained')
 assert.ok(halloweenBanReason('100 Men'),'Old event exclusives excluded by default')
 assert.equal(halloweenBanReason('100 Men',[],true),null,'Legacy toggle allows old exclusives when actually owned')
@@ -122,7 +125,17 @@ assert.equal(unfinishedExample.pWin,0.25)
 assert.equal(unfinishedExample.estimated,true)
 // The assumed 1qd rarity floor normalizes low-odds card stats; real borders
 // remain available to exceed the floor. No source-server claim is made.
+assert.equal(HALLOWEEN_FIXED_BASE_ATTACK,160)
 assert.equal(HALLOWEEN_DEFAULT_MIN_RARITY,1e15)
+const equalBaseline=createBattleStateV2({
+  cards:['Triceratops','Mothman','Ghost','Tarantula'].map(cardName=>({cardName,borders:[]})),
+},enemies,{halloweenNormalizedPlayers:true,halloweenFixedAttack:160,disablePlayerAuras:true})
+assert.deepEqual(equalBaseline.teams.Allies.map(c=>c.damage),[160,160,160,160])
+assert.equal(equalBaseline.teams.Allies[0].maxHp,320)
+const withJuliusFixed=createBattleStateV2({
+  cards:['Triceratops','Julius Leader','Mothman','Serket'].map(cardName=>({cardName,borders:[]})),
+},enemies,{halloweenNormalizedPlayers:true,halloweenFixedAttack:160,disablePlayerAuras:true})
+assert.equal(withJuliusFixed.teams.Allies[0].damage,192,'Julius passive must still boost fixed 160 ATK')
 assert.equal(halloweenPlayerPower(find('Triceratops'),[],1e15),350)
 assert.equal(Math.ceil(halloweenPlayerPower(find('Triceratops'),[],1e15)/2),175)
 assert.equal(halloweenPlayerPower(find('Triceratops'),borders,1e15),370)
@@ -146,15 +159,17 @@ console.log('1qd modeled baseline: stage 1 '+baselineFloor1.wins+'/16 wins; floo
 const ui=readFileSync('src/halloween-ui.js','utf8')
 const base=readFileSync('index-base.html','utf8')
 const core=readFileSync('src/depths-ui.js','utf8')
-assert.match(ui,/Search '\+pool.length\+' cards/)
-assert.match(ui,/Ban card/)
-assert.match(ui,/duplicate cards are not allowed/)
-assert.match(ui,/All available cards/)
-assert.match(ui,/hwt-legacy/)
-assert.match(ui,/Santa Claus/)
-assert.match(ui,/hwt-min-rarity/)
-assert.match(ui,/hwt-probe/)
-assert.match(ui,/poolMode==='all'/)
+assert.match(ui,/Search Decks/)
+assert.match(ui,/160 BASE ATK/)
+assert.match(ui,/data-hwt-slot/)
+assert.match(ui,/data-hwt-enemy/)
+assert.match(ui,/fixedAttack:160/)
+assert.doesNotMatch(ui,/Community bans/)
+assert.doesNotMatch(ui,/hwt-legacy/)
+assert.doesNotMatch(ui,/hwt-min-rarity/)
+assert.doesNotMatch(ui,/data-hwt-border/)
+assert.doesNotMatch(ui,/hwt-pool-mode/)
+assert.doesNotMatch(ui,/hwt-probe/)
 assert.match(base,/halloween-ui.js/)
 assert.match(core,/data-halloween-tab/)
 assert.match(core,/view==='halloween'/)

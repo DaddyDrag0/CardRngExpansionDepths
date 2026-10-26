@@ -2,7 +2,7 @@
   'use strict';
   const STORE='crx-halloween-tower-v1';
   const DEFAULT_POOL=['Triceratops','Pterodactylus','Mothman','Julius Leader','Anubis','Serket','Neighbor','Tarantula','Ghost','Crow','Grey Pumpkin','The Faceless','Living Armor','Eerie Tree','Pumpkin King','Scarecrow','Banshee','Witch','Poison Witch','Night Witch','Robin Hood','Kuchisake-onna'];
-  const REPORTED=['Vampire Lord','Fuxi','Priest','Pandora','Black Plague','Wendigo','Glamour','Fate Seamstress','Behemoth','Parallax','Sable The Envious','Supreme Ozzy','Ice King','Chaos','Mrs. Claus','Abomination'];
+  const REPORTED=['Vampire Lord','Fuxi','Priest','Pandora','Black Plague','Wendigo','Glamour','Fate Seamstress','Behemoth','Parallax','Sable The Envious','Supreme Ozzy','Ice King','Chaos','Mrs. Claus','Abomination','Pumpkin King'];
   const UNAVAILABLE_EVENTS=['Santa Claus','Anubis & Hades','Supreme Frank'];
   const REISSUED_EVENTS=['Pestilence','Famine','War','Death'];
   const legacyCard=c=>UNAVAILABLE_EVENTS.includes(c.name)||
@@ -28,18 +28,19 @@
   90:['Pestilence','Famine','War','Death'],
   95:["Hell's Army",'Heavenly Demon',"Heaven's Armor",'Judgment Day','End Times'],
   100:['Surtr','Odin','Thor','Loki'],
-  105:['Savior','Bloody Mary','Abomination','Sable The Envious','End Times']};
-  const fresh=()=>({floor:15,seed:41,enemies:[...fixedStages[15].slice(0,4)],manual:false,
+  105:['Savior','Bloody Mary','Living Armor','Sable The Envious','End Times']};
+  const fresh=()=>({mode:'normal',floor:15,seed:41,enemies:[...fixedStages[15].slice(0,4)],manual:false,
     slots:['Triceratops','Pterodactylus','Mothman','Julius Leader'].map(cardName=>({cardName,borders:[]})),
     searchRevision:4,runs:256,result:null,search:null});
   let state=fresh(),root=null,all=[],thumbnails={},navigate=null,worker=null,requestId=0,busy='',loadingFloor=null;
   try{const saved=JSON.parse(localStorage.getItem(STORE)||'null');if(saved&&typeof saved==='object'){
-    state={...fresh(),...saved,result:null,search:null,probe:null};
+    state={...fresh(),...saved,result:null,search:null,probe:null,infiniteReward:null};
     state.searchRevision=4;
+    state.mode=state.mode==='infinite'?'infinite':'normal';
     if(!Array.isArray(state.slots)||state.slots.length!==4)state.slots=fresh().slots;
     state.slots=state.slots.map(c=>({cardName:String(c.cardName||''),borders:[]}));
     state.runs=[64,256,1000,2000].includes(Number(state.runs))?Number(state.runs):256;
-    state.floor=Math.max(1,Math.min(105,Math.floor(Number(state.floor)||15)));
+    state.floor=Math.max(1,Math.min(state.mode==='infinite'?1000000:105,Math.floor(Number(state.floor)||15)));
   }}catch(_){}
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const card=name=>all.find(x=>x.name===name);
@@ -81,6 +82,7 @@
         if(msg.kind==='halloween-stage-result'){
           loadingFloor=null;
           if(msg.ok&&!state.manual){
+            state.infiniteReward=msg.result.reward||null;
             state.enemies=msg.result.enemies.slice(0,4);
             state.result=null;state.search=null;save();
           }
@@ -101,12 +103,16 @@
   }
   function previewStage(){
     state.manual=false;
+    state.infiniteReward=null;
     const request=getWorker();if(!request)return;
     const id=++requestId;loadingFloor=state.floor;
-    request.postMessage({kind:'halloween-stage',id,floor:state.floor,seed:state.seed});
+    request.postMessage({kind:'halloween-stage',id,floor:state.floor,seed:state.seed,mode:state.mode});
   }
   function send(kind){
     if(busy)return;
+    if(state.mode==='infinite'){
+      state.result={error:'Infinite battle stats and bans are not yet verified.'};render();return;
+    }
     if(kind==='halloween-sim'&&problems().length){
       state.result={error:problems().join(' · ')};render();return;
     }
@@ -128,16 +134,24 @@
   }
   function render(){
     if(!root)return;
-    const floor=state.floor, fixed=!!fixedStages[floor], power=Math.ceil(300+2.5*floor);
+    const floor=state.floor,infinite=state.mode==='infinite',
+      cycle=infinite?((floor-1)%105)+1:floor,
+      fixed=!!fixedStages[cycle],
+      infiniteAttack=Math.floor(200000+1800000*((floor-1)/99)),
+      power=infinite?infiniteAttack*2:Math.ceil(300+2.5*floor);
     const names=all.map(c=>c.name).sort((a,b)=>a.localeCompare(b));
     const available=all.filter(c=>!banReason(c.name)).sort((a,b)=>a.name.localeCompare(b.name));
+    const bannedNames=[...REPORTED,...all.filter(c=>c.weather==='Rapture').map(c=>c.name)].sort();
+    const banDisclosure='<details class="hwt-ban-disclosure"><summary>View bans</summary>'
+      +'<p>'+bannedNames.map(esc).join(' · ')+'</p>'
+      +'<small>Regular Halloween Tower player restrictions; excludes old event cards too. Infinite restrictions unverified.</small></details>';
     const errors=problems();
     const enemies=state.enemies.map((name,i)=>{
       const c=card(name);
       return '<div class="hwt-card"><span class="hwt-card-number">'+(i+1)+'</span>'+art(c)
         +'<div class="hwt-card-body"><input list="hwt-enemy-list" aria-label="Enemy '+(i+1)+'" data-hwt-enemy="'+i+'" value="'+esc(name)+'"'+(fixed?' readonly':'')+'>'
         +'<span class="hwt-ability">'+esc(c?.ability||'Unknown ability')+'</span>'
-        +'<span class="hwt-stats">'+pretty(power*(c?.hpMultiplier||1))+' HP <em>·</em> '+pretty(Math.ceil(power/2))+' ATK</span></div></div>';
+        +'<span class="hwt-stats">'+pretty(infinite?power:power*(c?.hpMultiplier||1))+' HP <em>·</em> '+pretty(infinite?infiniteAttack:Math.ceil(power/2))+' ATK</span></div></div>';
     }).join('');
     const team=state.slots.map((slot,i)=>{
       const c=card(slot.cardName),bad=banReason(slot.cardName);
@@ -161,30 +175,44 @@
       }).join('')+'</div>'
       :'';
     root.innerHTML='<main class="hwt-app">'
-      +'<header class="hwt-header"><div><h1>Halloween Tower</h1></div><span class="hwt-atk">160 ATK</span></header>'
+      +'<header class="hwt-header"><div><h1>Halloween Tower</h1></div>'+(infinite?'<span class="hwt-atk">Infinite</span>':'<span class="hwt-atk">160 ATK</span>')+'</header>'
       +navigation()
-      +'<div class="hwt-grid">'
-      +'<section class="hwt-section"><div class="hwt-heading"><div> <h2>Stage '+floor+'</h2></div><div class="hwt-stage-controls"><label for="hwt-floor">Floor<input id="hwt-floor" type="number" min="1" max="105" value="'+floor+'"></label><button id="hwt-reload" class="hwt-secondary">'+(fixed?'Reset':'Reroll enemies')+'</button></div></div>'
-      +''+(fixedStages[floor]?.[4]?'<div class="hwt-stage-meta"><span>'+esc(fixedStages[floor][4])+' aura</span></div>':'')+''
+      +'<div class="hwt-mode"><button data-hwt-mode="normal" class="'+(!infinite?'on':'')+'">105 Floors</button><button data-hwt-mode="infinite" class="'+(infinite?'on':'')+'">Infinite</button></div>'
+      +'<div class="hwt-grid'+(infinite?' hwt-infinite-grid':'')+'">'
+      +'<section class="hwt-section"><div class="hwt-heading"><div> <h2>'+(infinite?'Infinite · Floor ':'Stage ')+floor+'</h2></div><div class="hwt-stage-controls"><label for="hwt-floor">Floor<input id="hwt-floor" type="number" min="1" max="'+(infinite?1000000:105)+'" value="'+floor+'"></label><button id="hwt-reload" class="hwt-secondary">'+(fixed?'Reset':'Reroll enemies')+'</button></div></div>'
+      +(fixedStages[cycle]?.[4]?'<div class="hwt-stage-meta"><span>'+esc(fixedStages[cycle][4])+' aura</span></div>':'')
+      +(infinite?'<div class="hwt-infinite-info"><span>Cycle stage '+cycle+'</span><span>Base HP '+pretty(power)+'</span><span>ATK '+pretty(infiniteAttack)+'</span>'
+        +(state.infiniteReward?'<span>'+pretty(state.infiniteReward.packs)+' base packs</span>':'')
+        +(floor%105===0?'<span>Pumpkin Moon Potion ×1</span>':'')
+        +'</div>':'')
       +'<div class="hwt-card-grid">'+enemies+'</div>'
-      +'<p class="hwt-hint">'+(fixed?'':'Edit enemies to match your game.')+'</p></section>'
-      +'<section class="hwt-section"><div class="hwt-heading"><div> <h2>Your Deck</h2></div></div>'
+      +'<p class="hwt-hint">'+(infinite?'Client preview only. Infinite player stats and bans are not available in this file.':fixed?'':'Edit enemies to match your game.')+'</p></section>'
+      +(infinite?'':'<section class="hwt-section"><div class="hwt-heading"><div> <h2>Your Deck</h2></div></div>'
       +'<div class="hwt-card-grid">'+team+'</div>'
       +(errors.length?'<div class="hwt-alert">'+errors.map(esc).join(' · ')+'</div>':'')
       +'<div class="hwt-actions"><label for="hwt-runs">Battles<select id="hwt-runs">'+[64,256,1000,2000].map(n=>'<option value="'+n+'"'+(state.runs===n?' selected':'')+'>'+n+'</option>').join('')+'</select></label><button id="hwt-test" class="hwt-secondary"'+(busy||errors.length?' disabled':'')+'>Test deck</button></div>'
-      +result+'</section></div>'
-      +'<section class="hwt-section hwt-search"><div class="hwt-search-top"><div> <h2>Search Decks</h2> </div><div class="hwt-search-actions"><button id="hwt-find" class="hwt-primary"'+(busy?' disabled':'')+'>Search Decks</button>'+(busy?'<button id="hwt-cancel" class="hwt-secondary">Cancel</button>':'')+'</div></div>'
+      +result+'</section>')+'</div>'
+      +(infinite?'':'<section class="hwt-section hwt-search"><div class="hwt-search-top"><div> <h2>Search Decks</h2> </div><div class="hwt-search-actions"><button id="hwt-find" class="hwt-primary"'+(busy?' disabled':'')+'>Search Decks</button>'+(busy?'<button id="hwt-cancel" class="hwt-secondary">Cancel</button>':'')+'</div></div>'
       +(busy?'<div class="hwt-progress">'+esc(busy)+'</div>':'')
-      +results+'</section>'
-      +'<p class="hwt-fineprint">Simulated results may differ in-game.</p>'
+      +results+'</section>')
+      +(infinite?'':banDisclosure)
+      +'<p class="hwt-fineprint">'+(infinite?'Infinite preview uses the new game client; combat rules are unverified.':'Simulated results may differ in-game.')+'</p>'
       +'<datalist id="hwt-player-list">'+available.map(c=>'<option value="'+esc(c.name)+'"></option>').join('')+'</datalist>'
       +'<datalist id="hwt-enemy-list">'+names.map(n=>'<option value="'+esc(n)+'"></option>').join('')+'</datalist></main>';
     bind();
   }
   function bind(){
     root.querySelectorAll('[data-hwt-nav]').forEach(el=>el.addEventListener('click',()=>navigate?.(el.dataset.hwtNav)));
+    root.querySelectorAll('[data-hwt-mode]').forEach(el=>el.addEventListener('click',()=>{
+      const mode=el.dataset.hwtMode==='infinite'?'infinite':'normal';
+      if(mode===state.mode)return;
+      if(busy){requestId++;worker?.terminate();worker=null;busy='';}
+      state.mode=mode;state.floor=mode==='infinite'?1:15;
+      state.result=null;state.search=null;state.infiniteReward=null;state.enemies=[];
+      save();previewStage();render();
+    }));
     root.querySelector('#hwt-floor')?.addEventListener('change',e=>{
-      state.floor=Math.max(1,Math.min(105,Math.floor(Number(e.target.value)||1)));
+      state.floor=Math.max(1,Math.min(state.mode==='infinite'?1000000:105,Math.floor(Number(e.target.value)||1)));
       state.result=null;state.search=null;save();previewStage();render();
     });
     root.querySelector('#hwt-reload')?.addEventListener('click',()=>{

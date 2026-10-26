@@ -1,6 +1,6 @@
 export type BorderName = 'Platinum' | 'Crystal' | 'Ruby' | 'Galaxy'
 export type AuraBorderName = 'Platinum' | 'Crystal' | 'Galaxy'
-export type MutationWeather = 'Storm' | 'Snow' | 'Aurora' | 'Shroud' | 'Meteor Shower' | 'Time Storm' | 'Eclipse' | 'Virus' | 'Blood Rain' | 'Armageddon' | 'Manga'
+export type MutationWeather = 'Storm' | 'Snow' | 'Aurora' | 'Shroud' | 'Meteor Shower' | 'Time Storm' | 'Eclipse' | 'Virus' | 'Blood Rain' | 'Armageddon' | 'Manga' | 'Pumpkin Moon'
 export type BattleTeam = 'Allies' | 'Enemies'
 
 export interface CardDefinition {

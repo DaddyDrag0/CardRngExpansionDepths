@@ -42,7 +42,8 @@ assert.equal(enemies[0].health,343*find('Scarecrow').hpMultiplier)
 assert.equal(halloweenStage(15)[4],'Phantom')
 assert.equal(halloweenStage(95)[4],'End Times')
 assert.equal(halloweenStage(105)[0],'Savior')
-assert.ok(halloweenStage(105).includes('Abomination'),'Boss enemy Abomination must remain even though banned as a player card')
+assert.ok(halloweenStage(105).includes('Living Armor'),'Current Horseman Halloween boss floor 105 has Living Armor instead of Abomination')
+assert.ok(!halloweenStage(105).includes('Abomination'),'Old floor 105 Abomination roster must be updated')
 assert.equal(halloweenStage(14,42).length,4)
 assert.ok(halloweenStage(14,42).slice(0,4).every(x=>(HALLOWEEN_RANDOM_ENEMIES as readonly string[]).includes(x)))
 assert.equal(halloweenPackReward(14),6_000)
@@ -51,7 +52,8 @@ assert.equal(halloweenPackReward(16),8_000)
 assert.equal(halloweenPackReward(105),25_600_000)
 assert.equal(halloweenBanReason('Vampire Lord'), 'Reported Halloween Tower ban')
 assert.equal(halloweenBanReason('Fuxi'), 'Reported Halloween Tower ban')
-for(const name of ['Behemoth','Parallax','Fate Seamstress','Sable The Envious','Supreme Ozzy','Ice King','Chaos','Mrs. Claus','Abomination']){
+assert.equal(halloweenBanReason('Pumpkin King'), 'Reported Halloween Tower ban')
+for(const name of ['Behemoth','Parallax','Fate Seamstress','Sable The Envious','Supreme Ozzy','Ice King','Chaos','Mrs. Claus','Abomination','Pumpkin King']){
   assert.equal(halloweenBanReason(name),'Reported Halloween Tower ban',name+' must be excluded')
 }
 assert.ok(cards.some(c=>c.weather==='Rapture'))
@@ -60,6 +62,7 @@ assert.ok(halloweenCheckTeam(own('Julius Leader','Julius Leader','Triceratops','
 assert.ok(halloweenCheckTeam(own('Ghost','Ghost','Triceratops','Mothman')).some(x=>x.includes('duplicate copies')))
 assert.ok(halloweenCheckTeam(own('Julius Leader','Triceratops','Triceratops','Mothman')).some(x=>x.includes('duplicate copies')),'No duplicate Triceratops even with just one Julius')
 assert.ok(halloweenCheckTeam(own('Triceratops','Mothman','Abomination','Julius Leader')).some(x=>x.includes('Abomination')))
+assert.ok(halloweenCheckTeam(own('Triceratops','Mothman','Pumpkin King','Julius Leader')).some(x=>x.includes('Pumpkin King')))
 for(const name of ['Santa Claus','Supreme Frank','Anubis & Hades']){
   assert.ok(HALLOWEEN_UNAVAILABLE_EVENT_NAMES.some(x=>x===name))
   assert.ok(halloweenUnavailableEvent(name))

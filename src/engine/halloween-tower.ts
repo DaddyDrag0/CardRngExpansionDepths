@@ -31,7 +31,7 @@ export const HALLOWEEN_FIXED: Record<number, string[]> = {
   90:['Pestilence','Famine','War','Death'],
   95:["Hell's Army",'Heavenly Demon',"Heaven's Armor",'Judgment Day','End Times'],
   100:['Surtr','Odin','Thor','Loki'],
-  105:['Savior','Bloody Mary','Abomination','Sable The Envious','End Times'],
+  105:['Savior','Bloody Mary','Living Armor','Sable The Envious','End Times'],
 }
 export const HALLOWEEN_RANDOM_ENEMIES = [
   'Ghoul','Zombie Nurse','Night Witch','The Hanged Man','Walking Dead',
@@ -44,7 +44,7 @@ export const HALLOWEEN_RANDOM_ENEMIES = [
 export const HALLOWEEN_REPORTED_BANS = [
   'Vampire Lord','Fuxi','Priest','Pandora','Black Plague','Wendigo','Glamour',
   'Fate Seamstress','Behemoth','Parallax','Sable The Envious','Supreme Ozzy',
-  'Ice King','Chaos','Mrs. Claus','Abomination',
+  'Ice King','Chaos','Mrs. Claus','Abomination','Pumpkin King',
 ] as const
 // Old limited event cards are excluded by default; this status isn't a permanent ban.
 export const HALLOWEEN_UNAVAILABLE_EVENT_NAMES = ['Santa Claus','Anubis & Hades','Supreme Frank'] as const

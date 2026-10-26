@@ -406,7 +406,7 @@
     "name": "Pestilence",
     "imageAssetId": 138382846157867,
     "rarity": 1000000000,
-    "statMultiplier": 1,
+    "statMultiplier": 1.5,
     "hpMultiplier": 1,
     "ability": "Plague",
     "weather": null,

@@ -21,7 +21,7 @@
         2
       ],
       "description": "Battle Speed",
-      "unit": "×",
+      "unit": "+",
       "recipes": [
         {
           "Speed Potion III": 25,

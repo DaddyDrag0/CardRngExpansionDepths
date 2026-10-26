@@ -16,17 +16,18 @@ const foe = (hp = 1e30, attack = 0): DepthsEnemy => ({ card: neutralTarget, powe
 const close = (a: number, b: number) => assert(Math.abs(a - b) <= Math.max(1.1, Math.abs(b) * 1e-9), `${a} != ${b}`)
 
 const expected: Record<MutationWeather, number> = {
-  Storm: 1.1,
-  Snow: 1.2,
-  Aurora: 1.3,
-  Shroud: 1.5,
-  'Meteor Shower': 1.8,
-  'Time Storm': 2,
-  Eclipse: 2.5,
-  Virus: 3,
-  'Blood Rain': 3.5,
-  Armageddon: 4,
-  Manga: 4.5,
+  Storm: 2,
+  Snow: 2.1,
+  Aurora: 2.3,
+  Shroud: 2.5,
+  'Meteor Shower': 3.5,
+  'Time Storm': 4,
+  Eclipse: 4.5,
+  Virus: 5,
+  'Blood Rain': 5.5,
+  Armageddon: 6,
+  Manga: 6.5,
+  'Pumpkin Moon': 7.5,
 }
 assert.deepEqual(WEATHER_MUTATION_STAT_MULTIPLIERS, expected)
 

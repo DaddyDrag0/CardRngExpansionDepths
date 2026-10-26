@@ -36,6 +36,11 @@ export function auraPacksForDepth(depth: number): number {
 
 export const POTION_DROP_CAP_FLOOR = 5000
 export const BOUNTIFUL_DEPTHS_DROP_MULTIPLIER = 1.25
+export const BOUNTIFUL_DELVE_BONUSES = [25,30,35,40,50] as const
+export function bountifulDelveMultiplier(level=0):number {
+  const index=Math.max(0,Math.min(4,Math.floor(Number(level)||0)))
+  return 1+BOUNTIFUL_DELVE_BONUSES[index]/100
+}
 export const JACKPOT_POTION_BASE_ODDS = 400
 export const JACKPOT_POTION_CAP_ODDS = 170
 export const RARE_WEATHER_POTION_BASE_ODDS = 8000
@@ -55,8 +60,8 @@ export interface PotionDropSummary {
   rareWeather: PotionDropStat
 }
 
-function withBountiful(chance: number, bountiful: boolean): number {
-  return Math.min(1, Math.max(0, chance * (bountiful ? BOUNTIFUL_DEPTHS_DROP_MULTIPLIER : 1)))
+function withBountiful(chance: number, bountiful: boolean, level=0): number {
+  return Math.min(1, Math.max(0, chance * (bountiful ? bountifulDelveMultiplier(level) : 1)))
 }
 
 /**
@@ -64,12 +69,12 @@ function withBountiful(chance: number, bountiful: boolean): number {
  * The reward table only gives the endpoints, so the calculator applies the
  * stated flat per-floor improvement linearly between those two chances.
  */
-export function jackpotPotionChanceForFloor(floor: number, bountiful = false): number {
+export function jackpotPotionChanceForFloor(floor: number, bountiful = false, bountifulLevel = 0): number {
   const safeFloor = Math.max(1, Math.floor(Number(floor) || 1))
   const progress = Math.min(1, Math.max(0, (safeFloor - 1) / (POTION_DROP_CAP_FLOOR - 1)))
   const baseChance = 1 / JACKPOT_POTION_BASE_ODDS
   const capChance = 1 / JACKPOT_POTION_CAP_ODDS
-  return withBountiful(baseChance + (capChance - baseChance) * progress, bountiful)
+  return withBountiful(baseChance + (capChance - baseChance) * progress, bountiful, bountifulLevel)
 }
 
 /**
@@ -78,18 +83,19 @@ export function jackpotPotionChanceForFloor(floor: number, bountiful = false): n
  * This reproduces the published ~1 in 2.15 full-run figure, or ~1 in 1.84
  * with Bountiful Depths (+25% drop chance).
  */
-export function rareWeatherPotionChanceForFloor(floor: number, bountiful = false): number {
+export function rareWeatherPotionChanceForFloor(floor: number, bountiful = false, bountifulLevel = 0): number {
   const safeFloor = Math.max(1, Math.floor(Number(floor) || 1))
   const baseChance = safeFloor >= POTION_DROP_CAP_FLOOR
     ? 1 / RARE_WEATHER_POTION_CAP_ODDS
     : 1 / RARE_WEATHER_POTION_BASE_ODDS
-  return withBountiful(baseChance, bountiful)
+  return withBountiful(baseChance, bountiful, bountifulLevel)
 }
 
 function summarizePotionDrops(
   depth: number,
-  chanceForFloor: (floor: number, bountiful: boolean) => number,
+  chanceForFloor: (floor: number, bountiful: boolean, level:number) => number,
   bountiful: boolean,
+  bountifulLevel = 0,
 ): PotionDropStat {
   const endFloor = Math.max(0, Math.floor(Number(depth) || 0))
   if (endFloor <= 0) return { expected: 0, atLeastOne: 0, oneInRuns: Infinity, endFloorOneIn: Infinity }
@@ -98,20 +104,20 @@ function summarizePotionDrops(
   let expected = 0
   let logNoDrop = 0
   for (let floor = 1; floor <= scalingEnd; floor++) {
-    const chance = chanceForFloor(floor, bountiful)
+    const chance = chanceForFloor(floor, bountiful, bountifulLevel)
     expected += chance
     logNoDrop += Math.log1p(-chance)
   }
 
   if (endFloor > POTION_DROP_CAP_FLOOR) {
     const extraFloors = endFloor - POTION_DROP_CAP_FLOOR
-    const cappedChance = chanceForFloor(POTION_DROP_CAP_FLOOR + 1, bountiful)
+    const cappedChance = chanceForFloor(POTION_DROP_CAP_FLOOR + 1, bountiful, bountifulLevel)
     expected += extraFloors * cappedChance
     logNoDrop += extraFloors * Math.log1p(-cappedChance)
   }
 
   const atLeastOne = Math.min(1, Math.max(0, 1 - Math.exp(logNoDrop)))
-  const endFloorChance = chanceForFloor(endFloor, bountiful)
+  const endFloorChance = chanceForFloor(endFloor, bountiful, bountifulLevel)
   return {
     expected,
     atLeastOne,
@@ -120,26 +126,26 @@ function summarizePotionDrops(
   }
 }
 
-export function potionDropsForDepth(depth: number, bountiful = false): PotionDropSummary {
+export function potionDropsForDepth(depth: number, bountiful = false, bountifulLevel = 0): PotionDropSummary {
   const safeDepth = Math.max(0, Math.floor(Number(depth) || 0))
   return {
     depth: safeDepth,
     bountiful,
-    jackpot: summarizePotionDrops(safeDepth, jackpotPotionChanceForFloor, bountiful),
-    rareWeather: summarizePotionDrops(safeDepth, rareWeatherPotionChanceForFloor, bountiful),
+    jackpot: summarizePotionDrops(safeDepth, jackpotPotionChanceForFloor, bountiful, bountifulLevel),
+    rareWeather: summarizePotionDrops(safeDepth, rareWeatherPotionChanceForFloor, bountiful, bountifulLevel),
   }
 }
 
-export function potionDropRangeForMedian(medianFloor: number, margin = 0.15, bountiful = false) {
+export function potionDropRangeForMedian(medianFloor: number, margin = 0.15, bountiful = false, bountifulLevel = 0) {
   const range = estimatedDepthRange(medianFloor, margin)
   const medianDepth = Math.max(1, Math.round(Number(medianFloor) || 1))
   return {
     ...range,
     medianDepth,
     bountiful,
-    low: potionDropsForDepth(range.low, bountiful),
-    median: potionDropsForDepth(medianDepth, bountiful),
-    high: potionDropsForDepth(range.high, bountiful),
+    low: potionDropsForDepth(range.low, bountiful, bountifulLevel),
+    median: potionDropsForDepth(medianDepth, bountiful, bountifulLevel),
+    high: potionDropsForDepth(range.high, bountiful, bountifulLevel),
   }
 }
 

@@ -103,6 +103,7 @@
   }
   function previewStage(){
     state.manual=false;
+    state.infiniteReward=null;
     const request=getWorker();if(!request)return;
     const id=++requestId;loadingFloor=state.floor;
     request.postMessage({kind:'halloween-stage',id,floor:state.floor,seed:state.seed,mode:state.mode});
@@ -205,6 +206,7 @@
     root.querySelectorAll('[data-hwt-mode]').forEach(el=>el.addEventListener('click',()=>{
       const mode=el.dataset.hwtMode==='infinite'?'infinite':'normal';
       if(mode===state.mode)return;
+      if(busy){requestId++;worker?.terminate();worker=null;busy='';}
       state.mode=mode;state.floor=mode==='infinite'?1:15;
       state.result=null;state.search=null;state.infiniteReward=null;state.enemies=[];
       save();previewStage();render();

@@ -9,7 +9,7 @@
   const versioned=path=>SITE_VERSION?`${path}${path.includes('?')?'&':'?'}v=${encodeURIComponent(SITE_VERSION)}`:path;
   const styleLink=document.querySelector('link[rel="stylesheet"]');if(styleLink&&SITE_VERSION)styleLink.href=versioned('./src/styles.css');
   const CARD_BORDER_MULT={Platinum:100,Crystal:10000,Ruby:100000,Galaxy:1000000},CARD_BORDERS=Object.keys(CARD_BORDER_MULT);
-  const MUTATION_MULT={Storm:1.1,Snow:1.2,Aurora:1.3,Shroud:1.5,'Meteor Shower':1.8,'Time Storm':2,Eclipse:2.5,Virus:3,'Blood Rain':3.5,Armageddon:4,Manga:4.5},MUTATION_WEATHERS=Object.keys(MUTATION_MULT);
+  const MUTATION_MULT={Storm:2,Snow:2.1,Aurora:2.3,Shroud:2.5,'Meteor Shower':3.5,'Time Storm':4,Eclipse:4.5,Virus:5,'Blood Rain':5.5,Armageddon:6,Manga:6.5,'Pumpkin Moon':7.5},MUTATION_WEATHERS=Object.keys(MUTATION_MULT);
   const AURA_RARITY_MULT={Platinum:10,Crystal:100,Galaxy:1000},AURA_BORDERS=Object.keys(AURA_RARITY_MULT),AURA_TIER={'':0,Platinum:1,Crystal:2,Galaxy:3};
   const AURA_CUSTOM={Berserker:[5,10,15,20],'Flame Wizard':[15,25,35,50],Shielder:[2,5,7,10],'Synth Human':[8,10,12,15],'Storm Spirit':[10,15,20,30],'Guardian Angel':[10,15,20,30],Executioner:[15,25,35,50],'Mirror Knight':[10,15,20,30],'Final Testament':[5,7.5,10,12.5,15]};
   const MAX_DEPTH_BANS=14;

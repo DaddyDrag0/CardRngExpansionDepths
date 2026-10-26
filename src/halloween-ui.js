@@ -184,65 +184,34 @@
     bind();
   }
   function bind(){
-    root.querySelectorAll('[data-hwt-nav]').forEach(b=>b.addEventListener('click',()=>navigate?.(b.dataset.hwtNav)));
-    root.querySelector('#hwt-floor')?.addEventListener('change',e=>{state.floor=Math.max(1,Math.min(105,Math.floor(Number(e.target.value)||1)));state.result=null;state.search=null;state.probe=null;save();previewStage();render()});
-    root.querySelector('#hwt-seed')?.addEventListener('change',e=>{state.seed=Math.floor(Number(e.target.value)||1);state.probe=null;save();previewStage();render()});
-    root.querySelector('#hwt-reload')?.addEventListener('click',()=>{previewStage();render()});
+    root.querySelectorAll('[data-hwt-nav]').forEach(el=>el.addEventListener('click',()=>navigate?.(el.dataset.hwtNav)));
+    root.querySelector('#hwt-floor')?.addEventListener('change',e=>{
+      state.floor=Math.max(1,Math.min(105,Math.floor(Number(e.target.value)||1)));
+      state.result=null;state.search=null;save();previewStage();render();
+    });
+    root.querySelector('#hwt-reload')?.addEventListener('click',()=>{
+      state.seed=(state.seed+1)>>>0;state.result=null;state.search=null;save();previewStage();render();
+    });
     root.querySelectorAll('[data-hwt-enemy]').forEach(el=>el.addEventListener('change',()=>{
-      const i=Number(el.dataset.hwtEnemy);state.enemies[i]=el.value.trim();state.manual=true;state.result=null;state.search=null;save();render()
+      state.enemies[Number(el.dataset.hwtEnemy)]=el.value.trim();
+      state.manual=true;state.result=null;state.search=null;save();render();
     }));
     root.querySelectorAll('[data-hwt-slot]').forEach(el=>el.addEventListener('change',()=>{
-      const i=Number(el.dataset.hwtSlot);state.slots[i].cardName=el.value.trim();state.result=null;state.probe=null;save();render()
+      state.slots[Number(el.dataset.hwtSlot)].cardName=el.value.trim();
+      state.result=null;save();render();
     }));
-    root.querySelectorAll('[data-hwt-border]').forEach(b=>b.addEventListener('click',()=>{
-      const slot=state.slots[Number(b.dataset.hwtIndex)],name=b.dataset.hwtBorder;
-      slot.borders=slot.borders.includes(name)?slot.borders.filter(x=>x!==name):[...slot.borders,name];state.result=null;state.probe=null;save();render()
-    }));
-    root.querySelectorAll('[data-hwt-default-border]').forEach(b=>b.addEventListener('click',()=>{
-      const name=b.dataset.hwtDefaultBorder;state.defaultBorders=state.defaultBorders.includes(name)?state.defaultBorders.filter(x=>x!==name):[...state.defaultBorders,name];save();render()
-    }));
-    root.querySelector('#hwt-min-rarity')?.addEventListener('change',e=>{state.minimumRarity=Number(e.target.value)===1?1:1e15;state.result=null;state.search=null;state.probe=null;save();render()});
-    root.querySelector('#hwt-legacy')?.addEventListener('change',e=>{state.includeLegacy=e.target.checked;state.search=null;state.result=null;state.probe=null;save();render()});
-    root.querySelectorAll('[data-hwt-pool-mode]').forEach(b=>b.addEventListener('click',()=>{state.poolMode=b.dataset.hwtPoolMode==='custom'?'custom':'all';state.search=null;save();render()}));
-    root.querySelector('#hwt-runs')?.addEventListener('change',e=>{state.runs=Number(e.target.value)||100;save()});
+    root.querySelector('#hwt-runs')?.addEventListener('change',e=>{state.runs=Number(e.target.value)||256;save()});
     root.querySelector('#hwt-test')?.addEventListener('click',()=>send('halloween-sim'));
     root.querySelector('#hwt-find')?.addEventListener('click',()=>send('halloween-search'));
-    root.querySelector('#hwt-labels')?.addEventListener('click',()=>{
-      const labels=state.search?.labels||[];
-      const jsonl=labels.map(row=>JSON.stringify(row)).join('\n');
-      if(!jsonl)return;
-      if(navigator.clipboard?.writeText)navigator.clipboard.writeText(jsonl).catch(()=>prompt('Copy training labels',jsonl));
-      else prompt('Copy training labels',jsonl);
-    });
-    root.querySelector('#hwt-probe')?.addEventListener('click',()=>send('halloween-probe'));
-    root.querySelector('#hwt-copy')?.addEventListener('click',()=>{
-      const data=JSON.stringify({floor:state.floor,enemies:state.enemies,cards:state.slots,extraBans:state.extraBans,minimumRarity:state.minimumRarity,includeLegacy:state.includeLegacy});
-      if(navigator.clipboard?.writeText)navigator.clipboard.writeText(data).catch(()=>prompt('Copy deck JSON',data));
-      else prompt('Copy deck JSON',data)
-    });
     root.querySelector('#hwt-cancel')?.addEventListener('click',()=>{
-      requestId++;worker?.terminate();worker=null;busy='';render()
+      requestId++;worker?.terminate();worker=null;busy='';render();
     });
-    root.querySelector('#hwt-pool-add')?.addEventListener('change',e=>{state.editingPool=e.target.value});
-    root.querySelector('#hwt-add-pool')?.addEventListener('click',()=>{
-      const name=root.querySelector('#hwt-pool-add')?.value.trim();
-      if(valid(name)&&!banReason(name)&&!state.pool.includes(name))state.pool.push(name);
-      state.editingPool='';state.search=null;save();render()
-    });
-    root.querySelectorAll('[data-hwt-remove-pool]').forEach(b=>b.addEventListener('click',()=>{
-      state.pool=state.pool.filter(x=>x!==b.dataset.hwtRemovePool);state.search=null;save();render()
-    }));
-    root.querySelector('#hwt-add-ban')?.addEventListener('click',()=>{
-      const name=root.querySelector('#hwt-ban-add')?.value.trim();
-      if(valid(name)&&!state.extraBans.includes(name))state.extraBans.push(name);
-      state.editingBan='';state.search=null;state.result=null;state.probe=null;save();render()
-    });
-    root.querySelectorAll('[data-hwt-unban]').forEach(b=>b.addEventListener('click',()=>{
-      state.extraBans=state.extraBans.filter(x=>x!==b.dataset.hwtUnban);save();render()
-    }));
-    root.querySelectorAll('[data-hwt-load]').forEach(b=>b.addEventListener('click',()=>{
-      const pick=state.search?.recommendations?.[Number(b.dataset.hwtLoad)];
-      if(!pick)return;state.slots=pick.loadout.cards.map(x=>({cardName:x.cardName,borders:[...x.borders]}));state.result=null;state.probe=null;save();render()
+    root.querySelectorAll('[data-hwt-load]').forEach(el=>el.addEventListener('click',()=>{
+      const pick=state.search?.recommendations?.[Number(el.dataset.hwtLoad)];
+      if(!pick)return;
+      state.slots=pick.loadout.cards.map(c=>({cardName:c.cardName,borders:[]}));
+      state.result=null;save();render();
+      root.querySelector('#hwt-test')?.scrollIntoView({behavior:'smooth',block:'nearest'});
     }));
   }
   window.CRXHalloween={render:(el,cards,thumbs,nav)=>{

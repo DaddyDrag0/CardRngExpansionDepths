@@ -4,6 +4,7 @@ import { searchTowerCheese, searchTowerCheeseIntensive, type TowerCheeseSearchPr
 import { replayTowerWinningRun, simulateTowerBatchLogged } from './engine/tower-logged'
 import type { TeamLoadout, BorderName } from './types'
 import { halloweenStage, simulateHalloweenTower, searchHalloweenTower, probeHalloweenFloors } from './engine/halloween-tower'
+import { halloweenInfiniteStage, halloweenInfiniteEnemyAttack, halloweenInfiniteEnemyHp, halloweenInfiniteReward, halloweenInfiniteCycle } from './engine/halloween-infinite'
 
 interface TowerSimulationRequest {
   id: number
@@ -58,6 +59,7 @@ interface HalloweenTowerRequest {
   minimumRarity?: number
   includeLegacy?: boolean
   fixedAttack?: number
+  mode?: 'normal' | 'infinite'
 }
 
 type TowerRequest = TowerSimulationRequest | TowerWinDebugRequest | TowerCheeseSearchRequest | HalloweenTowerRequest
@@ -67,9 +69,19 @@ self.onmessage = (event: MessageEvent<TowerRequest>) => {
   const started = performance.now()
   try {
     if (request.kind === 'halloween-stage') {
+      const infinite=request.mode==='infinite'
       self.postMessage({kind:'halloween-stage-result',id:request.id,ok:true,
-        result:{enemies:halloweenStage(request.floor,request.seed)}})
+        result:infinite?{
+          enemies:halloweenInfiniteStage(request.floor,request.seed),
+          attack:halloweenInfiniteEnemyAttack(request.floor),
+          hp:halloweenInfiniteEnemyHp(request.floor),
+          reward:halloweenInfiniteReward(request.floor),
+          cycle:halloweenInfiniteCycle(request.floor),
+        }:{enemies:halloweenStage(request.floor,request.seed)}})
       return
+    }
+    if (request.kind.startsWith('halloween-') && request.mode==='infinite') {
+      throw new Error('Infinite player battle stats and card bans are not verified; only encounter previews are available')
     }
     if (request.kind === 'halloween-sim') {
       if (!request.loadout || !request.enemyNames) throw new Error('Halloween loadout and opponents required')

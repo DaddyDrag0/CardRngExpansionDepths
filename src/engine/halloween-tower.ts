@@ -44,6 +44,7 @@ export const HALLOWEEN_RANDOM_ENEMIES = [
 export const HALLOWEEN_REPORTED_BANS = [
   'Vampire Lord','Fuxi','Priest','Pandora','Black Plague','Wendigo','Glamour',
   'Fate Seamstress','Behemoth','Parallax','Sable The Envious','Supreme Ozzy',
+  'Ice King','Chaos','Mrs. Claus',
 ] as const
 // Old limited event cards are excluded by default; this status isn't a permanent ban.
 export const HALLOWEEN_UNAVAILABLE_EVENT_NAMES = ['Santa Claus','Anubis & Hades','Supreme Frank'] as const
@@ -67,6 +68,7 @@ export const HALLOWEEN_SKILL_CANDIDATES = [
 ] as const
 const CARD_MAP = new Map(cards.map(c=>[c.name,c] as const))
 
+export const HALLOWEEN_FIXED_BASE_ATTACK = 160
 export const HALLOWEEN_DEFAULT_MIN_RARITY = 1e15 // 1 quadrillion effective rarity, a search assumption, not a free border
 export function halloweenPlayerPower(card: CardDefinition, borders: BorderName[] = [], minimumRarity = 1): number {
   return Math.ceil(200 + 10 * Math.log10(Math.max(1,minimumRarity,rarityWithBorders(card,borders))))
@@ -97,6 +99,7 @@ export function halloweenBanReason(name:string,extraBans:readonly string[]=[],in
   if(card.weather==='Rapture')return 'All Rapture cards are reportedly banned'
   if(extraBans.includes(name))return 'Banned in your personal restrictions'
   if((HALLOWEEN_REPORTED_BANS as readonly string[]).includes(name))return 'Reported Halloween Tower ban'
+  if(card.pack==='Christmas'&&!includeLegacy)return 'Christmas event card unavailable for the current Halloween Tower'
   if((HALLOWEEN_UNAVAILABLE_EVENT_NAMES as readonly string[]).includes(name))
     return 'Event-exclusive card reported not owned by players'
   if(!includeLegacy&&halloweenUnavailableEvent(name))return 'Legacy event card not known to be re-released (opt in if owned)'
@@ -140,6 +143,7 @@ export function simulateHalloweenTower(
   onProgress?:(done:number,total:number)=>void,
   minimumRarity = HALLOWEEN_DEFAULT_MIN_RARITY,
   includeLegacy = false,
+  fixedAttack = HALLOWEEN_FIXED_BASE_ATTACK,
 ):HalloweenRunSummary{
   const errors=halloweenCheckTeam(loadout,extraBans,includeLegacy)
   if(errors.length)throw new Error(errors.join('; '))
@@ -151,7 +155,8 @@ export function simulateHalloweenTower(
   const unsupported=new Set<string>()
   for(let i=0;i<total;i++){
     const battle=simulateBattleV2(loadout,enemies,Math.floor(rng.next()*0x7fffffff)||i+1,500,true,false,undefined,{
-      halloweenNormalizedPlayers:true,halloweenMinimumRarity:minimumRarity,disablePlayerAuras:true,
+      halloweenNormalizedPlayers:true,halloweenMinimumRarity:minimumRarity,
+      halloweenFixedAttack:fixedAttack,disablePlayerAuras:true,
       enemySkillAura:aura?{auraName:aura,border:'Galaxy'}:null,
     })
     if(battle.winner==='Allies')wins++
@@ -183,7 +188,7 @@ export function searchHalloweenTower(
   enemyNames:string[],floor:number,seed=1,
   options:{
     pool?:string[];borders?:BorderName[];extraBans?:string[];current?:TeamLoadout
-    minimumRarity?:number;includeLegacy?:boolean
+    minimumRarity?:number;includeLegacy?:boolean;fixedAttack?:number
   }={},
   onProgress?:(done:number,total:number)=>void,
 ):HalloweenSearchResult {
@@ -196,6 +201,7 @@ export function searchHalloweenTower(
   if(!pool.length)throw new Error('No eligible cards in the Halloween search pool')
   if(pool.length<4)throw new Error('Halloween Tower requires four distinct available cards in the search pool')
   const minimumRarity=Math.max(1,Number(options.minimumRarity)||HALLOWEEN_DEFAULT_MIN_RARITY)
+  const fixedAttack=options.fixedAttack??HALLOWEEN_FIXED_BASE_ATTACK
   const border=options.borders||[]
   const rng=new SeededRng(seed||1)
   const draw=()=>Math.floor(rng.next()*0x7fffffff)||1
@@ -256,7 +262,7 @@ export function searchHalloweenTower(
     onItem?:(entry:HalloweenRecommendation)=>void):HalloweenRecommendation[]=>{
     const scored:HalloweenRecommendation[]=[]
     for(let i=0;i<set.length;i++){
-      const score=simulateHalloweenTower(set[i],enemyNames,floor,runs,battleSeed,extra,undefined,minimumRarity,includeLegacy)
+      const score=simulateHalloweenTower(set[i],enemyNames,floor,runs,battleSeed,extra,undefined,minimumRarity,includeLegacy,fixedAttack)
       const entry={...score,loadout:set[i]}
       scored.push(entry);onItem?.(entry)
       if(onProgress&&(i%12===11||i===set.length-1))onProgress(progressStart+i+1,total)
@@ -344,7 +350,7 @@ export function probeHalloweenFloors(
   const result:Array<{floor:number;wins:number;runs:number;winRate:number;progress:number;trusted:boolean}>=[]
   for(let i=0;i<floors.length;i++){
     const floor=floors[i],names=halloweenStage(floor,seed)
-    const score=simulateHalloweenTower(loadout,names.slice(0,4),floor,16,seed+floor,extraBans,undefined,minimumRarity,includeLegacy)
+    const score=simulateHalloweenTower(loadout,names.slice(0,4),floor,16,seed+floor,extraBans,undefined,minimumRarity,includeLegacy,HALLOWEEN_FIXED_BASE_ATTACK)
     result.push({floor,wins:score.wins,runs:score.runs,winRate:score.winRate,progress:score.progress,trusted:score.trusted})
     onProgress?.(i+1,floors.length)
   }

@@ -129,6 +129,7 @@ interface Runtime {
   counterDepth: number
   halloweenNormalizedPlayers?: boolean
   halloweenMinimumRarity?: number
+  halloweenFixedAttack?: number
   // Independent seeds retain their own delay and strength, even across deaths.
   orchardSeeds: Map<CombatCard, Array<{ turns: number; damage: number }>>
 }
@@ -500,18 +501,21 @@ export interface BattleModeOptions {
   halloweenNormalizedPlayers?: boolean
   /** Minimum effective rarity assumed for every Halloween player card (e.g. 1e15 = 1qd). */
   halloweenMinimumRarity?: number
+  /** Halloween-only uniform baseline attack for fair skill-oriented comparisons. */
+  halloweenFixedAttack?: number
   /** Halloween Soul Guide / Resting Place suppresses the player's aura cards. */
   disablePlayerAuras?: boolean
   /** Optional fifth, non-combat aura in a fixed enemy stage. */
   enemySkillAura?: { auraName: string; border?: 'Platinum' | 'Crystal' | 'Galaxy' | null } | null
 }
 
-function makePlayerCard(name: string, borders: CombatCard['borders'], index: number, mutationWeather?: CombatCard['mutationWeather'], halloweenNormalized = false, minimumRarity = 1): CombatCard | null {
+function makePlayerCard(name: string, borders: CombatCard['borders'], index: number, mutationWeather?: CombatCard['mutationWeather'], halloweenNormalized = false, minimumRarity = 1, fixedAttack?: number): CombatCard | null {
   const card = definition(name)
   if (!card) return null
   // Stage 14–17 measurements support ATK = ceil((200 + 10 log10(rarity))/2)
   // before deck passives. HP and how special HP multipliers behave are provisional.
-  const power = halloweenNormalized
+  const usingFixedAttack = halloweenNormalized && Number.isFinite(fixedAttack) && Number(fixedAttack) > 0
+  const power = usingFixedAttack ? Number(fixedAttack) * 2 : halloweenNormalized
     ? Math.ceil(200 + 10 * Math.log10(Math.max(1, minimumRarity, rarityWithBorders(card, borders))))
     : getPower(card, borders, mutationWeather)
   const hp = halloweenNormalized ? power * (card.hpMultiplier || 1) : getHealth(card, borders, mutationWeather)
@@ -525,7 +529,7 @@ function makePlayerCard(name: string, borders: CombatCard['borders'], index: num
     power,
     hp,
     maxHp: hp,
-    damage: halloweenNormalized ? Math.ceil(power / 2) : getAttack(card, borders, mutationWeather),
+    damage: usingFixedAttack ? Number(fixedAttack) : halloweenNormalized ? Math.ceil(power / 2) : getAttack(card, borders, mutationWeather),
     entered: false,
     dead: false,
     boss: Boolean(card.boss),
@@ -663,7 +667,7 @@ function applyDraconianSetup(team: CombatCard[]) {
 
 export function createBattleStateV2(loadout: TeamLoadout, enemies: DepthsEnemy[], mode: BattleModeOptions = {}): BattleState {
   const allies = loadout.cards
-    .map((slot, index) => makePlayerCard(slot.cardName, slot.borders, index + 1, slot.mutationWeather, mode.halloweenNormalizedPlayers, mode.halloweenMinimumRarity))
+    .map((slot, index) => makePlayerCard(slot.cardName, slot.borders, index + 1, slot.mutationWeather, mode.halloweenNormalizedPlayers, mode.halloweenMinimumRarity, mode.halloweenFixedAttack))
     .filter((card): card is CombatCard => Boolean(card))
   const enemyCards = enemies.map((enemy, index) => makeEnemyCard(enemy, index + 1))
 
@@ -2595,7 +2599,7 @@ function applyOnDeathCore(runtime: Runtime, dead: CombatCard, opponent: CombatCa
   if (name === 'Split In Two' && !dead.flags.sealed) {
     const children = ['Joy', 'Sorrow'].map((childName, i) => {
       const child = makePlayerCard(childName, dead.borders, dead.index, dead.mutationWeather,
-        runtime.halloweenNormalizedPlayers, runtime.halloweenMinimumRarity)!
+        runtime.halloweenNormalizedPlayers, runtime.halloweenMinimumRarity, runtime.halloweenFixedAttack)!
       child.team = team
       child.id = dead.id + ':' + childName
       child.maxHp = child.hp = dead.maxHp * 0.5
@@ -3596,7 +3600,7 @@ export function simulateBattleV2(
     abilityAura: loadout.abilityAura ? { name: loadout.abilityAura.auraName, border: loadout.abilityAura.border || null, value: state.boosts.Allies.skillAuraValue } : undefined,
   }
   const runtime: Runtime = { state, rng: new SeededRng(seed), debug, captureDebug, deathEpoch: 0, counterDepth: 0, halloweenNormalizedPlayers: mode.halloweenNormalizedPlayers,
-    halloweenMinimumRarity: mode.halloweenMinimumRarity, orchardSeeds: new Map() }
+    halloweenMinimumRarity: mode.halloweenMinimumRarity, halloweenFixedAttack: mode.halloweenFixedAttack, orchardSeeds: new Map() }
   resolveConstellarArts(runtime)
   if (captureDebug) {
     debug.initialAllies = state.teams.Allies.map(debugCard)

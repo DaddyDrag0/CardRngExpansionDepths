@@ -1,0 +1,29 @@
+name: Verify Depths inline relic tiers and rebuild workers
+on:
+  push:
+    branches: [depths-inline-relic-tiers-20261026]
+    paths:
+      - '.github/workflows/build-inline-relics-20261026.yml'
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - uses: actions/setup-node@v4
+        with: {node-version: 22}
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build:workers
+      - name: Commit rebuilt worker bundles
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add browser/depths-worker.js browser/tower-worker.js
+          git diff --cached --quiet && exit 0
+          git commit -m "Compile Depths with inline relic tier support"
+          git fetch origin depths-inline-relic-tiers-20261026
+          git rebase origin/depths-inline-relic-tiers-20261026
+          git push origin HEAD:depths-inline-relic-tiers-20261026

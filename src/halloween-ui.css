@@ -89,3 +89,17 @@
   .hwt-heading{flex-wrap:wrap}.hwt-stage-controls{width:100%;justify-content:flex-start}.hwt-search-top{flex-direction:column;align-items:stretch}
   .hwt-rec{flex-wrap:wrap}.hwt-rec .hwt-secondary{margin-left:36px}.hwt-metrics strong{font-size:15px}
   .hwt-atk{font-size:10px}}
+
+/* Minimal source-backed Infinite preview / optional reported-ban details. */
+.hwt-mode{display:flex;gap:6px;margin:6px 0 16px}
+.hwt-mode button{cursor:pointer;border:1px solid var(--hwt-border);border-radius:9px;
+  padding:9px 16px;background:var(--hwt-input);color:var(--hwt-muted);font-size:12px;font-weight:700}
+.hwt-mode button.on{background:rgba(211,153,70,.19);border-color:#b8884b;color:#f0c38a}
+.hwt-infinite-grid{grid-template-columns:minmax(0,1fr);max-width:760px}
+.hwt-infinite-info{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px}
+.hwt-infinite-info span{border:1px solid rgba(220,164,77,.25);background:rgba(220,164,77,.08);
+ border-radius:7px;color:#dfb979;padding:7px 9px;font-size:11px}
+.hwt-ban-disclosure{margin:14px 0 0;font-size:12px;color:var(--hwt-muted)}
+.hwt-ban-disclosure summary{cursor:pointer;display:inline-block;color:#c9a26e;padding:5px 1px;font-weight:650}
+.hwt-ban-disclosure p{margin:8px 0;line-height:1.7;max-width:950px}
+.hwt-ban-disclosure small{display:block;font-size:11px;color:var(--hwt-muted)}

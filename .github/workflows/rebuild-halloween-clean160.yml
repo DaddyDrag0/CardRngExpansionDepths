@@ -1,4 +1,5 @@
 name: Verify clean Halloween Tower and build workers
+# Re-run after updating Christmas eligibility assertions.
 on:
   push:
     branches: [halloween-clean-160-decksearch-20261025]

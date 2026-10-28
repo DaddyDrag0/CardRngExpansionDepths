@@ -1,5 +1,5 @@
 import { auraPackRangeForMedian, auraPacksForDepth } from '../src/engine/depths-rewards'
-import { battleSpeedSkillTreeBonus, battleSpeedStructureBonus, depthsFloorSpeedBonus, effectiveDepthsBattleSpeed, estimateBattleSeconds, inBattleAcceleration } from '../src/engine/depths-time'
+import { battleSpeedSkillTreeBonus, battleSpeedStructureBonus, depthsFloorSpeedBonus, effectiveDepthsBattleSpeed, estimateBattleSeconds, estimateDepthClearSeconds, inBattleAcceleration, MIN_DEPTHS_BATTLE_SECONDS } from '../src/engine/depths-time'
 
 function assert(condition: unknown, message: string): asserts condition { if (!condition) throw new Error(message) }
 function close(a: number, b: number, eps = 1e-9) { return Math.abs(a - b) <= eps }
@@ -18,7 +18,15 @@ assert(depthsFloorSpeedBonus(1800) === 4.5, 'Depths floor Battle Speed bonus sho
 assert(effectiveDepthsBattleSpeed(5000, true) === 8.5, 'High-floor Battle Speed should cap at 8.5 with Chrono')
 assert(inBattleAcceleration(9) === 1 && inBattleAcceleration(10) === 2, '10-attack acceleration mismatch')
 assert(inBattleAcceleration(20) === 3 && inBattleAcceleration(40) === 5 && inBattleAcceleration(60) === 10, 'Long-battle acceleration mismatch')
-assert(close(estimateBattleSeconds(1, 1, true), 1.3), 'One-turn floor 1 battle timing mismatch')
+assert(close(MIN_DEPTHS_BATTLE_SECONDS, 0.2), 'Minimum time must be 0.2s per floor')
+assert(close(estimateBattleSeconds(1, 0, true), 0.2), 'A zero-turn floor must use the 0.2s minimum')
+assert(close(estimateBattleSeconds(1, 1, true), 0.25), 'One attack at Battle Speed 4 takes 1/4s')
+assert(close(estimateBattleSeconds(1, 2, true), 0.5), 'Two attacks at Battle Speed 4 take 2/4s')
+assert(close(estimateBattleSeconds(1, 12, true), 2.625), 'Attack 10+ acceleration should still reduce the timing')
+assert(close(estimateBattleSeconds(1, 1, false), 1/3), 'Without Chrono, one attack takes 1/3s')
+assert(close(estimateBattleSeconds(1, 1, true, 0, 0, 4), 0.2), 'Galaxy Chrono one-attack floor must obey 0.2s minimum')
+assert(close(estimateDepthClearSeconds(3, 1, true), 0.75), 'Clear-time estimates must use the new formula across floors')
+assert(close(estimateDepthClearSeconds(3, 0, true), 0.6), 'Three zero-turn floors must take 0.6s minimum')
 assert(effectiveDepthsBattleSpeed(1, false) === 3, 'Floor 1 Battle Speed without Chrono should be 3')
 assert(effectiveDepthsBattleSpeed(1,true,0,0,4)===5,'Galaxy Chrono Shard adds +2 speed')
 assert(effectiveDepthsBattleSpeed(1,true,0,0,1)===4.25,'Platinum Chrono Shard adds +1.25 speed')

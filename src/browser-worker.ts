@@ -21,6 +21,7 @@ interface BatchRequest {
   chronoShardLevel?: number
   battleSpeedStructureLevel?: number
   skillTreeBattleSpeedLevel?: number
+  floorOverheadSeconds?: number
   chronoShard?: boolean
   hardMode?: boolean
 }
@@ -65,6 +66,7 @@ function summarize(
   hardMode = false,
   chronoShardLevel = 0,
   bountifulDepthsLevel = 0,
+  floorOverheadSeconds = 0.8,
 ) {
   const unsupported = new Set<string>()
   for (const result of results) {
@@ -96,9 +98,9 @@ function summarize(
   const totalBattles = results.reduce((sum, result) => sum + result.battles, 0)
   const totalTurns = results.reduce((sum, result) => sum + result.totalTurns, 0)
   const averageTurnsPerBattle = totalBattles > 0 ? totalTurns / totalBattles : 0
-  const estimatedSecondsLow = estimateDepthClearSeconds(estimate.low, averageTurnsPerBattle, chronoShard, battleSpeedStructureLevel, skillTreeBattleSpeedLevel, chronoShardLevel)
-  const estimatedSecondsMedian = estimateDepthClearSeconds(estimate.medianDepth, averageTurnsPerBattle, chronoShard, battleSpeedStructureLevel, skillTreeBattleSpeedLevel, chronoShardLevel)
-  const estimatedSecondsHigh = estimateDepthClearSeconds(estimate.high, averageTurnsPerBattle, chronoShard, battleSpeedStructureLevel, skillTreeBattleSpeedLevel, chronoShardLevel)
+  const estimatedSecondsLow = estimateDepthClearSeconds(estimate.low, averageTurnsPerBattle, chronoShard, battleSpeedStructureLevel, skillTreeBattleSpeedLevel, chronoShardLevel, floorOverheadSeconds)
+  const estimatedSecondsMedian = estimateDepthClearSeconds(estimate.medianDepth, averageTurnsPerBattle, chronoShard, battleSpeedStructureLevel, skillTreeBattleSpeedLevel, chronoShardLevel, floorOverheadSeconds)
+  const estimatedSecondsHigh = estimateDepthClearSeconds(estimate.high, averageTurnsPerBattle, chronoShard, battleSpeedStructureLevel, skillTreeBattleSpeedLevel, chronoShardLevel, floorOverheadSeconds)
   const auraCardsPerHour = estimatedSecondsMedian > 0 ? estimate.auraPackMedian / (estimatedSecondsMedian / 3600) : 0
   return {
     runs: results,
@@ -116,6 +118,7 @@ function summarize(
     estimatedSecondsMedian,
     estimatedSecondsHigh,
     auraCardsPerHour,
+    floorOverheadSeconds,
     potionRewards,
     hardMode,
     trusted: unsupported.size === 0,
@@ -306,7 +309,7 @@ self.onmessage = async (event: MessageEvent<SimulationRequest>) => {
       return
     }
     const results = await simulateParallel(request)
-    self.postMessage({ id: request.id, ok: true, elapsedMs: performance.now() - started, result: summarize(results, request.bountifulDepths, request.battleSpeedStructureLevel, request.skillTreeBattleSpeedLevel, request.chronoShard !== false, request.hardMode === true, request.chronoShardLevel, request.bountifulDepthsLevel) })
+    self.postMessage({ id: request.id, ok: true, elapsedMs: performance.now() - started, result: summarize(results, request.bountifulDepths, request.battleSpeedStructureLevel, request.skillTreeBattleSpeedLevel, request.chronoShard !== false, request.hardMode === true, request.chronoShardLevel, request.bountifulDepthsLevel, request.floorOverheadSeconds ?? 0.8) })
   } catch (error) {
     self.postMessage({
       id: request.id,

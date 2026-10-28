@@ -10,11 +10,11 @@
  *
  * Timing uses a simplified estimate: each attack takes 1 second divided by
  * effective Battle Speed (and by any long-battle acceleration multiplier).
- * Floors take at least 0.2 seconds. Unlike the previous model, there is no
- * extra fixed battle-start or per-floor delay.
- *
- * The client does not expose the server-controlled `battlecd` duration, so
- * this is a user-calibrated prediction, not a measured server timing guarantee.
+ * The attack phase has a 0.2-second minimum. A separate configurable
+ * 0.8-second per-floor transition allowance covers UI/animation delays that
+ * were omitted from the too-optimistic attack-only estimate. This allowance
+ * is a provisional calibration; the client does not expose the server-side
+ * `battlecd` duration. It can be adjusted against real-world run times.
  * Ability-specific animation delays are not separately modeled.
  */
 export const DEPTHS_BASE_BATTLE_SPEED = 3
@@ -33,6 +33,11 @@ export const DEPTHS_FLOOR_SPEED_STEP_FLOORS = 100
 export const DEPTHS_FLOOR_SPEED_BONUS_CAP = 4.5
 export const BASE_ATTACK_ANIMATION_SECONDS = 1
 export const MIN_DEPTHS_BATTLE_SECONDS = 0.2
+export const DEFAULT_DEPTHS_FLOOR_OVERHEAD_SECONDS = 0.8
+export function normalizeDepthsFloorOverhead(seconds = DEFAULT_DEPTHS_FLOOR_OVERHEAD_SECONDS): number {
+  const value = Number(seconds)
+  return Number.isFinite(value) ? Math.max(0, Math.min(3, value)) : DEFAULT_DEPTHS_FLOOR_OVERHEAD_SECONDS
+}
 
 export function depthsFloorSpeedBonus(floor: number): number {
   const safeFloor = Math.max(1, Math.floor(Number(floor) || 1))
@@ -96,9 +101,11 @@ export function estimateBattleSeconds(
   structureLevel = 0,
   skillTreeLevel = 0,
   chronoShardLevel = 0,
+  floorOverheadSeconds = DEFAULT_DEPTHS_FLOOR_OVERHEAD_SECONDS,
 ): number {
   const speed = effectiveDepthsBattleSpeed(floor, chronoShard, structureLevel, skillTreeLevel, chronoShardLevel)
-  return Math.max(MIN_DEPTHS_BATTLE_SECONDS, attackAnimationSecondsForCount(turns, speed))
+  return normalizeDepthsFloorOverhead(floorOverheadSeconds)
+    + Math.max(MIN_DEPTHS_BATTLE_SECONDS, attackAnimationSecondsForCount(turns, speed))
 }
 
 /** Estimate a full run using the batch's observed average turns per battle. */
@@ -109,12 +116,13 @@ export function estimateDepthClearSeconds(
   structureLevel = 0,
   skillTreeLevel = 0,
   chronoShardLevel = 0,
+  floorOverheadSeconds = DEFAULT_DEPTHS_FLOOR_OVERHEAD_SECONDS,
 ): number {
   const endFloor = Math.max(0, Math.floor(Number(depth) || 0))
   const avgTurns = Math.max(0, Number(averageTurnsPerBattle) || 0)
   let seconds = 0
   for (let floor = 1; floor <= endFloor; floor++) {
-    seconds += estimateBattleSeconds(floor, avgTurns, chronoShard, structureLevel, skillTreeLevel, chronoShardLevel)
+    seconds += estimateBattleSeconds(floor, avgTurns, chronoShard, structureLevel, skillTreeLevel, chronoShardLevel, floorOverheadSeconds)
   }
   return seconds
 }

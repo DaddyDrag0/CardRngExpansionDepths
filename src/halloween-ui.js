@@ -2,7 +2,7 @@
   'use strict';
   const STORE='crx-halloween-tower-v1';
   const DEFAULT_POOL=['Triceratops','Pterodactylus','Mothman','Julius Leader','Anubis','Serket','Neighbor','Tarantula','Ghost','Crow','Grey Pumpkin','The Faceless','Living Armor','Eerie Tree','Pumpkin King','Scarecrow','Banshee','Witch','Poison Witch','Night Witch','Robin Hood','Kuchisake-onna'];
-  const REPORTED=['Vampire Lord','Fuxi','Priest','Pandora','Black Plague','Wendigo','Glamour','Fate Seamstress','Behemoth','Parallax','Sable The Envious','Supreme Ozzy','Ice King','Chaos','Mrs. Claus','Abomination','Pumpkin King'];
+  const REPORTED=['Vampire Lord','Fuxi','Priest','Pandora','Black Plague','Wendigo','Glamour','Fate Seamstress','Behemoth','Parallax','Sable The Envious','Supreme Ozzy','Ice King','Chaos','Mrs. Claus','Abomination','Pumpkin King','Mammoth'];
   const UNAVAILABLE_EVENTS=['Santa Claus','Anubis & Hades','Supreme Frank'];
   const REISSUED_EVENTS=['Pestilence','Famine','War','Death'];
   const legacyCard=c=>UNAVAILABLE_EVENTS.includes(c.name)||
@@ -46,6 +46,20 @@
   const card=name=>all.find(x=>x.name===name);
   const valid=name=>Boolean(card(name));
   const pretty=n=>Math.round(n).toLocaleString('en-US');
+  // 95% Wilson interval for the SIMULATOR's Bernoulli sample; not game-server parity.
+  const modelInterval=(wins,runs)=>{
+    const n=Math.max(0,Number(runs)||0),w=Math.max(0,Math.min(n,Number(wins)||0));
+    if(!n)return [0,1];
+    const z=1.96,p=w/n,d=1+z*z/n;
+    const mid=(p+z*z/(2*n))/d;
+    const margin=z*Math.sqrt((p*(1-p)+z*z/(4*n))/n)/d;
+    return [Math.max(0,mid-margin),Math.min(1,mid+margin)];
+  };
+  const percentage=ratio=>((Number(ratio)||0)*100).toFixed(1)+'%';
+  const modelRange=(wins,runs)=>{
+    const [lo,hi]=modelInterval(wins,runs);
+    return percentage(lo)+'–'+percentage(hi);
+  };
   const banReason=name=>{
     const c=card(name);if(!c)return 'Unknown card';
     if(c.unobtainable)return 'Unavailable card';
@@ -161,16 +175,17 @@
         +(bad?'<span class="hwt-stats">'+esc(bad)+'</span>':'')+'</div></div>';
     }).join('');
     const result=state.result?state.result.error?'<div class="hwt-alert">'+esc(state.result.error)+'</div>'
-      :'<div class="hwt-metrics"><div><strong>'+(state.result.winRate*100).toFixed(1)+'%</strong><small>Win rate</small></div>'
-       +'<div><strong>'+state.result.wins+' / '+state.result.runs+'</strong><small>Wins</small></div>'
+      :'<div class="hwt-metrics"><div><strong>'+state.result.wins+' / '+state.result.runs+'</strong><small>Simulated wins</small></div>'
+       +'<div><strong>'+modelRange(state.result.wins,state.result.runs)+'</strong><small>95% model interval</small></div>'
        +'<div><strong>'+(state.result.progress*100).toFixed(0)+'%</strong><small>Enemy progress</small></div></div>'
+       +'<p class="hwt-hint">Results are from a limited combat model, not verified Roblox win odds. All sampled wins do not guarantee success in-game.</p>'
       :'';
     const results=state.search?.error?'<div class="hwt-alert">'+esc(state.search.error)+'</div>'
       :state.search?.recommendations?.length?'<div class="hwt-recs">'+state.search.recommendations.map((rec,i)=>{
          return '<div class="hwt-rec"><span class="hwt-rank">'+(i+1)+'</span><div class="hwt-rec-body"><strong>'
           +rec.loadout.cards.map(c=>esc(c.cardName)).join(' <span class="hwt-slash">/</span> ')
-          +'</strong><small>'+(rec.winRate*100).toFixed(1)+'% <span class="hwt-slash">·</span> '+rec.wins+'/'+rec.runs
-          +(rec.trusted?'':' <span class="hwt-warning">· Unverified</span>')+'</small></div>'
+          +'</strong><small>'+rec.wins+'/'+rec.runs+' model wins <span class="hwt-slash">·</span> 95% interval '+modelRange(rec.wins,rec.runs)
+          +' <span class="hwt-warning">· Not guaranteed</span>'+(rec.trusted?'':' <span class="hwt-warning">· Missing abilities</span>')+'</small></div>'
           +'<button data-hwt-load="'+i+'" class="hwt-secondary">Use deck</button></div>';
       }).join('')+'</div>'
       :'';
@@ -196,7 +211,7 @@
       +(busy?'<div class="hwt-progress">'+esc(busy)+'</div>':'')
       +results+'</section>')
       +(infinite?'':banDisclosure)
-      +'<p class="hwt-fineprint">'+(infinite?'Infinite preview uses the new game client; combat rules are unverified.':'Simulated results may differ in-game.')+'</p>'
+      +'<p class="hwt-fineprint">'+(infinite?'Infinite preview uses the new game client; combat rules are unverified.':'Estimated results only. Even 256/256 simulated wins cannot guarantee a real victory; server-side timing and abilities may differ.')+'</p>'
       +'<datalist id="hwt-player-list">'+available.map(c=>'<option value="'+esc(c.name)+'"></option>').join('')+'</datalist>'
       +'<datalist id="hwt-enemy-list">'+names.map(n=>'<option value="'+esc(n)+'"></option>').join('')+'</datalist></main>';
     bind();

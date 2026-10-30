@@ -53,7 +53,7 @@ assert.equal(halloweenPackReward(105),25_600_000)
 assert.equal(halloweenBanReason('Vampire Lord'), 'Reported Halloween Tower ban')
 assert.equal(halloweenBanReason('Fuxi'), 'Reported Halloween Tower ban')
 assert.equal(halloweenBanReason('Pumpkin King'), 'Reported Halloween Tower ban')
-for(const name of ['Behemoth','Parallax','Fate Seamstress','Sable The Envious','Supreme Ozzy','Ice King','Chaos','Mrs. Claus','Abomination','Pumpkin King']){
+for(const name of ['Behemoth','Parallax','Fate Seamstress','Sable The Envious','Supreme Ozzy','Ice King','Chaos','Mrs. Claus','Abomination','Pumpkin King','Mammoth']){
   assert.equal(halloweenBanReason(name),'Reported Halloween Tower ban',name+' must be excluded')
 }
 assert.ok(cards.some(c=>c.weather==='Rapture'))
@@ -63,6 +63,7 @@ assert.ok(halloweenCheckTeam(own('Ghost','Ghost','Triceratops','Mothman')).some(
 assert.ok(halloweenCheckTeam(own('Julius Leader','Triceratops','Triceratops','Mothman')).some(x=>x.includes('duplicate copies')),'No duplicate Triceratops even with just one Julius')
 assert.ok(halloweenCheckTeam(own('Triceratops','Mothman','Abomination','Julius Leader')).some(x=>x.includes('Abomination')))
 assert.ok(halloweenCheckTeam(own('Triceratops','Mothman','Pumpkin King','Julius Leader')).some(x=>x.includes('Pumpkin King')))
+assert.ok(halloweenCheckTeam(own('Triceratops','Mothman','Mammoth','Julius Leader')).some(x=>x.includes('Mammoth')),'Mammoth must be banned from player teams')
 for(const name of ['Santa Claus','Supreme Frank','Anubis & Hades']){
   assert.ok(HALLOWEEN_UNAVAILABLE_EVENT_NAMES.some(x=>x===name))
   assert.ok(halloweenUnavailableEvent(name))
@@ -94,7 +95,7 @@ assert.equal(summary.wins+summary.losses+summary.draws,8)
 assert.ok(summary.progress>=0&&summary.progress<=1)
 // Small configurable pool: check all recommendation decks against reported bans.
 const search=searchHalloweenTower(['Zombie','Zombie','Zombie','Zombie'],5,15,{
-  pool:['Triceratops','Mothman','Pterodactylus','Serket','Julius Leader','Fuxi','Vampire Lord','Santa Claus','Anubis & Hades','Supreme Frank'],
+  pool:['Triceratops','Mothman','Pterodactylus','Serket','Julius Leader','Fuxi','Vampire Lord','Santa Claus','Anubis & Hades','Supreme Frank','Mammoth'],
   borders,
   extraBans:[],
 })
@@ -112,13 +113,15 @@ for(const label of search.labels){
   assert.ok(label.winInterval[0]<=label.pWin&&label.winInterval[1]>=label.pWin)
   assert.equal(new Set(label.allies).size,4)
 }
-assert.ok(!search.eligiblePool.includes('Fuxi')&&!search.eligiblePool.includes('Vampire Lord'))
+assert.ok(!search.eligiblePool.includes('Fuxi')&&!search.eligiblePool.includes('Vampire Lord')&&!search.eligiblePool.includes('Mammoth'))
 for(const n of ['Santa Claus','Anubis & Hades','Supreme Frank','Sable The Envious','Supreme Ozzy']){
   assert.ok(!search.eligiblePool.includes(n),n+' excluded')
 }
 const example=search.recommendations[0]
 const interval=wilsonBounds(example.wins,example.runs)
 assert.ok(interval[0]>=0&&interval[1]<=1)
+const perfectModelInterval=wilsonBounds(256,256)
+assert.ok(perfectModelInterval[0]<1&&perfectModelInterval[0]>0.98,'256/256 simulated wins cannot mean guaranteed 100%')
 assert.ok(Number.isFinite(optimisticHalloweenScore(example)))
 const labelExample=halloweenBattleLabel(example,5,example.loadout.cards.map(c=>c.cardName),['Zombie','Zombie','Zombie','Zombie'],42)
 assert.equal(labelExample.estimated,true)

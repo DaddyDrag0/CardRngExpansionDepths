@@ -45,7 +45,7 @@ const cardByName=name=>cardList.find(c=>c.name===name);
 const portrait=name=>{const card=cardByName(name),src=card&&thumbs[String(card.imageAssetId)];return `<span class="cc-portrait">${src?`<img loading="lazy" src="${esc(src)}" alt="">`:`<span>${esc((name||"?").slice(0,1))}</span>`}</span>`};
 const poolDefaults=["Judgment Day","Robin Hood","Parallax","Piccolo","Pandora","Kuchisake-onna","Fate Seamstress","Kira","Hell's Army","Noveau Riche"];
 function selectCards(){
- const cards=s.team.map((name,i)=>`<div class="tc-member">${portrait(name)}<label>${rowLabel(`Card ${i+1}`)}<input list="tc-cards" data-team="${i}" value="${esc(name)}" placeholder="Card name"></label><label>${rowLabel("Border")}<select data-border="${i}">${opts(["","Platinum","Crystal","Ruby","Galaxy"],s.borders[i]||"")}</select></label><label>${rowLabel("Mutation")}<select data-mutation="${i}">${opts(["","Storm","Snow","Aurora","Shroud","Meteor Shower","Time Storm","Eclipse","Virus","Blood Rain","Armageddon","Manga","Pumpkin Moon","The Great Deluge","Reality Fracture","Dreamfall"],s.mutations[i]||"")}</select></label></div>`).join("");
+ const cards=s.team.map((name,i)=>`<div class="tc-member">${portrait(name)}<div class="tc-member-fields"><label>${rowLabel(`Card ${i+1}`)}<input list="tc-cards" data-team="${i}" value="${esc(name)}" placeholder="Choose card"></label><div class="tc-member-details"><label>${rowLabel("Border")}<select data-border="${i}">${opts(["","Platinum","Crystal","Ruby","Galaxy"],s.borders[i]||"")}</select></label><label>${rowLabel("Mutation")}<select data-mutation="${i}">${opts(["","Storm","Snow","Aurora","Shroud","Meteor Shower","Time Storm","Eclipse","Virus","Blood Rain","Armageddon","Manga","Pumpkin Moon","The Great Deluge","Reality Fracture","Dreamfall"],s.mutations[i]||"")}</select></label></div></div></div>`).join("");
  return `<datalist id="tc-cards">${cardList.map(c=>`<option value="${esc(c.name)}"></option>`).join("")}</datalist><div class="tc-team">${cards}</div>`;
 }
 function render(){
@@ -59,12 +59,13 @@ function render(){
    output=`<div class="tc-results"><div class="tc-results-title">Cheese results</div>${recommendations.length?recommendations.map((v,i)=>`<div class="tc-recommend"><strong>${i+1}. ${(v.winRate*100).toFixed(1)}%</strong><span>${v.loadout.cards.map(c=>`<span class="tc-rec-card">${portrait(c.cardName)}<b>${esc(c.cardName)}</b></span>`).join("")}</span><small>${esc(v.loadout.abilityAura?.auraName||"No ability Aura")} · ${nice(v.averageTurns||0)} turns ${v.trusted===false?"· Model limits":""}</small><button data-use="${i}" type="button">Use team</button></div>`).join(""):`<p>No winning decks in the selected pool.</p>`}</div>`;
  }else if(result?.wins!==undefined)output=`<div class="tc-result-simple"><strong>${(result.winRate*100).toFixed(1)}% wins</strong><span>${result.wins}/${result.runs} battles · ${nice(result.averageTurns)} avg turns ${result.trusted===false?"· Some ability interactions unsupported":""}</span></div>`;
  return `<div class="tc">
+ <div class="cc-page-top tc-page-top"><h2>Tower Cheese</h2><small>Find a team for any floor</small></div>
  <div class="tc-bar"><label>${rowLabel("Tower")}<select id="tc-tower">${opts(cfg.order,s.tower)}</select></label><label>${rowLabel("Floor")}<input id="tc-floor" type="number" min="1" max="105" value="${floor}"></label><label>${rowLabel("Simulation runs")}<select id="tc-runs">${opts(["100","200","500","1000"],String(s.runs))}</select></label></div>
  <div class="tc-stats"><strong>${nice(hp)} HP</strong><strong>${nice(attack)} ATK</strong><span>${t.set} boss teams · ${t.border||"No"} border</span></div>
  ${rules?`<div class="tc-rules">${esc(rules)}</div>`:""}${blocked.length?`<div class="tc-bans">Banned: ${blocked.map(esc).join(", ")}</div>`:""}
- <div class="tc-label"><h3>Enemy team</h3><small>${e.exact?"Fixed lineup from game data":"Editable preview for random floor"}</small></div>
- <div class="tc-enemies">${e.names.map((name,i)=>`<div class="tc-enemy-card">${portrait(name)}<label>${rowLabel(`Enemy ${i+1}`)}<input list="tc-cards" data-enemy="${i}" value="${esc(name)}" ${e.exact?"readonly":""} aria-label="Enemy ${i+1}"><span class="tc-ability">${esc(cardByName(name)?.ability||"")}</span></label></div>`).join("")}</div>
- <div class="tc-label"><h3>Your deck</h3><small>Select cards or run Cheese search</small></div>
+ <div class="tc-label"><h3>Enemy team</h3><small>${e.exact?"Fixed lineup":"Edit random floor enemies"}</small></div>
+ <div class="tc-enemies">${e.names.map((name,i)=>`<div class="tc-enemy-card">${portrait(name)}<div class="tc-enemy-info"><span class="tc-enemy-label">Enemy ${i+1}</span>${e.exact?`<strong class="tc-enemy-name" title="${esc(name)}">${esc(name)}</strong>`:`<input list="tc-cards" data-enemy="${i}" value="${esc(name)}" aria-label="Enemy ${i+1}">`}<span class="tc-ability" title="${esc(cardByName(name)?.ability||"")}">${esc(cardByName(name)?.ability||"")}</span></div></div>`).join("")}</div>
+ <div class="tc-label"><h3>Your deck</h3><small>Choose four cards</small></div>
  ${selectCards()}
  <details class="tc-extra"><summary>Search options</summary><div class="tc-extra-grid"><div style="grid-column:1/-1"><small style="color:var(--muted)">Search pool — click cards to disable them</small><div class="tc-pool-list">${poolDefaults.map(name=>`<button type="button" class="${parsing(s.excludedPool).includes(name)?"off":""}" data-tc-pool="${esc(name)}">${esc(name)}</button>`).join("")}</div></div><label>${rowLabel("Add card to search")}<input list="tc-cards" id="tc-pool-input" value="${esc(s.poolQuery)}" placeholder="Card name"></label><button type="button" id="tc-pool-add">Add card</button><div class="tc-added-list">${(s.addedCards||[]).map(n=>`<button type="button" data-tc-remove="${esc(n)}">${esc(n)} ×</button>`).join("")}</div>
  <label>${rowLabel("Ability Aura (manual)")}<input id="tc-aura" value="${esc(s.abilityAura)}" placeholder="None"></label>
@@ -73,9 +74,9 @@ function render(){
  <label>${rowLabel("Excluded cards (comma separated)")}<textarea id="tc-excluded" rows="2">${esc(s.excludedPool)}</textarea></label>
  <label class="tc-check"><input type="checkbox" id="tc-ownedonly" ${s.ownedOnly?"checked":""}> Search only owned cards</label>
  </div></details>
- <div class="tc-actions"><button id="tc-simulate" ${s.running?"disabled":""} type="button">Simulate deck</button><button id="tc-cheese" ${s.running?"disabled":""} type="button">Find Cheese</button><span id="tc-progress">${s.running?"Running…":s.error?esc(s.error):""}</span></div>
+ <div class="tc-actions"><button id="tc-cheese" ${s.running?"disabled":""} type="button">Find Cheese</button><button id="tc-simulate" ${s.running?"disabled":""} type="button">Simulate deck</button><span id="tc-progress" role="status" aria-live="polite">${s.running?"Running…":s.error?esc(s.error):""}</span></div>
  ${output}
- <div class="tc-disclaimer">${!e.exact?"Non-boss enemy combinations use an estimated preview seed. Match your in-game enemies for accurate matchup selection. ":""}${t.freezeChance||t.noHealing||t.stun?"Special status effects are not fully simulated yet. ":""}Combat results are estimates.</div>
+ <div class="tc-disclaimer">${!e.exact?"Random enemy lineup is an estimate. ":""}${t.freezeChance||t.noHealing||t.stun?"Some special effects are approximate. ":""}Simulated results.</div>
  </div>`;
 }
 function bind(root,rerender){

@@ -80,3 +80,7 @@
 @media(max-width:1000px){.crx-testmark{margin-right:0}.theme-switcher{position:relative!important;top:auto!important;right:auto!important;margin:6px 20px!important}.tc-recommend{grid-template-columns:90px 1fr 90px}.tc-recommend small{grid-column:2}.tc-recommend button{grid-column:3;grid-row:1/3}}
 @media(max-width:700px){.crx-mini-inner{width:calc(100% - 22px);min-height:64px;flex-wrap:wrap;gap:3px;padding:11px 0 0}.crx-mini-brand{font-size:17px}.crx-mini-inner nav{order:3;width:100%;overflow:auto;gap:2px}.crx-mini-inner nav button{padding:13px 10px}.crx-testmark{margin-left:auto}#crx-simple-view{width:calc(100% - 22px);padding-top:22px}.crx-quick-stats{gap:23px}.crx-quick-stats strong{font-size:20px}.tc-enemies{grid-template-columns:repeat(2,minmax(0,1fr))}.tc-member{grid-template-columns:1fr 94px 135px;gap:6px}.tc-extra-grid{grid-template-columns:1fr}.crx-drop-cols{grid-template-columns:1fr}.tc-recommend{grid-template-columns:1fr auto}.tc-recommend strong{grid-column:1}.tc-recommend span,.tc-recommend small{grid-column:1}.tc-recommend button{grid-column:2;grid-row:1/4}}
 @media(max-width:480px){.tc-member{grid-template-columns:1fr 86px 105px}.tc-member label{font-size:9px}.tc-enemies{grid-template-columns:1fr 1fr}.tc-stats{gap:10px;flex-wrap:wrap}}
+
+/* Original in-page tabs are replaced by the compact top navigation. */
+#root [data-tower-tab],#root [data-halloween-tab]{display:none!important}
+#root .source-tab[data-view="tower"],#root .source-tab[data-view="halloween"]{display:none!important}

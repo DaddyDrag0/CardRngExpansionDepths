@@ -36,8 +36,9 @@ if(e.kind==="new-tower-cheese"||e.kind==="new-tower-sim"){
       if((e.loadout?.cards||[]).length!==4)throw new Error("Select four cards.");
       for(const c of e.loadout.cards){
         if(blocked.has(c.cardName))throw new Error(c.cardName+" is banned in this activity.");
-        if(__towerContext.mutatedOnly&&!c.mutationWeather)throw new Error("Mutation Tower requires mutated cards.");}if(__towerContext.maxRapture!=null&&e.loadout.cards.filter(c=>Te.get(c.cardName)?.weather==="Rapture").length>__towerContext.maxRapture)throw new Error("You can use at most "+__towerContext.maxRapture+" Rapture card in this boss battle.");for(const c of [] ){
+        if(__towerContext.mutatedOnly&&!c.mutationWeather)throw new Error("Mutation Tower requires mutated cards.");
       }
+      if(__towerContext.maxRapture!=null&&e.loadout.cards.filter(c=>Te.get(c.cardName)?.weather==="Rapture").length>__towerContext.maxRapture)throw new Error("You can use at most "+__towerContext.maxRapture+" Rapture card in this boss battle.");
       const result=rs(e.loadout,e.enemyNames,e.floor,conf,e.runs||200,e.seed||1,(done,total)=>self.postMessage({kind:"new-tower-progress",id:e.id,done,total}));
       self.postMessage({kind:"new-tower-result",id:e.id,ok:true,result,elapsedMs:performance.now()-s});return;
     }

@@ -88,6 +88,7 @@ function bind(root,rerender){
   state.mutations=rec.loadout.cards.map(x=>x.mutationWeather||"");state.abilityAura=rec.loadout.abilityAura?.auraName||"";
   state.result=null;save();rerender();
  }));
+ window.CRXCheeseCardSearch?.attach(root,cards,thumbs);
 }
 function run(kind,rerender){
  if(state.running)return;

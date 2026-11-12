@@ -3,7 +3,7 @@
 const source=window.CRXBossData2026;
 if(!source)return;
 const SAVE="crx-boss-cheese-2026-v1";
-const defaults={bossId:"Sin_Chronus",difficulty:1,runs:200,team:["Robin Hood","Pandora","Noveau Riche","Kuchisake-onna"],borders:["","","",""],mutations:["","","",""],abilityAura:"End Times",excluded:[],added:[],poolQuery:"",ownedOnly:false,owned:"",excludedExtra:"",redGem:0,result:null,error:"",running:false};
+const defaults={bossId:"Sin_Chronus",difficulty:1,runs:200,team:["Robin Hood","Pandora","Noveau Riche","Kuchisake-onna"],borders:["","","",""],mutations:["","","",""],abilityAura:"End Times",excluded:[],added:[],poolQuery:"",optionsOpen:false,ownedOnly:false,owned:"",excludedExtra:"",redGem:0,result:null,error:"",running:false};
 let state={...defaults};
 try{state={...state,...JSON.parse(localStorage.getItem(SAVE)||"{}"),running:false,result:null,error:""};}catch(_){}
 let cards=[],thumbs={},worker=null,loading=false,seq=0,rerenderFn=null;
@@ -46,7 +46,7 @@ function render(){
  <div class="cc-enemies">${level.team.map((name,i)=>`<div class="cc-enemy">${portrait(name,"large")}<div class="cc-enemy-info"><small>Enemy ${i+1}</small><b title="${esc(name)}">${esc(name)}</b><span title="${esc(card(name)?.ability||"")}">${esc(card(name)?.ability||"")}</span></div></div>`).join("")}</div>
  <div class="cc-heading"><h3>Your deck</h3><small>${raptures}/1 Rapture selected</small></div>
  ${deckInputs()}
- <details class="cc-options"><summary>Search pool & options</summary><div class="cc-pool"><p>Click cards you don't own to exclude them.</p><div class="cc-pool-list">${getPool().map(x=>`<button type="button" class="${state.excluded.includes(x)?"off":""}" data-bc-toggle="${esc(x)}">${esc(x)}${state.excluded.includes(x)?" (off)":""}</button>`).join("")}</div><label>Add card to pool<input list="bc-cardnames" id="bc-poolinput" value="${esc(state.poolQuery)}" placeholder="Type a card name"></label><button type="button" id="bc-add">Add card</button><div class="cc-added">${state.added.map(x=>`<button type="button" data-bc-remove="${esc(x)}">${esc(x)} ×</button>`).join("")}</div><label>Other excluded cards<textarea id="bc-excluded" rows="2" placeholder="Name, Name">${esc(state.excludedExtra)}</textarea></label><label>Owned cards (optional)<textarea id="bc-owned" rows="2" placeholder="Enter your owned cards">${esc(state.owned)}</textarea></label><label class="cc-ownership"><input id="bc-ownedonly" type="checkbox" ${state.ownedOnly?"checked":""}> Search only owned cards</label><label>Ability Aura<input id="bc-aura" value="${esc(state.abilityAura)}"></label><label>Red Gem PvE bonus %<input id="bc-redgem" type="number" min="0" max="100" value="${esc(state.redGem)}"></label></div></details>
+ <details class="cc-options" ${state.optionsOpen?"open":""}><summary>Search pool & options</summary><div class="cc-pool"><p>Click cards you don't own to exclude them.</p><div class="cc-pool-list">${getPool().map(x=>`<button type="button" class="${state.excluded.includes(x)?"off":""}" data-bc-toggle="${esc(x)}">${esc(x)}${state.excluded.includes(x)?" (off)":""}</button>`).join("")}</div><label>Add card to pool<input list="bc-cardnames" id="bc-poolinput" value="${esc(state.poolQuery)}" placeholder="Type a card name"></label><button type="button" id="bc-add">Add card</button><div class="cc-added">${state.added.map(x=>`<button type="button" data-bc-remove="${esc(x)}">${esc(x)} ×</button>`).join("")}</div><label>Other excluded cards<textarea id="bc-excluded" rows="2" placeholder="Name, Name">${esc(state.excludedExtra)}</textarea></label><label>Owned cards (optional)<textarea id="bc-owned" rows="2" placeholder="Enter your owned cards">${esc(state.owned)}</textarea></label><label class="cc-ownership"><input id="bc-ownedonly" type="checkbox" ${state.ownedOnly?"checked":""}> Search only owned cards</label><label>Ability Aura<input id="bc-aura" value="${esc(state.abilityAura)}"></label><label>Red Gem PvE bonus %<input id="bc-redgem" type="number" min="0" max="100" value="${esc(state.redGem)}"></label></div></details>
  <datalist id="bc-cardnames">${cards.map(c=>`<option value="${esc(c.name)}"></option>`).join("")}</datalist>
  <div class="cc-actions"><button id="bc-search" type="button" ${state.running?"disabled":""}>Find Cheese</button><button id="bc-test" type="button" ${state.running?"disabled":""}>Simulate deck</button><span id="bc-progress" role="status" aria-live="polite">${state.running?"Running…":esc(state.error)}</span></div>
  ${results()}
@@ -55,6 +55,7 @@ function render(){
 }
 function bind(root,rerender){
  rerenderFn=rerender;
+ root.querySelector(".cc-options")?.addEventListener("toggle",e=>{if(state.optionsOpen!==e.target.open){state.optionsOpen=e.target.open;save()}});
  const evt=(id,action)=>root.querySelector("#"+id)?.addEventListener("change",e=>{action(e.target);state.result=null;save();rerender()});
  evt("bc-group",el=>{state.bossId=source.bosses.find(x=>x.group===el.value)?.id||state.bossId});
  evt("bc-boss",el=>state.bossId=el.value);

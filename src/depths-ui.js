@@ -333,7 +333,7 @@
   const mutationEligible=card=>Boolean(card&&!card.weather&&!card.boss&&!card.expires&&!card.unobtainable);
   function getPower(card,borders=[],mutationWeather=''){if(!card)return 0;const rarity=card.name==='Ouroboros'?100000000000000:rarityWithBorders(card,borders);const mutation=MUTATION_MULT[mutationWeather]||1;return rarity>0?Math.pow(2,Math.log10(rarity))*10*(card.statMultiplier||1)*mutation:0}
   const getAttack=(card,borders=[],mutationWeather='')=>getPower(card,borders,mutationWeather)/2,getHealth=(card,borders=[],mutationWeather='')=>getPower(card,borders,mutationWeather)*(card?.hpMultiplier||1);
-  function auraValue(aura,border){if(!aura)return 0;if(aura.type==='Stat'){const rarity=(Number(aura.rarity)||0)*(AURA_RARITY_MULT[border]||1);return rarity>0?Math.floor(Math.pow(2,Math.log10(rarity))/2):0}const tier=AURA_TIER[border]||0,custom=AURA_CUSTOM[aura.name];return custom?(custom[tier]??custom[0]??0):(Number(aura.base)||0)+(Number(aura.perLevel)||0)*tier}
+  function auraValue(aura,border){if(!aura)return 0;if(aura.type==='Stat'){const rarity=(Number(aura.rarity)||0)*(AURA_RARITY_MULT[border]||1);return rarity>0?Math.floor(Math.pow(2,Math.log10(rarity))/2):0}const tier=AURA_TIER[border]||0,custom=AURA_CUSTOM[aura.name];return (custom||aura.customValues)?.[tier]??((Number(aura.base)||0)+(Number(aura.perLevel)||0)*tier)}
   function resolveStatText(text,value){return String(text||'').replace(/(\d+(?:\.\d+)?)?STAT/g,(_,coef)=>pct((coef?Number(coef):1)*value))}
   function auraSummary(aura,border){
   if(!aura)return '';

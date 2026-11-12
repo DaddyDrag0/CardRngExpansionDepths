@@ -7,6 +7,14 @@ const defaults={bossId:"Sin_Chronus",difficulty:1,runs:200,team:["Robin Hood","P
 let state={...defaults};
 try{state={...state,...JSON.parse(localStorage.getItem(SAVE)||"{}"),running:false,result:null,error:""};}catch(_){}
 let cards=[],thumbs={},worker=null,loading=false,seq=0,rerenderFn=null;
+function revealCheeseResults(selector){
+ window.requestAnimationFrame?.(()=>{
+  const node=document.querySelector("#crx-simple-view "+selector.split(",").join(",#crx-simple-view "));
+  if(!node)return;
+  const rect=node.getBoundingClientRect();
+  if(rect.top>window.innerHeight-100)node.scrollIntoView({behavior:window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches?"auto":"smooth",block:"nearest"});
+ });
+}
 const esc=x=>String(x??"").replace(/[&<>"']/g,t=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[t]));
 const fmt=x=>new Intl.NumberFormat("en-US",{notation:"compact",maximumFractionDigits:2}).format(x);
 const parse=x=>String(x||"").split(/[,;\n]/).map(x=>x.trim()).filter(Boolean);
@@ -96,7 +104,7 @@ function run(kind,rerender){
  worker.onmessage=e=>{
   const msg=e.data||{};if(msg.id!==id)return;
   if(msg.kind==="new-tower-progress"){const el=document.getElementById("bc-progress");if(el)el.textContent=msg.step?.phase?`${msg.step.phase} ${msg.step.completed||0}/${msg.step.total||0}`:`${msg.done||0}/${msg.total||0}`;return;}
-  state.running=false;if(msg.ok)state.result=msg.result;else state.error=msg.error||"Simulation failed";rerender();
+  state.running=false;if(msg.ok)state.result=msg.result;else state.error=msg.error||"Simulation failed";rerender();if(msg.ok)revealCheeseResults(".cc-results");
  };
  worker.onerror=e=>{state.running=false;state.error=e.message||"Worker error";rerender()};
  const arg={kind,id,enemyNames:level.team,floor:Number(state.difficulty),attack:level.attack,hp:level.hp,mode:{maxRapture:source.maxRaptureCards,enemyAura:level.enemyAura,enemyAuraBorder:"Galaxy"},gemPveBonus:state.redGem,banned,excludedCards:[...new Set([...state.excluded,...parse(state.excludedExtra)])],addedCards:[...new Set([...state.added,...(state.ownedOnly?owned:[])])],hasGuardianAngel:true,hasEndTimes:true,seed:17,runs:state.runs,onlyOwned:state.ownedOnly,ownedCards:owned};

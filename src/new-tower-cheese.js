@@ -3,7 +3,7 @@
 const cfg=window.CRXTowerConfig2026;
 if(!cfg)return;
 const STORE="crx-2026-tower-cheese-v1";
-const defaults={tower:"Normal",floor:105,seed:117,runs:200,team:["Robin Hood","Noveau Riche","Pandora","Kuchisake-onna"],borders:["","","",""],mutations:["","","",""],abilityAura:"Guardian Angel",gemPveBonus:0,searchMutation:"Storm",ownedOnly:false,ownedPool:"",excludedPool:"",addedCards:[],poolQuery:"",customEnemy:["","","",""],result:null,error:"",running:false};
+const defaults={tower:"Normal",floor:105,seed:117,runs:200,team:["Robin Hood","Noveau Riche","Pandora","Kuchisake-onna"],borders:["","","",""],mutations:["","","",""],abilityAura:"Guardian Angel",gemPveBonus:0,searchMutation:"Storm",ownedOnly:false,ownedPool:"",excludedPool:"",addedCards:[],poolQuery:"",optionsOpen:false,customEnemy:["","","",""],result:null,error:"",running:false};
 let s={...defaults};
 try{s={...s,...JSON.parse(localStorage.getItem(STORE)||"{}"),running:false,result:null,error:""};}catch(_){}
 let cardList=[],thumbs={},worker=null,requestId=0,cardsLoading=false;
@@ -67,7 +67,7 @@ function render(){
  <div class="tc-enemies">${e.names.map((name,i)=>`<div class="tc-enemy-card">${portrait(name)}<div class="tc-enemy-info"><span class="tc-enemy-label">Enemy ${i+1}</span>${e.exact?`<strong class="tc-enemy-name" title="${esc(name)}">${esc(name)}</strong>`:`<input list="tc-cards" data-enemy="${i}" value="${esc(name)}" aria-label="Enemy ${i+1}">`}<span class="tc-ability" title="${esc(cardByName(name)?.ability||"")}">${esc(cardByName(name)?.ability||"")}</span></div></div>`).join("")}</div>
  <div class="tc-label"><h3>Your deck</h3><small>Choose four cards</small></div>
  ${selectCards()}
- <details class="tc-extra"><summary>Search options</summary><div class="tc-extra-grid"><div style="grid-column:1/-1"><small style="color:var(--muted)">Search pool — click cards to disable them</small><div class="tc-pool-list">${poolDefaults.map(name=>`<button type="button" class="${parsing(s.excludedPool).includes(name)?"off":""}" data-tc-pool="${esc(name)}">${esc(name)}</button>`).join("")}</div></div><label>${rowLabel("Add card to search")}<input list="tc-cards" id="tc-pool-input" value="${esc(s.poolQuery)}" placeholder="Card name"></label><button type="button" id="tc-pool-add">Add card</button><div class="tc-added-list">${(s.addedCards||[]).map(n=>`<button type="button" data-tc-remove="${esc(n)}">${esc(n)} ×</button>`).join("")}</div>
+ <details class="tc-extra" ${s.optionsOpen?"open":""}><summary>Search options</summary><div class="tc-extra-grid"><div style="grid-column:1/-1"><small style="color:var(--muted)">Search pool — click cards to disable them</small><div class="tc-pool-list">${poolDefaults.map(name=>`<button type="button" class="${parsing(s.excludedPool).includes(name)?"off":""}" data-tc-pool="${esc(name)}">${esc(name)}</button>`).join("")}</div></div><label>${rowLabel("Add card to search")}<input list="tc-cards" id="tc-pool-input" value="${esc(s.poolQuery)}" placeholder="Card name"></label><button type="button" id="tc-pool-add">Add card</button><div class="tc-added-list">${(s.addedCards||[]).map(n=>`<button type="button" data-tc-remove="${esc(n)}">${esc(n)} ×</button>`).join("")}</div>
  <label>${rowLabel("Ability Aura (manual)")}<input id="tc-aura" value="${esc(s.abilityAura)}" placeholder="None"></label>
  <label>${rowLabel("Red Gem PvE bonus %")}<input id="tc-redgem" type="number" min="0" max="100" step="2.5" value="${esc(s.gemPveBonus)}"></label>${t.mutatedOnly?`<label>${rowLabel("Search mutation weather")}<select id="tc-search-mutation">${opts(["Storm","Snow","Aurora","Shroud","Meteor Shower","Time Storm","Eclipse","Virus","Blood Rain","Armageddon","Manga","Pumpkin Moon","The Great Deluge","Reality Fracture","Dreamfall"],s.searchMutation)}</select></label>`:""}
  <label>${rowLabel("Owned cards (comma separated)")}<textarea id="tc-owned" rows="2" placeholder="Card 1, Card 2, Card 3...">${esc(s.ownedPool)}</textarea></label>
@@ -81,6 +81,7 @@ function render(){
 }
 function bind(root,rerender){
  const el=id=>root.querySelector("#"+id);
+ root.querySelector(".tc-extra")?.addEventListener("toggle",e=>{if(s.optionsOpen!==e.target.open){s.optionsOpen=e.target.open;save()}});
  function change(id,key,convert=x=>x){const n=el(id);n?.addEventListener("change",()=>{s[key]=convert(n.value);s.result=null;s.error="";save();rerender()})}
  change("tc-tower","tower",x=>{s.customEnemy=["","","",""];return x});
  change("tc-floor","floor",x=>{s.customEnemy=["","","",""];return Math.max(1,Math.min(105,Number(x)||1))});

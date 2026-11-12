@@ -66,7 +66,7 @@ function render(){
  <div class="tc-enemies">${e.names.map((name,i)=>`<div class="tc-enemy-card">${portrait(name)}<label>${rowLabel(`Enemy ${i+1}`)}<input list="tc-cards" data-enemy="${i}" value="${esc(name)}" ${e.exact?"readonly":""} aria-label="Enemy ${i+1}"><span class="tc-ability">${esc(cardByName(name)?.ability||"")}</span></label></div>`).join("")}</div>
  <div class="tc-label"><h3>Your deck</h3><small>Select cards or run Cheese search</small></div>
  ${selectCards()}
- <details class="tc-extra"><summary>Search options</summary><div class="tc-extra-grid">
+ <details class="tc-extra"><summary>Search options</summary><div class="tc-extra-grid"><div style="grid-column:1/-1"><small style="color:var(--muted)">Search pool — click cards to disable them</small><div class="tc-pool-list">${poolDefaults.map(name=>`<button type="button" class="${parsing(s.excludedPool).includes(name)?"off":""}" data-tc-pool="${esc(name)}">${esc(name)}</button>`).join("")}</div></div><label>${rowLabel("Add card to search")}<input list="tc-cards" id="tc-pool-input" value="${esc(s.poolQuery)}" placeholder="Card name"></label><button type="button" id="tc-pool-add">Add card</button><div class="tc-added-list">${(s.addedCards||[]).map(n=>`<button type="button" data-tc-remove="${esc(n)}">${esc(n)} ×</button>`).join("")}</div>
  <label>${rowLabel("Ability Aura (manual)")}<input id="tc-aura" value="${esc(s.abilityAura)}" placeholder="None"></label>
  <label>${rowLabel("Red Gem PvE bonus %")}<input id="tc-redgem" type="number" min="0" max="100" step="2.5" value="${esc(s.gemPveBonus)}"></label>${t.mutatedOnly?`<label>${rowLabel("Search mutation weather")}<select id="tc-search-mutation">${opts(["Storm","Snow","Aurora","Shroud","Meteor Shower","Time Storm","Eclipse","Virus","Blood Rain","Armageddon","Manga","Pumpkin Moon","The Great Deluge","Reality Fracture","Dreamfall"],s.searchMutation)}</select></label>`:""}
  <label>${rowLabel("Owned cards (comma separated)")}<textarea id="tc-owned" rows="2" placeholder="Card 1, Card 2, Card 3...">${esc(s.ownedPool)}</textarea></label>
@@ -93,6 +93,17 @@ function bind(root,rerender){
  el("tc-search-mutation")?.addEventListener("change",e=>{s.searchMutation=e.target.value;save()});
  el("tc-redgem")?.addEventListener("change",e=>{s.gemPveBonus=Math.max(0,Math.min(100,Number(e.target.value)||0));save()});
  el("tc-ownedonly")?.addEventListener("change",e=>{s.ownedOnly=e.target.checked;save()});
+el("tc-pool-add")?.addEventListener("click",()=>{
+ const value=el("tc-pool-input")?.value.trim();
+ if(!cardByName(value)){s.error="Unknown card name";rerender();return;}
+ s.addedCards=[...new Set([...(s.addedCards||[]),value])];s.poolQuery="";s.result=null;save();rerender();
+});
+root.querySelectorAll("[data-tc-remove]").forEach(b=>b.addEventListener("click",()=>{s.addedCards=(s.addedCards||[]).filter(x=>x!==b.dataset.tcRemove);s.result=null;save();rerender()}));
+root.querySelectorAll("[data-tc-pool]").forEach(b=>b.addEventListener("click",()=>{
+ const value=b.dataset.tcPool,excluded=new Set(parsing(s.excludedPool));
+ excluded.has(value)?excluded.delete(value):excluded.add(value);
+ s.excludedPool=[...excluded].join(",");s.result=null;save();rerender();
+}));
  el("tc-cheese")?.addEventListener("click",()=>run("new-tower-cheese",rerender));
  el("tc-simulate")?.addEventListener("click",()=>run("new-tower-sim",rerender));
  root.querySelectorAll("[data-use]").forEach(n=>n.addEventListener("click",()=>{const best=s.result?.recommendations?.[Number(n.dataset.use)];if(!best)return;s.team=best.loadout.cards.map(c=>c.cardName);s.borders=best.loadout.cards.map(c=>(c.borders||[])[0]||"");s.mutations=best.loadout.cards.map(c=>c.mutationWeather||"");s.abilityAura=best.loadout.abilityAura?.auraName||"";s.result=null;save();rerender()}));
@@ -121,7 +132,7 @@ function run(kind,rerender){
   s.running=false;if(d.ok)s.result=d.result;else s.error=d.error||"Simulation failed";rerender();
  };
  worker.onerror=err=>{s.running=false;s.error="Worker error: "+(err.message||"Unknown");rerender()};
- const msg={kind,id,enemyNames:enemiesNow,floor,attack,hp,mode:{...t,searchMutation:s.searchMutation},gemPveBonus:s.gemPveBonus,banned:isBanned,excludedCards:excluded,addedCards:s.ownedOnly?owned:owned,hasEndTimes:true,hasGuardianAngel:true,seed:Math.max(1,Number(s.seed)||1),runs:Math.max(10,Number(s.runs)||200)};
+ const msg={kind,id,enemyNames:enemiesNow,floor,attack,hp,mode:{...t,searchMutation:s.searchMutation},gemPveBonus:s.gemPveBonus,banned:isBanned,excludedCards:excluded,addedCards:s.ownedOnly?owned:[...new Set([...(s.addedCards||[]),...owned])],hasEndTimes:true,hasGuardianAngel:true,seed:Math.max(1,Number(s.seed)||1),runs:Math.max(10,Number(s.runs)||200)};
  if(s.ownedOnly){msg.ownedCards=owned;msg.onlyOwned=true}
  if(kind==="new-tower-sim"){
    msg.loadout={cards:s.team.map((name,i)=>({cardName:name,borders:s.borders[i]?[s.borders[i]]:[],mutationWeather:s.mutations[i]||(t.mutatedOnly?s.searchMutation:null)})),statAura:null,abilityAura:t.noAuras||!s.abilityAura?null:{auraName:s.abilityAura,border:null}};

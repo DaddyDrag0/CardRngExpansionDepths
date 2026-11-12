@@ -84,3 +84,11 @@
 /* Original in-page tabs are replaced by the compact top navigation. */
 #root [data-tower-tab],#root [data-halloween-tab]{display:none!important}
 #root .source-tab[data-view="tower"],#root .source-tab[data-view="halloween"]{display:none!important}
+
+.crx-gem-drop-section{margin-top:17px;border-top:1px solid var(--line);padding-top:10px;max-width:620px}
+.crx-gem-drop-section h5{font-size:12px;margin:6px 0 10px;font-weight:720}
+.crx-gem-drop-section h5 small{font-size:10px;color:var(--muted);font-weight:400;margin-left:5px}
+.crx-gem-drop-section table{width:100%;border-collapse:collapse;font-size:11px}
+.crx-gem-drop-section th{color:var(--muted);font-size:9px;text-align:left;font-weight:600}
+.crx-gem-drop-section th,.crx-gem-drop-section td{padding:5px 4px 5px 0;border-bottom:1px solid var(--line-inner)}
+.crx-gem-drop-section th:nth-child(n+2),.crx-gem-drop-section td:nth-child(n+2){text-align:right;font-variant-numeric:tabular-nums}

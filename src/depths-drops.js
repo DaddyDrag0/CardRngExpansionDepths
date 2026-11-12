@@ -17,7 +17,7 @@ const floors=(result.runs||[]).map(run=>Math.min(300000,Math.max(0,Math.floor(Nu
 const maxFloor=Math.max(0,...floors);
 const runs=Math.max(1,floors.length);
 const sorted=[...floors].sort((a,b)=>a-b);
-const list=hard?HARD:NORMAL,acc=new Map([...list.map(x=>[x[0],0]),...MATERIALS.map(x=>[x[0],0]),["Weather Token",0],["Random unowned gamepass",0]]);
+const list=hard?HARD:NORMAL,acc=new Map([...list.map(x=>[x[0],0]),...MATERIALS.map(x=>[x[0],0]),["Weather Token",0],["Random unowned gamepass",0],["Rare Gem",0],["Epic Gem",0],["Legendary Blue Gem",0],["Legendary Green Gem",0]]);
 let j=0,checkpoints=0;
 for(let f=1;f<=maxFloor;f++){
  while(j<sorted.length&&sorted[j]<f)j++;
@@ -33,6 +33,10 @@ for(let f=1;f<=maxFloor;f++){
  }
  if(f%100===0){
   checkpoints+=weight;
+  if(hard){
+    acc.set('Rare Gem',acc.get('Rare Gem')+.001*weight);
+    acc.set('Epic Gem',acc.get('Epic Gem')+.0002*weight);
+  }
   const scale=Math.min(1.5,1+.05*Math.floor((f-1)/(hard?200:2000)));
   for(const [name,rarity,normal,qtyNormal,hardRate,qtyHard] of MATERIALS){
    const p=hard?hardRate:normal,qty=hard?qtyHard:qtyNormal;
@@ -41,8 +45,13 @@ for(let f=1;f<=maxFloor;f++){
    acc.set(name,acc.get(name)+Math.min(1,p*scale*boost)*qty*weight);
   }
  }
+if(hard&&f%1000===0){
+  const legendaryGemChance=Math.min(1,.01*(1+bonus/100));
+  acc.set('Legendary Blue Gem',acc.get('Legendary Blue Gem')+legendaryGemChance*weight);
+  acc.set('Legendary Green Gem',acc.get('Legendary Green Gem')+legendaryGemChance*weight);
 }
-const data={hard,bonus,checkpoints,floors,maxFloor,loot:list.map(x=>({name:x[0],expected:acc.get(x[0])})).concat(hard?[{name:"Weather Token",expected:acc.get("Weather Token")},{name:"Random unowned gamepass",expected:acc.get("Random unowned gamepass")}]:[]),materials:MATERIALS.filter(x=>hard||x[0]!=="Primordial Essence").map(x=>({name:x[0],expected:acc.get(x[0])})),seconds:result.estimatedSecondsMedian||0};
+}
+const data={hard,bonus,checkpoints,floors,maxFloor,gems:hard?['Rare Gem','Epic Gem','Legendary Blue Gem','Legendary Green Gem'].map(name=>({name,expected:acc.get(name)})):[],loot:list.map(x=>({name:x[0],expected:acc.get(x[0])})).concat(hard?[{name:"Weather Token",expected:acc.get("Weather Token")},{name:"Random unowned gamepass",expected:acc.get("Random unowned gamepass")}]:[]),materials:MATERIALS.filter(x=>hard||x[0]!=="Primordial Essence").map(x=>({name:x[0],expected:acc.get(x[0])})),seconds:result.estimatedSecondsMedian||0};
 cache.set(result,{key,data});
 return data;
 }
@@ -53,7 +62,7 @@ const rows=arr=>arr.map(x=>`<tr><td>${x.name}</td><td>${format(x.expected)}</td>
 return `<details class="crx-drop-details"><summary><span>Expected Drops</span><small>Potions & materials per run / hour</small></summary>
 <div class="crx-drop-inside"><div class="crx-drop-small">Based on ${d.floors.length} simulated runs · ${d.hard?"Hard":"Normal"} · ${format(d.checkpoints)} material checkpoints/run ${d.bonus?`· Bountiful +${d.bonus}%`:""}</div>
 <div class="crx-drop-cols"><div><h5>Other drops <small>Every cleared floor</small></h5><table><thead><tr><th>Item</th><th>Per run</th><th>Per hour</th></tr></thead><tbody>${rows(d.loot)}</tbody></table></div>
-<div><h5>Materials <small>Every 100 cleared floors</small></h5><table><thead><tr><th>Material</th><th>Per run</th><th>Per hour</th></tr></thead><tbody>${rows(d.materials)}</tbody></table></div></div>
+<div><h5>Materials <small>Every 100 cleared floors</small></h5><table><thead><tr><th>Material</th><th>Per run</th><th>Per hour</th></tr></thead><tbody>${rows(d.materials)}</tbody></table></div></div>${d.hard?`<div class="crx-gem-drop-section"><h5>Gems <small>Hard Depths only</small></h5><table><thead><tr><th>Gem</th><th>Per run</th><th>Per hour</th></tr></thead><tbody>${rows(d.gems)}</tbody></table></div>`:""}
 <p>Expected averages, not guaranteed drops. The time estimate is from the simulator.</p></div></details>`;
 }
 window.CRXDepthsDrops={render,compute};

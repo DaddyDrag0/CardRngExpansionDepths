@@ -80,3 +80,90 @@
 @media(max-width:1100px){.cc-enemies{grid-template-columns:repeat(2,minmax(0,1fr))}.cc-rec{grid-template-columns:75px 1fr 90px}.cc-rec small{grid-column:2}.cc-rec button{grid-column:3;grid-row:1/3}.tc-recommend{grid-template-columns:90px 1fr 90px}}
 @media(max-width:760px){.cc-manual-grid{grid-template-columns:1fr}.cc-controls>label{min-width:130px}.cc-controls>label:nth-child(2){min-width:170px}.cc-rec-line{grid-template-columns:1fr 1fr}.cc-rec{grid-template-columns:75px 1fr;gap:8px}.cc-rec button{grid-row:3;grid-column:2;justify-self:start}.cc-rec small{grid-column:2}.cc-enemies{grid-template-columns:1fr 1fr}.cc-pool{grid-template-columns:1fr}.tc-member{grid-template-columns:43px minmax(110px,1fr) 95px 125px}.tc-enemies{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:480px){.cc-enemies{grid-template-columns:1fr}.cc-stats{gap:10px}.tc-member{grid-template-columns:40px minmax(80px,1fr) 86px 95px;gap:5px}.tc-member .cc-portrait{width:37px;height:48px;min-width:37px}}
+
+
+/* Cheese UI polish — shared by Tower, Boss and Trial. Simple, dense and consistent. */
+#crx-simple-view .tc,#crx-simple-view .cc-page{width:100%;max-width:1160px;margin:0 auto}
+#crx-simple-view .tc-page-top,#crx-simple-view .cc-page-top{align-items:baseline;gap:13px;padding:3px 0 23px}
+#crx-simple-view .tc-page-top h2,#crx-simple-view .cc-page-top h2{margin:0;font-size:25px;line-height:1.15;font-weight:760;letter-spacing:-.04em}
+#crx-simple-view .tc-page-top small,#crx-simple-view .cc-page-top small{font-size:11px;line-height:1.3;color:var(--muted)}
+#crx-simple-view .tc-bar,#crx-simple-view .cc-controls{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;max-width:none;padding:0 0 19px}
+#crx-simple-view .tc-bar>label,#crx-simple-view .cc-controls>label{min-width:0;flex:0 1 166px}
+#crx-simple-view .cc-controls>label:nth-child(2){flex:1 1 225px;max-width:320px;min-width:195px}
+#crx-simple-view .tc-bar select,#crx-simple-view .tc-bar input,
+#crx-simple-view .cc-controls select,#crx-simple-view .cc-controls input{height:39px;min-height:39px;padding:8px 12px;border-radius:8px}
+#crx-simple-view .tc-stats,#crx-simple-view .cc-stats{display:flex;align-items:center;flex-wrap:wrap;gap:10px 24px;padding:15px 1px;border-block:1px solid var(--line);font-size:11px;line-height:1.5}
+#crx-simple-view .tc-stats strong,#crx-simple-view .cc-stats b{font-size:19px;font-weight:750;letter-spacing:-.025em;line-height:1.1}
+#crx-simple-view .tc-stats span,#crx-simple-view .cc-stats>span{color:var(--muted);font-size:11px}
+#crx-simple-view .tc-label,#crx-simple-view .cc-heading{display:flex;align-items:baseline;gap:13px;padding:0;margin:23px 0 13px}
+#crx-simple-view .tc-label h3,#crx-simple-view .cc-heading h3{margin:0;font-size:16px;font-weight:750;letter-spacing:-.025em;line-height:1.3}
+#crx-simple-view .tc-label small,#crx-simple-view .cc-heading small{font-size:11px;font-weight:450;color:var(--muted)}
+#crx-simple-view .tc-enemies,#crx-simple-view .cc-enemies{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+#crx-simple-view .tc-enemy-card,#crx-simple-view .cc-enemy{display:flex;min-width:0;align-items:center;gap:11px;border-radius:9px;background:var(--surface-1);border:1px solid var(--line);padding:10px;min-height:89px;transition:border-color .16s ease,background .16s ease}
+#crx-simple-view .tc-enemy-card:hover,#crx-simple-view .cc-enemy:hover{border-color:var(--line-strong);background:var(--surface-2)}
+#crx-simple-view .tc-enemy-card>.cc-portrait,#crx-simple-view .cc-enemy>.cc-portrait{flex:0 0 49px;width:49px;height:64px;min-width:49px;border-radius:5px}
+#crx-simple-view .tc-enemy-info,#crx-simple-view .cc-enemy-info{flex:1;display:flex;min-width:0;flex-direction:column;align-items:stretch;gap:5px;justify-content:center}
+#crx-simple-view .tc-enemy-label,#crx-simple-view .cc-enemy-info>small{font-size:10px;line-height:1.1;color:var(--muted);font-weight:650;letter-spacing:0}
+#crx-simple-view .tc-enemy-name,#crx-simple-view .cc-enemy-info>b{font-size:12px;color:var(--text);font-weight:720;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.5}
+#crx-simple-view .tc-ability,#crx-simple-view .cc-enemy-info>span{font-size:10px;color:var(--muted);font-weight:480;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+#crx-simple-view .tc-enemy-info input,#crx-simple-view .cc-enemy-info input{width:100%;min-height:34px;height:34px;padding:7px 9px;font-size:11px}
+#crx-simple-view .tc-team,#crx-simple-view .cc-manual-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;max-width:none;align-items:stretch}
+#crx-simple-view .tc-member,#crx-simple-view .cc-manual-slot{display:flex;align-items:flex-start;gap:13px;min-width:0;max-width:none;padding:13px;border:1px solid var(--line);border-radius:9px;background:var(--surface-1);transition:border-color .16s ease,background .16s ease}
+#crx-simple-view .tc-member:hover,#crx-simple-view .cc-manual-slot:hover{border-color:var(--line-strong);background:var(--surface-2)}
+#crx-simple-view .tc-member>.cc-portrait,#crx-simple-view .cc-manual-slot>.cc-portrait{width:54px;height:70px;min-width:54px;flex:0 0 54px;border-radius:5px}
+#crx-simple-view .tc-member-fields,#crx-simple-view .cc-manual-fields{flex:1;min-width:0}
+#crx-simple-view .tc-member-fields>label,#crx-simple-view .cc-manual-fields>label{display:flex;min-width:0}
+#crx-simple-view .tc-member-fields input,#crx-simple-view .cc-manual-fields input{width:100%;min-width:0;height:37px}
+#crx-simple-view .tc-member-details,#crx-simple-view .cc-manual-sub{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:10px}
+#crx-simple-view .tc-member-details>label,#crx-simple-view .cc-manual-sub>label{min-width:0}
+#crx-simple-view .tc-member-details select,#crx-simple-view .cc-manual-sub select{width:100%;min-width:0;height:35px;min-height:35px;padding:6px 9px;border-radius:7px}
+#crx-simple-view .tc input,#crx-simple-view .tc select,#crx-simple-view .tc textarea,
+#crx-simple-view .cc-page input,#crx-simple-view .cc-page select,#crx-simple-view .cc-page textarea{transition:border-color .15s ease,box-shadow .15s ease}
+#crx-simple-view .tc input:focus-visible,#crx-simple-view .tc select:focus-visible,
+#crx-simple-view .cc-page input:focus-visible,#crx-simple-view .cc-page select:focus-visible,
+#crx-simple-view .tc textarea:focus-visible,#crx-simple-view .cc-page textarea:focus-visible{outline:none;border-color:var(--accent-line-focus);box-shadow:0 0 0 2px var(--accent-soft)}
+#crx-simple-view .tc-extra,#crx-simple-view .cc-options{margin:20px 0 0;border-top:1px solid var(--line);padding-top:14px;max-width:none}
+#crx-simple-view .tc-extra>summary,#crx-simple-view .cc-options>summary{display:list-item;width:max-content;max-width:100%;cursor:pointer;font-weight:700;font-size:12px;color:var(--muted);padding:4px 0}
+#crx-simple-view .tc-extra>summary:hover,#crx-simple-view .cc-options>summary:hover{color:var(--text)}
+#crx-simple-view .tc-extra-grid,#crx-simple-view .cc-pool{max-width:1000px;padding-top:16px}
+#crx-simple-view .tc-actions,#crx-simple-view .cc-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:17px;padding:0;min-height:41px}
+#crx-simple-view .tc-actions button,#crx-simple-view .cc-actions button,
+#crx-simple-view .tc-recommend button,#crx-simple-view .cc-rec button{height:39px;padding:0 17px;border-radius:8px;font-size:12px;font-weight:730;white-space:nowrap;transition:transform .15s ease,border-color .15s ease,background .15s ease}
+#crx-simple-view .tc-actions button:first-child,#crx-simple-view .cc-actions button:first-child{background:var(--accent-soft);color:var(--accent-bright,var(--accent));border:1px solid var(--accent-line)}
+#crx-simple-view .tc-actions button:hover:enabled,#crx-simple-view .cc-actions button:hover:enabled,
+#crx-simple-view .tc-recommend button:hover,#crx-simple-view .cc-rec button:hover{transform:translateY(-1px);border-color:var(--accent)}
+#crx-simple-view .tc-actions button:focus-visible,#crx-simple-view .cc-actions button:focus-visible,
+#crx-simple-view .cc-options summary:focus-visible,#crx-simple-view .tc-extra summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+#crx-simple-view #tc-progress,#crx-simple-view #bc-progress,#crx-simple-view #tr-progress{font-size:11px;color:var(--muted);flex:1;min-width:170px}
+#crx-simple-view .tc-disclaimer,#crx-simple-view .cc-foot{padding:12px 0 0;margin:0;font-size:10px;line-height:1.5;color:var(--muted)}
+#crx-simple-view .tc-results,#crx-simple-view .cc-results{margin-top:23px;padding-top:19px;border-top:1px solid var(--line);scroll-margin-top:24px}
+#crx-simple-view .tc-recommend,#crx-simple-view .cc-rec{background:transparent;border-bottom:1px solid var(--line);padding:12px 4px;gap:12px}
+#crx-simple-view .cc-rec-line,#crx-simple-view .tc-recommend>span{min-width:0}
+#crx-simple-view .cc-rec button,#crx-simple-view .tc-recommend button{justify-self:end}
+@media(max-width:1000px){
+ #crx-simple-view .tc-enemies,#crx-simple-view .cc-enemies{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #crx-simple-view .tc-team,#crx-simple-view .cc-manual-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #crx-simple-view .tc-member,#crx-simple-view .cc-manual-slot{gap:9px;padding:10px}
+ #crx-simple-view .tc-member>.cc-portrait,#crx-simple-view .cc-manual-slot>.cc-portrait{width:45px;height:60px;min-width:45px;flex-basis:45px}
+}
+@media(max-width:700px){
+ #crx-simple-view .tc,#crx-simple-view .cc-page{max-width:100%}
+ #crx-simple-view .tc-page-top,#crx-simple-view .cc-page-top{display:block;padding-bottom:19px}
+ #crx-simple-view .tc-page-top h2,#crx-simple-view .cc-page-top h2{font-size:23px}
+ #crx-simple-view .tc-page-top small,#crx-simple-view .cc-page-top small{display:block;margin-top:5px}
+ #crx-simple-view .tc-bar>label,#crx-simple-view .cc-controls>label{flex:1 1 125px;min-width:100px}
+ #crx-simple-view .cc-controls>label:nth-child(2){min-width:150px;max-width:none}
+ #crx-simple-view .tc-team,#crx-simple-view .cc-manual-grid{grid-template-columns:1fr}
+ #crx-simple-view .tc-stats,#crx-simple-view .cc-stats{gap:10px 17px}
+ #crx-simple-view .tc-stats strong,#crx-simple-view .cc-stats b{font-size:17px}
+ #crx-simple-view .cc-rec-line{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:440px){
+ #crx-simple-view .tc-enemies,#crx-simple-view .cc-enemies{grid-template-columns:1fr}
+ #crx-simple-view .tc-label,#crx-simple-view .cc-heading{flex-wrap:wrap;gap:3px 12px}
+ #crx-simple-view .tc-member>.cc-portrait,#crx-simple-view .cc-manual-slot>.cc-portrait{width:43px;height:57px;min-width:43px;flex-basis:43px}
+ #crx-simple-view .tc-member-fields input,#crx-simple-view .cc-manual-fields input{font-size:12px}
+}
+@media(prefers-reduced-motion:reduce){
+ #crx-simple-view .tc *,#crx-simple-view .cc-page *{transition:none!important;scroll-behavior:auto!important}
+}

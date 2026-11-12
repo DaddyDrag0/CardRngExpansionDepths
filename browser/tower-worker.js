@@ -29,7 +29,7 @@ function __v26Enter(a,e){
  }
  if(ability==="Behind Reality"){
   const target=enemies.filter(c=>c.hp>0).sort((x,y)=>x.hp-y.hp)[0];
-  if(target){N(a,e,target,2,true);P(a)}
+  if(target){N(a,e,target,2,false);P(a)}
  }
  if(ability==="Sunken Kingdom"&&!e.flags.v26Resurrected){
   e.flags.v26Resurrected=true;
@@ -125,7 +125,7 @@ function __v26BeforeTurn(a,e){
   e.counters.v26Turns=(e.counters.v26Turns||0)+1;
   if(e.counters.v26Turns===2&&!e.flags.v26Verdict){
    e.flags.v26Verdict=true;
-   for(const t of [...op])if(t.hp>0){N(a,e,t,1.5,true);P(a)}
+   for(const t of [...op])if(t.hp>0){N(a,e,t,1.5,false);P(a)}
   }
  }
  return false;
@@ -220,7 +220,7 @@ function __v26AfterHit(a,e,t,amount){
   try{
    const allies=a.state.teams[e.team];
    for(const c of allies)if(c!==e&&c.hp>0&&__v26Active(a,c,"Tireless Vanguard")&&t.hp>0){
-    N(a,c,t,.7,true);
+    N(a,c,t,.7,false);
    }
   }finally{a.v26Followup=false}
  }
@@ -232,7 +232,7 @@ function __v26AfterTurn(a,e){
   e.counters.v26CometTurns=(e.counters.v26CometTurns||0)+1;
   const caster=e.counters.v26CometCaster;
   if(e.counters.v26CometTurns===2&&caster&&!caster.dead&&caster.hp>0){
-   N(a,caster,e,1,true);P(a);
+   N(a,caster,e,1,false);P(a);
   }
  }
 }

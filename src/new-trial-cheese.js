@@ -6,6 +6,14 @@ const KEY="crx-trial-cheese-2026";
 let s={mode:"Daily",floor:45,runs:200,team:["Robin Hood","Pandora","Noveau Riche","Kuchisake-onna"],borders:["","","",""],mutations:["","","",""],enemies:["","","",""],aura:"End Times",owned:"",optionsOpen:false,onlyOwned:false,extraCards:"",excludedCards:"",gem:0,result:null,error:"",running:false};
 try{s={...s,...JSON.parse(localStorage.getItem(KEY)||"{}"),result:null,error:"",running:false}}catch(_){}
 let cards=[],thumbs={},loading=false,worker=null,id=0;
+function revealCheeseResults(selector){
+ window.requestAnimationFrame?.(()=>{
+  const node=document.querySelector("#crx-simple-view "+selector.split(",").join(",#crx-simple-view "));
+  if(!node)return;
+  const rect=node.getBoundingClientRect();
+  if(rect.top>window.innerHeight-100)node.scrollIntoView({behavior:window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches?"auto":"smooth",block:"nearest"});
+ });
+}
 const esc=x=>String(x??"").replace(/[&<>"']/g,t=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[t]));
 const fmt=x=>new Intl.NumberFormat("en-US",{notation:"compact",maximumFractionDigits:2}).format(x);
 const parse=x=>String(x||"").split(/[,;\n]/).map(x=>x.trim()).filter(Boolean);
@@ -65,7 +73,7 @@ function run(kind,rerender){
  worker.onmessage=e=>{
   const r=e.data||{};if(r.id!==id)return;
   if(r.kind==="new-tower-progress"){const p=document.querySelector("#tr-progress");if(p)p.textContent=r.step?.phase?`${r.step.phase} ${r.step.completed||0}/${r.step.total||0}`:`${r.done||0}/${r.total||0}`;return;}
-  s.running=false;r.ok?s.result=r.result:s.error=r.error||"Simulation failed";rerender();
+  s.running=false;r.ok?s.result=r.result:s.error=r.error||"Simulation failed";rerender();if(r.ok)revealCheeseResults(".cc-results");
  };
  worker.onerror=e=>{s.running=false;s.error=e.message||"Worker failed";rerender()};
  const payload={kind,id,enemyNames:f.enemyNames,attack:f.attack,hp:f.hp,floor:f.f,mode,gemPveBonus:s.gem,seed:23,runs:s.runs,excludedCards:parse(s.excludedCards),addedCards:[...new Set([...parse(s.extraCards),...(s.onlyOwned?owned:[])])],onlyOwned:s.onlyOwned,ownedCards:owned,hasEndTimes:true,hasGuardianAngel:true};

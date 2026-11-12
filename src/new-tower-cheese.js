@@ -3,7 +3,7 @@
 const cfg=window.CRXTowerConfig2026;
 if(!cfg)return;
 const STORE="crx-2026-tower-cheese-v1";
-const defaults={tower:"Normal",floor:105,seed:117,runs:200,team:["Robin Hood","Noveau Riche","Pandora","Kuchisake-onna"],borders:["","","",""],mutations:["","","",""],abilityAura:"Guardian Angel",ownedOnly:false,ownedPool:"",excludedPool:"",customEnemy:["","","",""],result:null,error:"",running:false};
+const defaults={tower:"Normal",floor:105,seed:117,runs:200,team:["Robin Hood","Noveau Riche","Pandora","Kuchisake-onna"],borders:["","","",""],mutations:["","","",""],abilityAura:"Guardian Angel",gemPveBonus:0,ownedOnly:false,ownedPool:"",excludedPool:"",customEnemy:["","","",""],result:null,error:"",running:false};
 let s={...defaults};
 try{s={...s,...JSON.parse(localStorage.getItem(STORE)||"{}"),running:false,result:null,error:""};}catch(_){}
 let cardList=[],worker=null,requestId=0;
@@ -64,6 +64,7 @@ function render(){
  ${selectCards()}
  <details class="tc-extra"><summary>Search options</summary><div class="tc-extra-grid">
  <label>${rowLabel("Ability Aura (manual)")}<input id="tc-aura" value="${esc(s.abilityAura)}" placeholder="None"></label>
+ <label>${rowLabel("Red Gem PvE bonus %")}<input id="tc-redgem" type="number" min="0" max="100" step="2.5" value="${esc(s.gemPveBonus)}"></label>
  <label>${rowLabel("Owned cards (comma separated)")}<textarea id="tc-owned" rows="2" placeholder="Card 1, Card 2, Card 3...">${esc(s.ownedPool)}</textarea></label>
  <label>${rowLabel("Excluded cards (comma separated)")}<textarea id="tc-excluded" rows="2">${esc(s.excludedPool)}</textarea></label>
  <label class="tc-check"><input type="checkbox" id="tc-ownedonly" ${s.ownedOnly?"checked":""}> Search only owned cards</label>
@@ -85,6 +86,7 @@ function bind(root,rerender){
  for(const [id,key] of [["tc-aura","abilityAura"],["tc-owned","ownedPool"],["tc-excluded","excludedPool"]]){
   const n=el(id);n?.addEventListener("change",()=>{s[key]=n.value;save()});
  }
+ el("tc-redgem")?.addEventListener("change",e=>{s.gemPveBonus=Math.max(0,Math.min(100,Number(e.target.value)||0));save()});
  el("tc-ownedonly")?.addEventListener("change",e=>{s.ownedOnly=e.target.checked;save()});
  el("tc-cheese")?.addEventListener("click",()=>run("new-tower-cheese",rerender));
  el("tc-simulate")?.addEventListener("click",()=>run("new-tower-sim",rerender));
@@ -114,7 +116,7 @@ function run(kind,rerender){
   s.running=false;if(d.ok)s.result=d.result;else s.error=d.error||"Simulation failed";rerender();
  };
  worker.onerror=err=>{s.running=false;s.error="Worker error: "+(err.message||"Unknown");rerender()};
- const msg={kind,id,enemyNames:enemiesNow,floor,attack,hp,mode:t,banned:isBanned,excludedCards:excluded,addedCards:s.ownedOnly?owned:owned,hasEndTimes:true,hasGuardianAngel:true,seed:Math.max(1,Number(s.seed)||1),runs:Math.max(10,Number(s.runs)||200)};
+ const msg={kind,id,enemyNames:enemiesNow,floor,attack,hp,mode:t,gemPveBonus:s.gemPveBonus,banned:isBanned,excludedCards:excluded,addedCards:s.ownedOnly?owned:owned,hasEndTimes:true,hasGuardianAngel:true,seed:Math.max(1,Number(s.seed)||1),runs:Math.max(10,Number(s.runs)||200)};
  if(s.ownedOnly){msg.ownedCards=owned;msg.onlyOwned=true}
  if(kind==="new-tower-sim"){
    msg.loadout={cards:s.team.map((name,i)=>({cardName:name,borders:s.borders[i]?[s.borders[i]]:[],mutationWeather:s.mutations[i]||(t.mutatedOnly?"Dreamfall":null)})),statAura:null,abilityAura:t.noAuras||!s.abilityAura?null:{auraName:s.abilityAura,border:null}};

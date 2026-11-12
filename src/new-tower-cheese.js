@@ -3,10 +3,10 @@
 const cfg=window.CRXTowerConfig2026;
 if(!cfg)return;
 const STORE="crx-2026-tower-cheese-v1";
-const defaults={tower:"Normal",floor:105,seed:117,runs:200,team:["Robin Hood","Noveau Riche","Pandora","Kuchisake-onna"],borders:["","","",""],mutations:["","","",""],abilityAura:"Guardian Angel",gemPveBonus:0,searchMutation:"Storm",ownedOnly:false,ownedPool:"",excludedPool:"",customEnemy:["","","",""],result:null,error:"",running:false};
+const defaults={tower:"Normal",floor:105,seed:117,runs:200,team:["Robin Hood","Noveau Riche","Pandora","Kuchisake-onna"],borders:["","","",""],mutations:["","","",""],abilityAura:"Guardian Angel",gemPveBonus:0,searchMutation:"Storm",ownedOnly:false,ownedPool:"",excludedPool:"",addedCards:[],poolQuery:"",customEnemy:["","","",""],result:null,error:"",running:false};
 let s={...defaults};
 try{s={...s,...JSON.parse(localStorage.getItem(STORE)||"{}"),running:false,result:null,error:""};}catch(_){}
-let cardList=[],worker=null,requestId=0,cardsLoading=false;
+let cardList=[],thumbs={},worker=null,requestId=0,cardsLoading=false;
 const esc=x=>String(x??"").replace(/[&<>"']/g,a=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[a]));
 const nice=x=>new Intl.NumberFormat("en-US",{notation:"compact",maximumFractionDigits:2}).format(x);
 const opts=(arr,v)=>arr.map(x=>`<option value="${esc(x)}" ${x===v?"selected":""}>${esc(x)}</option>`).join("");
@@ -41,8 +41,11 @@ function effectiveEnemies(){
 }
 function save(){try{const {result,error,running,...safe}=s;localStorage.setItem(STORE,JSON.stringify(safe))}catch(_){}}
 function rowLabel(x){return `<span>${x}</span>`}
-function selectCards() {
- const cards=s.team.map((name,i)=>`<div class="tc-member"><label>${rowLabel(`Card ${i+1}`)}<input list="tc-cards" data-team="${i}" value="${esc(name)}" placeholder="Card name"></label><label>${rowLabel("Border")}<select data-border="${i}">${opts(["","Platinum","Crystal","Ruby","Galaxy"],s.borders[i]||"")}</select></label><label>${rowLabel("Mutation")}<select data-mutation="${i}">${opts(["","Storm","Snow","Aurora","Shroud","Meteor Shower","Time Storm","Eclipse","Virus","Blood Rain","Armageddon","Manga","Pumpkin Moon","The Great Deluge","Reality Fracture","Dreamfall"],s.mutations[i]||"")}</select></label></div>`).join("");
+const cardByName=name=>cardList.find(c=>c.name===name);
+const portrait=name=>{const card=cardByName(name),src=card&&thumbs[String(card.imageAssetId)];return `<span class="cc-portrait">${src?`<img loading="lazy" src="${esc(src)}" alt="">`:`<span>${esc((name||"?").slice(0,1))}</span>`}</span>`};
+const poolDefaults=["Judgment Day","Robin Hood","Parallax","Piccolo","Pandora","Kuchisake-onna","Fate Seamstress","Kira","Hell's Army","Noveau Riche"];
+function selectCards(){
+ const cards=s.team.map((name,i)=>`<div class="tc-member">${portrait(name)}<label>${rowLabel(`Card ${i+1}`)}<input list="tc-cards" data-team="${i}" value="${esc(name)}" placeholder="Card name"></label><label>${rowLabel("Border")}<select data-border="${i}">${opts(["","Platinum","Crystal","Ruby","Galaxy"],s.borders[i]||"")}</select></label><label>${rowLabel("Mutation")}<select data-mutation="${i}">${opts(["","Storm","Snow","Aurora","Shroud","Meteor Shower","Time Storm","Eclipse","Virus","Blood Rain","Armageddon","Manga","Pumpkin Moon","The Great Deluge","Reality Fracture","Dreamfall"],s.mutations[i]||"")}</select></label></div>`).join("");
  return `<datalist id="tc-cards">${cardList.map(c=>`<option value="${esc(c.name)}"></option>`).join("")}</datalist><div class="tc-team">${cards}</div>`;
 }
 function render(){
@@ -53,14 +56,14 @@ function render(){
  let output="";
  if(result?.recommendations){
    const recommendations=result.recommendations.slice(0,5);
-   output=`<div class="tc-results"><div class="tc-results-title">Cheese results</div>${recommendations.length?recommendations.map((v,i)=>`<div class="tc-recommend"><strong>${i+1}. ${(v.winRate*100).toFixed(1)}%</strong><span>${v.loadout.cards.map(c=>esc(c.cardName)).join(" · ")}</span><small>${esc(v.loadout.abilityAura?.auraName||"No ability Aura")} · ${nice(v.averageTurns||0)} turns ${v.trusted===false?"· Model limits":""}</small><button data-use="${i}" type="button">Use team</button></div>`).join(""):`<p>No winning decks in the selected pool.</p>`}</div>`;
+   output=`<div class="tc-results"><div class="tc-results-title">Cheese results</div>${recommendations.length?recommendations.map((v,i)=>`<div class="tc-recommend"><strong>${i+1}. ${(v.winRate*100).toFixed(1)}%</strong><span>${v.loadout.cards.map(c=>`<span class="tc-rec-card">${portrait(c.cardName)}<b>${esc(c.cardName)}</b></span>`).join("")}</span><small>${esc(v.loadout.abilityAura?.auraName||"No ability Aura")} · ${nice(v.averageTurns||0)} turns ${v.trusted===false?"· Model limits":""}</small><button data-use="${i}" type="button">Use team</button></div>`).join(""):`<p>No winning decks in the selected pool.</p>`}</div>`;
  }else if(result?.wins!==undefined)output=`<div class="tc-result-simple"><strong>${(result.winRate*100).toFixed(1)}% wins</strong><span>${result.wins}/${result.runs} battles · ${nice(result.averageTurns)} avg turns ${result.trusted===false?"· Some ability interactions unsupported":""}</span></div>`;
  return `<div class="tc">
  <div class="tc-bar"><label>${rowLabel("Tower")}<select id="tc-tower">${opts(cfg.order,s.tower)}</select></label><label>${rowLabel("Floor")}<input id="tc-floor" type="number" min="1" max="105" value="${floor}"></label><label>${rowLabel("Simulation runs")}<select id="tc-runs">${opts(["100","200","500","1000"],String(s.runs))}</select></label></div>
  <div class="tc-stats"><strong>${nice(hp)} HP</strong><strong>${nice(attack)} ATK</strong><span>${t.set} boss teams · ${t.border||"No"} border</span></div>
  ${rules?`<div class="tc-rules">${esc(rules)}</div>`:""}${blocked.length?`<div class="tc-bans">Banned: ${blocked.map(esc).join(", ")}</div>`:""}
  <div class="tc-label"><h3>Enemy team</h3><small>${e.exact?"Fixed lineup from game data":"Editable preview for random floor"}</small></div>
- <div class="tc-enemies">${e.names.map((name,i)=>`<label>${rowLabel(`#${i+1}`)}<input list="tc-cards" data-enemy="${i}" value="${esc(name)}" aria-label="Enemy ${i+1}"></label>`).join("")}</div>
+ <div class="tc-enemies">${e.names.map((name,i)=>`<div class="tc-enemy-card">${portrait(name)}<label>${rowLabel(`Enemy ${i+1}`)}<input list="tc-cards" data-enemy="${i}" value="${esc(name)}" ${e.exact?"readonly":""} aria-label="Enemy ${i+1}"><span class="tc-ability">${esc(cardByName(name)?.ability||"")}</span></label></div>`).join("")}</div>
  <div class="tc-label"><h3>Your deck</h3><small>Select cards or run Cheese search</small></div>
  ${selectCards()}
  <details class="tc-extra"><summary>Search options</summary><div class="tc-extra-grid">
@@ -127,7 +130,7 @@ function run(kind,rerender){
 }
 async function loadCards(){
  cardsLoading=true;
- try{const a=await Promise.all(Array.from({length:7},(_,i)=>fetch(`./src/data/cards-${i+1}.json?v=${window.__CRX_SITE_VERSION||"2026"}`).then(r=>r.json())));cardList=a.flat();window.dispatchEvent(new CustomEvent("crx-tower-cards-loaded"))}catch(e){cardsLoading=false;console.warn("Tower cards unavailable",e)}
+ try{const version=window.__CRX_SITE_VERSION||"2026";const [lists,t]=await Promise.all([Promise.all(Array.from({length:7},(_,i)=>fetch(`./src/data/cards-${i+1}.json?v=${version}`).then(r=>r.json()))),fetch(`./src/data/thumbnails.json?v=${version}`).then(r=>r.json())]);cardList=lists.flat();thumbs=t;cardsLoading=false;window.dispatchEvent(new CustomEvent("crx-tower-cards-loaded"))}catch(e){cardsLoading=false;console.warn("Tower cards unavailable",e)}
 }
 window.CRXNewTowerCheese={render,bind,getState:()=>s,stats,enemies};
 })();

@@ -3,7 +3,7 @@
 const configs=window.CRXTrialData2026;
 if(!configs)return;
 const KEY="crx-trial-cheese-2026";
-let s={mode:"Daily",floor:45,runs:200,team:["Robin Hood","Pandora","Noveau Riche","Kuchisake-onna"],borders:["","","",""],mutations:["","","",""],enemies:["","","",""],aura:"End Times",owned:"",onlyOwned:false,extraCards:"",excludedCards:"",gem:0,result:null,error:"",running:false};
+let s={mode:"Daily",floor:45,runs:200,team:["Robin Hood","Pandora","Noveau Riche","Kuchisake-onna"],borders:["","","",""],mutations:["","","",""],enemies:["","","",""],aura:"End Times",owned:"",optionsOpen:false,onlyOwned:false,extraCards:"",excludedCards:"",gem:0,result:null,error:"",running:false};
 try{s={...s,...JSON.parse(localStorage.getItem(KEY)||"{}"),result:null,error:"",running:false}}catch(_){}
 let cards=[],thumbs={},loading=false,worker=null,id=0;
 const esc=x=>String(x??"").replace(/[&<>"']/g,t=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[t]));
@@ -36,13 +36,14 @@ function render(){
  <div class="cc-heading"><h3>Enemy team</h3><small>${f.fixed?"Fixed lineup":"Enter the four enemies"}</small></div>
  <div class="cc-enemies">${names.map((n,i)=>`<div class="cc-enemy">${portrait(n)}<div class="cc-enemy-info">${f.fixed?`<small>Enemy ${i+1}</small><b title="${esc(n)}">${esc(n)}</b>`:`<label>Enemy ${i+1}<input list="tr-cards" data-tr-enemy="${i}" value="${esc(n||"")}" placeholder="Choose enemy"></label>`}${card(n)?`<span title="${esc(card(n).ability||"")}">${esc(card(n).ability||"")}</span>`:""}</div></div>`).join("")}</div>
  <div class="cc-heading"><h3>Your deck</h3></div><div class="cc-manual-grid">${team}</div>
- <details class="cc-options"><summary>Search options</summary><div class="cc-pool"><label>Ability Aura<input id="tr-aura" value="${esc(s.aura)}"></label><label>Red Gem PvE bonus %<input id="tr-gem" type="number" min="0" max="100" value="${Number(s.gem)||0}"></label><label>Additional search cards<textarea id="tr-extra" rows="2" placeholder="Card 1, Card 2">${esc(s.extraCards)}</textarea></label><label>Exclude cards<textarea id="tr-excluded" rows="2" placeholder="Card 1, Card 2">${esc(s.excludedCards)}</textarea></label><label>Cards owned<textarea id="tr-owned" rows="2" placeholder="Optional: only cards you own">${esc(s.owned)}</textarea></label><label class="cc-ownership"><input type="checkbox" id="tr-ownedonly" ${s.onlyOwned?"checked":""}> Search only owned cards</label></div></details>
+ <details class="cc-options" ${s.optionsOpen?"open":""}><summary>Search options</summary><div class="cc-pool"><label>Ability Aura<input id="tr-aura" value="${esc(s.aura)}"></label><label>Red Gem PvE bonus %<input id="tr-gem" type="number" min="0" max="100" value="${Number(s.gem)||0}"></label><label>Additional search cards<textarea id="tr-extra" rows="2" placeholder="Card 1, Card 2">${esc(s.extraCards)}</textarea></label><label>Exclude cards<textarea id="tr-excluded" rows="2" placeholder="Card 1, Card 2">${esc(s.excludedCards)}</textarea></label><label>Cards owned<textarea id="tr-owned" rows="2" placeholder="Optional: only cards you own">${esc(s.owned)}</textarea></label><label class="cc-ownership"><input type="checkbox" id="tr-ownedonly" ${s.onlyOwned?"checked":""}> Search only owned cards</label></div></details>
  <datalist id="tr-cards">${cards.map(c=>`<option value="${esc(c.name)}"></option>`).join("")}</datalist>
  <div class="cc-actions"><button id="tr-search" type="button" ${s.running?"disabled":""}>Find Cheese</button><button id="tr-sim" type="button" ${s.running?"disabled":""}>Simulate deck</button><span id="tr-progress" role="status" aria-live="polite">${s.running?"Running…":esc(s.error)}</span></div>
  ${result}<p class="cc-foot">Simulated results; some ability effects may differ in-game.</p></div>`;
 }
 function bind(root,rerender){
  const el=id=>root.querySelector("#"+id);
+ root.querySelector(".cc-options")?.addEventListener("toggle",e=>{if(s.optionsOpen!==e.target.open){s.optionsOpen=e.target.open;save()}});
  const update=(id,key,coerce=x=>x)=>el(id)?.addEventListener("change",e=>{s[key]=coerce(e.target.type==="checkbox"?e.target.checked:e.target.value);s.result=null;save();rerender()});
  update("tr-mode","mode",x=>{s.floor=configs[x].max;s.enemies=["","","",""];return x});
  update("tr-floor","floor",Number);update("tr-runs","runs",Number);

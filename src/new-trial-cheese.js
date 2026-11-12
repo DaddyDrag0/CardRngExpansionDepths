@@ -61,6 +61,7 @@ function bind(root,rerender){
  el("tr-search")?.addEventListener("click",()=>run("new-tower-cheese",rerender));
  el("tr-sim")?.addEventListener("click",()=>run("new-tower-sim",rerender));
  root.querySelectorAll("[data-tr-use]").forEach(btn=>btn.addEventListener("click",()=>{const r=s.result?.recommendations?.[Number(btn.dataset.trUse)];if(!r)return;s.team=r.loadout.cards.map(x=>x.cardName);s.borders=r.loadout.cards.map(x=>x.borders?.[0]||"");s.mutations=r.loadout.cards.map(x=>x.mutationWeather||"");s.aura=r.loadout.abilityAura?.auraName||"";s.result=null;save();rerender()}));
+ window.CRXCheeseCardSearch?.attach(root,cards,thumbs);
 }
 function run(kind,rerender){
  const f=getFloor(),owned=parse(s.owned);

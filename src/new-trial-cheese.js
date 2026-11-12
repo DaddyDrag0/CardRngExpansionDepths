@@ -67,7 +67,7 @@ function run(kind,rerender){
   s.running=false;r.ok?s.result=r.result:s.error=r.error||"Simulation failed";rerender();
  };
  worker.onerror=e=>{s.running=false;s.error=e.message||"Worker failed";rerender()};
- const payload={kind,id,enemyNames:f.enemyNames,attack:f.attack,hp:f.hp,floor:f.f,mode,gemPveBonus:s.gem,seed:23,runs:s.runs,excludedCards:parse(s.excludedCards),addedCards:parse(s.extraCards),onlyOwned:s.onlyOwned,ownedCards:owned,hasEndTimes:true,hasGuardianAngel:true};
+ const payload={kind,id,enemyNames:f.enemyNames,attack:f.attack,hp:f.hp,floor:f.f,mode,gemPveBonus:s.gem,seed:23,runs:s.runs,excludedCards:parse(s.excludedCards),addedCards:[...new Set([...parse(s.extraCards),...(s.onlyOwned?owned:[])])],onlyOwned:s.onlyOwned,ownedCards:owned,hasEndTimes:true,hasGuardianAngel:true};
  if(kind==="new-tower-sim")payload.loadout={cards:s.team.map((name,i)=>({cardName:name,borders:s.borders[i]?[s.borders[i]]:[],mutationWeather:s.mutations[i]||null})),statAura:null,abilityAura:s.aura?{auraName:s.aura,border:null}:null};
  worker.postMessage(payload);
 }

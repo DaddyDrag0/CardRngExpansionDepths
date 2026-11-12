@@ -117,6 +117,7 @@ root.querySelectorAll("[data-tc-pool]").forEach(b=>b.addEventListener("click",()
  el("tc-cheese")?.addEventListener("click",()=>run("new-tower-cheese",rerender));
  el("tc-simulate")?.addEventListener("click",()=>run("new-tower-sim",rerender));
  root.querySelectorAll("[data-use]").forEach(n=>n.addEventListener("click",()=>{const best=s.result?.recommendations?.[Number(n.dataset.use)];if(!best)return;s.team=best.loadout.cards.map(c=>c.cardName);s.borders=best.loadout.cards.map(c=>(c.borders||[])[0]||"");s.mutations=best.loadout.cards.map(c=>c.mutationWeather||"");s.abilityAura=best.loadout.abilityAura?.auraName||"";s.result=null;save();rerender()}));
+ window.CRXCheeseCardSearch?.attach(root,cardList,thumbs);
 }
 function run(kind,rerender){
  if(s.running)return;

@@ -4,7 +4,7 @@ if(e.kind==="new-tower-cheese"||e.kind==="new-tower-sim"){
   try{
     const conf={overhaulTower:true,attack:Number(e.attack)||1,hp:Number(e.hp)||1};
     const blocked=new Set(e.banned||[]);
-    const excluded=[...new Set([...(e.excludedCards||[]),...blocked])];
+    const excluded=[...new Set([...(e.excludedCards||[]),...blocked])];if(e.onlyOwned){const owned=new Set(e.ownedCards||[]);for(const card of Z)if(!owned.has(card.name))excluded.push(card.name);}
     if(e.kind==="new-tower-sim"){
       if((e.loadout?.cards||[]).length!==4)throw new Error("Select four cards.");
       for(const c of e.loadout.cards){

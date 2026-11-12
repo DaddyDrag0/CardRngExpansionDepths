@@ -57,16 +57,19 @@ return data;
 }
 function render(result,state){
 if(!Array.isArray(result?.runs)||!result.runs.length)return "";
-const d=compute(result,state),sec=d.seconds;
-const dayMult=sec>0?86400/sec:0;
-const rows=arr=>arr.map(x=>`<tr><td>${x.name}</td><td>${format(x.expected)}</td><td>${format(perHour(x.expected,sec))}</td><td>${format(x.expected*dayMult)}</td></tr>`).join("");
+const d=compute(result,state),sec=d.seconds,dayMult=sec>0?86400/sec:0;
+const priority=["Rare Weather Potion","Jackpot Potion","Structure Coin","Gold Structure Coin","Weather Token"];
+const keyItems=d.loot.filter(x=>priority.includes(x.name)).sort((a,b)=>priority.indexOf(a.name)-priority.indexOf(b.name));
+const orderedLoot=[...keyItems,...d.loot.filter(x=>!priority.includes(x.name))];
+const rows=arr=>arr.map(x=>`<tr class="${priority.includes(x.name)?"crx-drop-important":""}"><td>${x.name}</td><td>${format(x.expected)}</td><td>${format(perHour(x.expected,sec))}</td><td>${format(x.expected*dayMult)}</td></tr>`).join("");
 const section=(name,sub,arr)=>`<section class="crx-drop-section"><div class="crx-drop-section-head"><h5>${name}</h5><span>${sub}</span></div><div class="crx-drop-scroll"><table><thead><tr><th>Item</th><th>Per run</th><th>Per hour</th><th>Per day</th></tr></thead><tbody>${rows(arr)}</tbody></table></div></section>`;
-const runsDaily=sec>0?86400/sec:0;
+const runsDaily=dayMult;
+const keySummary=keyItems.length?`<div class="crx-drop-key"><span class="crx-drop-key-label">Priority drops <small>per day</small></span><div class="crx-drop-key-items">${keyItems.map(x=>`<span class="crx-drop-key-item"><span>${x.name}</span><b>${format(x.expected*dayMult)}</b></span>`).join("")}</div></div>`:"";
 return `<details class="crx-drop-details"><summary><span>Expected drops</span><small>Potions, materials & gems</small></summary>
 <div class="crx-drop-inside">
 <div class="crx-drop-overview"><span><b>${format(runsDaily)}</b> estimated runs/day</span><span><b>${format(d.checkpoints)}</b> material checkpoints/run</span><span>${d.hard?"Hard":"Normal"} Depths${d.bonus?` · Bountiful +${d.bonus}%`:""}</span></div>
-<div class="crx-drop-cols">${section("Other drops","Every cleared floor",d.loot)}${section("Materials","Every 100 floors",d.materials)}</div>
-${d.hard?section("Gems","Hard Depths",d.gems):""}
+${keySummary}
+<div class="crx-drop-cols"><div class="crx-drop-column">${section("Other drops","Every cleared floor",orderedLoot)}${d.hard?section("Gems","Hard Depths",d.gems):""}</div><div class="crx-drop-column">${section("Materials","Every 100 floors",d.materials)}</div></div>
 <p class="crx-drop-note">Averages from ${d.floors.length} simulated runs and estimated clear time. Actual drops may vary.</p>
 </div></details>`;
 }

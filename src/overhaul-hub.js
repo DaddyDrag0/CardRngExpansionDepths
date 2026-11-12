@@ -154,11 +154,11 @@ main.append(root,panelHost);
 document.body.insertBefore(nav,document.body.firstChild);
 nav.innerHTML=`<div class="oh-top"><div class="oh-brand"><span class="oh-brand-icon">C<span>R</span></span><div><strong>CardRng <span>Calculators</span></strong><small>EXPANSION · BIGGEST UPDATE</small></div></div><div class="oh-top-right"><span class="oh-preview">PREVIEW / TEST BRANCH</span><span class="oh-nav-status">GAME DATA NOV '26</span></div></div><div class="oh-nav" id="oh-navigation">${pages.map(p=>`<button type="button" data-page="${p.id}"><span>${p.icon}</span>${p.title}</button>`).join("")}</div>`;
 nav.after(main);
-let tab=findTab();
+let tab=findTab();const loadedLegacyView=new URLSearchParams(location.search).get("view")==="tower"?"tower":"depths";
 function switchTo(next){
  if(next==="depths"||next==="legacytower"){
  const desired=next==="legacytower"?"tower":null, current=new URLSearchParams(location.search).get("view");
- if((desired||"")!==(current||"")){
+ if((desired||"depths")!==loadedLegacyView){
  const p=new URL(location.href);p.searchParams.delete("calc");p.searchParams.delete("view");if(desired)p.searchParams.set("view",desired);else p.searchParams.set("calc","depths");location.href=p.href;return;
  }
  }

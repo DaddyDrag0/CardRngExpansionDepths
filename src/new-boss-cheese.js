@@ -3,7 +3,7 @@
 const source=window.CRXBossData2026;
 if(!source)return;
 const SAVE="crx-boss-cheese-2026-v1";
-const defaults={bossId:"Sin_Chronus",difficulty:1,runs:200,team:["Robin Hood","Pandora","Noveau Riche","Kuchisake-onna"],borders:["","","",""],mutations:["","","",""],abilityAura:"End Times",excluded:[],added:[],poolQuery:"",ownedOnly:false,owned:"",redGem:0,result:null,error:"",running:false};
+const defaults={bossId:"Sin_Chronus",difficulty:1,runs:200,team:["Robin Hood","Pandora","Noveau Riche","Kuchisake-onna"],borders:["","","",""],mutations:["","","",""],abilityAura:"End Times",excluded:[],added:[],poolQuery:"",ownedOnly:false,owned:"",excludedExtra:"",redGem:0,result:null,error:"",running:false};
 let state={...defaults};
 try{state={...state,...JSON.parse(localStorage.getItem(SAVE)||"{}"),running:false,result:null,error:""};}catch(_){}
 let cards=[],thumbs={},worker=null,loading=false,seq=0,rerenderFn=null;
@@ -46,7 +46,7 @@ function render(){
  <div class="cc-enemies">${level.team.map((name,i)=>`<div class="cc-enemy">${portrait(name,"large")}<div><small>#${i+1}</small><b>${esc(name)}</b><span>${esc(card(name)?.ability||"")}</span></div></div>`).join("")}</div>
  <div class="cc-heading"><h3>Your deck</h3><small>${raptures}/1 Rapture selected</small></div>
  ${deckInputs()}
- <details class="cc-options"><summary>Search pool & options</summary><div class="cc-pool"><p>Click cards you don't own to exclude them.</p><div class="cc-pool-list">${getPool().map(x=>`<button type="button" class="${state.excluded.includes(x)?"off":""}" data-bc-toggle="${esc(x)}">${esc(x)}${state.excluded.includes(x)?" (off)":""}</button>`).join("")}</div><label>Add card to pool<input list="bc-cardnames" id="bc-poolinput" value="${esc(state.poolQuery)}" placeholder="Type a card name"></label><button type="button" id="bc-add">Add card</button><div class="cc-added">${state.added.map(x=>`<button type="button" data-bc-remove="${esc(x)}">${esc(x)} ×</button>`).join("")}</div><label>Other excluded cards<textarea id="bc-excluded" rows="2" placeholder="Name, Name"></textarea></label><label>Owned cards (optional)<textarea id="bc-owned" rows="2" placeholder="Enter your owned cards">${esc(state.owned)}</textarea></label><label class="cc-ownership"><input id="bc-ownedonly" type="checkbox" ${state.ownedOnly?"checked":""}> Search only owned cards</label><label>Ability Aura<input id="bc-aura" value="${esc(state.abilityAura)}"></label><label>Red Gem PvE bonus %<input id="bc-redgem" type="number" min="0" max="100" value="${esc(state.redGem)}"></label></div></details>
+ <details class="cc-options"><summary>Search pool & options</summary><div class="cc-pool"><p>Click cards you don't own to exclude them.</p><div class="cc-pool-list">${getPool().map(x=>`<button type="button" class="${state.excluded.includes(x)?"off":""}" data-bc-toggle="${esc(x)}">${esc(x)}${state.excluded.includes(x)?" (off)":""}</button>`).join("")}</div><label>Add card to pool<input list="bc-cardnames" id="bc-poolinput" value="${esc(state.poolQuery)}" placeholder="Type a card name"></label><button type="button" id="bc-add">Add card</button><div class="cc-added">${state.added.map(x=>`<button type="button" data-bc-remove="${esc(x)}">${esc(x)} ×</button>`).join("")}</div><label>Other excluded cards<textarea id="bc-excluded" rows="2" placeholder="Name, Name">${esc(state.excludedExtra)}</textarea></label><label>Owned cards (optional)<textarea id="bc-owned" rows="2" placeholder="Enter your owned cards">${esc(state.owned)}</textarea></label><label class="cc-ownership"><input id="bc-ownedonly" type="checkbox" ${state.ownedOnly?"checked":""}> Search only owned cards</label><label>Ability Aura<input id="bc-aura" value="${esc(state.abilityAura)}"></label><label>Red Gem PvE bonus %<input id="bc-redgem" type="number" min="0" max="100" value="${esc(state.redGem)}"></label></div></details>
  <datalist id="bc-cardnames">${cards.map(c=>`<option value="${esc(c.name)}"></option>`).join("")}</datalist>
  <div class="cc-actions"><button id="bc-search" type="button" ${state.running?"disabled":""}>Find Cheese</button><button id="bc-test" type="button" ${state.running?"disabled":""}>Simulate deck</button><span id="bc-progress">${state.running?"Running…":esc(state.error)}</span></div>
  ${results()}
@@ -67,6 +67,7 @@ function bind(root,rerender){
  root.querySelectorAll("[data-bc-remove]").forEach(el=>el.addEventListener("click",()=>{state.added=state.added.filter(n=>n!==el.dataset.bcRemove);save();rerender()}));
  root.querySelector("#bc-add")?.addEventListener("click",()=>{const x=root.querySelector("#bc-poolinput")?.value.trim();if(!card(x)){state.error="Unknown card name";rerender();return;}state.added=[...new Set([...state.added,x])];state.poolQuery="";save();rerender()});
  evt("bc-owned",el=>state.owned=el.value);
+ evt("bc-excluded",el=>state.excludedExtra=el.value);
  evt("bc-ownedonly",el=>state.ownedOnly=el.checked);
  evt("bc-aura",el=>state.abilityAura=el.value);
  evt("bc-redgem",el=>state.redGem=Math.max(0,Math.min(100,Number(el.value)||0)));
@@ -97,7 +98,7 @@ function run(kind,rerender){
   state.running=false;if(msg.ok)state.result=msg.result;else state.error=msg.error||"Simulation failed";rerender();
  };
  worker.onerror=e=>{state.running=false;state.error=e.message||"Worker error";rerender()};
- const arg={kind,id,enemyNames:level.team,floor:Number(state.difficulty),attack:level.attack,hp:level.hp,mode:{maxRapture:source.maxRaptureCards,enemyAura:level.enemyAura,enemyAuraBorder:"Galaxy"},gemPveBonus:state.redGem,banned,excludedCards:state.excluded,addedCards:state.added,hasGuardianAngel:true,hasEndTimes:true,seed:17,runs:state.runs,onlyOwned:state.ownedOnly,ownedCards:owned};
+ const arg={kind,id,enemyNames:level.team,floor:Number(state.difficulty),attack:level.attack,hp:level.hp,mode:{maxRapture:source.maxRaptureCards,enemyAura:level.enemyAura,enemyAuraBorder:"Galaxy"},gemPveBonus:state.redGem,banned,excludedCards:[...new Set([...state.excluded,...parse(state.excludedExtra)])],addedCards:[...new Set([...state.added,...(state.ownedOnly?owned:[])])],hasGuardianAngel:true,hasEndTimes:true,seed:17,runs:state.runs,onlyOwned:state.ownedOnly,ownedCards:owned};
  if(kind==="new-tower-sim")arg.loadout={cards:state.team.map((name,i)=>({cardName:name,borders:state.borders[i]?[state.borders[i]]:[],mutationWeather:state.mutations[i]||null})),statAura:null,abilityAura:state.abilityAura?{auraName:state.abilityAura,border:null}:null};
  worker.postMessage(arg);
 }

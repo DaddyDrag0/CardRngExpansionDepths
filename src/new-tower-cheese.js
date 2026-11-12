@@ -6,7 +6,7 @@ const STORE="crx-2026-tower-cheese-v1";
 const defaults={tower:"Normal",floor:105,seed:117,runs:200,team:["Robin Hood","Noveau Riche","Pandora","Kuchisake-onna"],borders:["","","",""],mutations:["","","",""],abilityAura:"Guardian Angel",gemPveBonus:0,ownedOnly:false,ownedPool:"",excludedPool:"",customEnemy:["","","",""],result:null,error:"",running:false};
 let s={...defaults};
 try{s={...s,...JSON.parse(localStorage.getItem(STORE)||"{}"),running:false,result:null,error:""};}catch(_){}
-let cardList=[],worker=null,requestId=0;
+let cardList=[],worker=null,requestId=0,cardsLoading=false;
 const esc=x=>String(x??"").replace(/[&<>"']/g,a=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[a]));
 const nice=x=>new Intl.NumberFormat("en-US",{notation:"compact",maximumFractionDigits:2}).format(x);
 const opts=(arr,v)=>arr.map(x=>`<option value="${esc(x)}" ${x===v?"selected":""}>${esc(x)}</option>`).join("");
@@ -46,6 +46,7 @@ function selectCards() {
  return `<datalist id="tc-cards">${cardList.map(c=>`<option value="${esc(c.name)}"></option>`).join("")}</datalist><div class="tc-team">${cards}</div>`;
 }
 function render(){
+ if(!cardList.length&&!cardsLoading)loadCards();
  const {attack,hp,floor,t}=stats(),e=effectiveEnemies(),blocked=banned();
  const rules=[t.mutatedOnly?"Mutated cards only":null,t.noAuras?"No Auras":null,t.freezeChance?"25% freeze":null,t.noHealing?"No healing":null,t.stun?"Stun / burn":null].filter(Boolean).join(" · ");
  const result=s.result;
@@ -124,8 +125,8 @@ function run(kind,rerender){
  worker.postMessage(msg);
 }
 async function loadCards(){
- try{const a=await Promise.all(Array.from({length:7},(_,i)=>fetch(`./src/data/cards-${i+1}.json?v=${window.__CRX_SITE_VERSION||"2026"}`).then(r=>r.json())));cardList=a.flat();window.dispatchEvent(new CustomEvent("crx-tower-cards-loaded"))}catch(e){console.warn("Tower cards unavailable",e)}
+ cardsLoading=true;
+ try{const a=await Promise.all(Array.from({length:7},(_,i)=>fetch(`./src/data/cards-${i+1}.json?v=${window.__CRX_SITE_VERSION||"2026"}`).then(r=>r.json())));cardList=a.flat();window.dispatchEvent(new CustomEvent("crx-tower-cards-loaded"))}catch(e){cardsLoading=false;console.warn("Tower cards unavailable",e)}
 }
-loadCards();
 window.CRXNewTowerCheese={render,bind,getState:()=>s,stats,enemies};
 })();

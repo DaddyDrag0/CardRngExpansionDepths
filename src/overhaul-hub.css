@@ -143,3 +143,34 @@
 @media(max-width:1200px){#root .result-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:740px){#root .result-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:460px){#root .result-metrics{grid-template-columns:1fr}}
+
+/* Tower Cheese resilient layout: keep the new two-element card markup compact even if the optional cheese skin fails to load. */
+#crx-simple-view .tc-enemies{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+#crx-simple-view .tc-enemy-card{display:flex;align-items:center;gap:10px;min-width:0;min-height:94px;padding:10px;overflow:hidden}
+#crx-simple-view .tc-enemy-card>.cc-portrait{flex:0 0 49px;width:49px;height:64px;min-width:49px;border-radius:5px}
+#crx-simple-view .tc-enemy-info{display:flex;flex:1 1 0;min-width:0;flex-direction:column;align-items:stretch;justify-content:center;gap:5px}
+#crx-simple-view .tc-enemy-label{display:block;color:var(--muted);font-size:10px;font-weight:650;line-height:1.15}
+#crx-simple-view .tc-enemy-name{display:block;min-width:0;color:var(--text);font-size:12px;font-weight:720;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#crx-simple-view .tc-ability{display:block;min-width:0;max-width:100%;color:var(--muted);font-size:10px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#crx-simple-view .tc-enemy-info input{width:100%;min-width:0}
+#crx-simple-view .tc-team{display:flex;flex-direction:column;gap:9px;width:100%;max-width:1140px}
+#crx-simple-view .tc-member{display:flex;align-items:center;gap:15px;min-width:0;width:100%;max-width:none;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--surface-1)}
+#crx-simple-view .tc-member>.cc-portrait{width:43px;height:55px;min-width:43px;flex:0 0 43px;border-radius:5px}
+#crx-simple-view .tc-member-fields{display:grid;grid-template-columns:minmax(0,1fr) 315px;align-items:end;gap:10px;flex:1 1 0;min-width:0}
+#crx-simple-view .tc-member-fields>label{display:flex;min-width:0;flex-direction:column;gap:6px}
+#crx-simple-view .tc-member-fields>label input{width:100%;min-width:0;height:35px}
+#crx-simple-view .tc-member-details{display:grid;grid-template-columns:minmax(0,130px) minmax(0,175px);align-items:end;gap:10px;margin:0;min-width:0}
+#crx-simple-view .tc-member-details>label{display:flex;flex-direction:column;gap:6px;min-width:0}
+#crx-simple-view .tc-member-details select{width:100%;min-width:0;height:35px;min-height:35px}
+@media(max-width:930px){
+ #crx-simple-view .tc-enemies{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:760px){
+ #crx-simple-view .tc-member{align-items:flex-start;gap:10px}
+ #crx-simple-view .tc-member-fields{grid-template-columns:minmax(0,1fr);gap:9px}
+ #crx-simple-view .tc-member-details{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:480px){
+ #crx-simple-view .tc-enemies{grid-template-columns:1fr}
+ #crx-simple-view .tc-member>.cc-portrait{flex-basis:39px;min-width:39px;width:39px;height:51px}
+}

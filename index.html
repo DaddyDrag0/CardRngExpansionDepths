@@ -4,11 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#080b10" />
-  <title>Card RNG Expansion · Depths Calculator</title>
+  <title>CardRng Calculators · Expansion</title>
   <style>html,body{margin:0;background:#080b10;color:#8693a4;font-family:Inter,system-ui,sans-serif}.boot{min-height:100vh;display:grid;place-items:center}</style>
 </head>
 <body>
-  <div class="boot">Loading Depths calculator…</div>
+  <div class="boot">Loading CardRng Calculators…</div>
   <script>
   (async()=>{
     try{
@@ -37,6 +37,8 @@
         'halloween-ui.css',
         'halloween-ui.js',
         'depths-ui.js',
+        'overhaul-hub.js',
+        'overhaul-hub.css',
       ];
       for(const asset of versionedAssets){
         html=html.replaceAll(`./src/${asset}`,`./src/${asset}?v=${assetVersion}`);

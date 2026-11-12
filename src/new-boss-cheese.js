@@ -42,15 +42,15 @@ function render(){
  return `<div class="cc-page"><div class="cc-page-top"><h2>Boss Cheese</h2><small>16 bosses · 5 difficulties each</small></div>
  <div class="cc-controls"><label>Group${groupOpts()}</label><label>Boss<select id="bc-boss">${groups.map(x=>`<option value="${esc(x.id)}" ${x.id===boss.id?"selected":""}>${esc(x.name)}</option>`).join("")}</select></label><label>Difficulty<select id="bc-difficulty">${source.difficultyNames.map((x,i)=>`<option value="${i+1}" ${Number(state.difficulty)===i+1?"selected":""}>${esc(x)}</option>`).join("")}</select></label><label>Runs<select id="bc-runs">${options(["100","200","500","1000"],String(state.runs))}</select></label></div>
  <div class="cc-stats"><b>${fmt(level.hp)} HP</b><b>${fmt(level.attack)} ATK</b><span>Max 1 Rapture card</span>${level.enemyAura?`<span>Enemy Aura: ${esc(level.enemyAura)} (Galaxy)</span>`:""}</div>
- <div class="cc-heading"><h3>Enemy lineup</h3><small>From game configuration</small></div>
- <div class="cc-enemies">${level.team.map((name,i)=>`<div class="cc-enemy">${portrait(name,"large")}<div><small>#${i+1}</small><b>${esc(name)}</b><span>${esc(card(name)?.ability||"")}</span></div></div>`).join("")}</div>
+ <div class="cc-heading"><h3>Enemy team</h3><small>Fixed lineup</small></div>
+ <div class="cc-enemies">${level.team.map((name,i)=>`<div class="cc-enemy">${portrait(name,"large")}<div class="cc-enemy-info"><small>Enemy ${i+1}</small><b title="${esc(name)}">${esc(name)}</b><span title="${esc(card(name)?.ability||"")}">${esc(card(name)?.ability||"")}</span></div></div>`).join("")}</div>
  <div class="cc-heading"><h3>Your deck</h3><small>${raptures}/1 Rapture selected</small></div>
  ${deckInputs()}
  <details class="cc-options"><summary>Search pool & options</summary><div class="cc-pool"><p>Click cards you don't own to exclude them.</p><div class="cc-pool-list">${getPool().map(x=>`<button type="button" class="${state.excluded.includes(x)?"off":""}" data-bc-toggle="${esc(x)}">${esc(x)}${state.excluded.includes(x)?" (off)":""}</button>`).join("")}</div><label>Add card to pool<input list="bc-cardnames" id="bc-poolinput" value="${esc(state.poolQuery)}" placeholder="Type a card name"></label><button type="button" id="bc-add">Add card</button><div class="cc-added">${state.added.map(x=>`<button type="button" data-bc-remove="${esc(x)}">${esc(x)} ×</button>`).join("")}</div><label>Other excluded cards<textarea id="bc-excluded" rows="2" placeholder="Name, Name">${esc(state.excludedExtra)}</textarea></label><label>Owned cards (optional)<textarea id="bc-owned" rows="2" placeholder="Enter your owned cards">${esc(state.owned)}</textarea></label><label class="cc-ownership"><input id="bc-ownedonly" type="checkbox" ${state.ownedOnly?"checked":""}> Search only owned cards</label><label>Ability Aura<input id="bc-aura" value="${esc(state.abilityAura)}"></label><label>Red Gem PvE bonus %<input id="bc-redgem" type="number" min="0" max="100" value="${esc(state.redGem)}"></label></div></details>
  <datalist id="bc-cardnames">${cards.map(c=>`<option value="${esc(c.name)}"></option>`).join("")}</datalist>
- <div class="cc-actions"><button id="bc-search" type="button" ${state.running?"disabled":""}>Find Cheese</button><button id="bc-test" type="button" ${state.running?"disabled":""}>Simulate deck</button><span id="bc-progress">${state.running?"Running…":esc(state.error)}</span></div>
+ <div class="cc-actions"><button id="bc-search" type="button" ${state.running?"disabled":""}>Find Cheese</button><button id="bc-test" type="button" ${state.running?"disabled":""}>Simulate deck</button><span id="bc-progress" role="status" aria-live="polite">${state.running?"Running…":esc(state.error)}</span></div>
  ${results()}
- <p class="cc-foot">Boss deck limit is enforced. Win rates are simulated estimates.</p>
+ <p class="cc-foot">Rapture limit enforced. Simulated results.</p>
  </div>`;
 }
 function bind(root,rerender){

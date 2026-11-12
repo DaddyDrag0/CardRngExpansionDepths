@@ -7,6 +7,14 @@ const defaults={tower:"Normal",floor:105,seed:117,runs:200,team:["Robin Hood","N
 let s={...defaults};
 try{s={...s,...JSON.parse(localStorage.getItem(STORE)||"{}"),running:false,result:null,error:""};}catch(_){}
 let cardList=[],thumbs={},worker=null,requestId=0,cardsLoading=false;
+function revealCheeseResults(selector){
+ window.requestAnimationFrame?.(()=>{
+  const node=document.querySelector("#crx-simple-view "+selector.split(",").join(",#crx-simple-view "));
+  if(!node)return;
+  const rect=node.getBoundingClientRect();
+  if(rect.top>window.innerHeight-100)node.scrollIntoView({behavior:window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches?"auto":"smooth",block:"nearest"});
+ });
+}
 const esc=x=>String(x??"").replace(/[&<>"']/g,a=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[a]));
 const nice=x=>new Intl.NumberFormat("en-US",{notation:"compact",maximumFractionDigits:2}).format(x);
 const opts=(arr,v)=>arr.map(x=>`<option value="${esc(x)}" ${x===v?"selected":""}>${esc(x)}</option>`).join("");
@@ -131,7 +139,7 @@ function run(kind,rerender){
    if(span)span.textContent=d.step?.phase?`${d.step.phase} ${d.step.completed||0}/${d.step.total||0}`:`${d.done||0}/${d.total||0}`;
    return;
   }
-  s.running=false;if(d.ok)s.result=d.result;else s.error=d.error||"Simulation failed";rerender();
+  s.running=false;if(d.ok)s.result=d.result;else s.error=d.error||"Simulation failed";rerender();if(d.ok)revealCheeseResults(".tc-results,.tc-result-simple");
  };
  worker.onerror=err=>{s.running=false;s.error="Worker error: "+(err.message||"Unknown");rerender()};
  const msg={kind,id,enemyNames:enemiesNow,floor,attack,hp,mode:{...t,searchMutation:s.searchMutation},gemPveBonus:s.gemPveBonus,banned:isBanned,excludedCards:excluded,addedCards:s.ownedOnly?owned:[...new Set([...(s.addedCards||[]),...owned])],hasEndTimes:true,hasGuardianAngel:true,seed:Math.max(1,Number(s.seed)||1),runs:Math.max(10,Number(s.runs)||200)};

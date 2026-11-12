@@ -119,3 +119,27 @@
 .crx-drop-inside>.crx-drop-section{max-width:750px;margin-top:23px}
 .crx-drop-note{font-size:10px;color:var(--muted);padding:12px 1px 0;margin:0}
 @media(max-width:880px){.crx-drop-cols{grid-template-columns:1fr;gap:15px}}
+
+
+/* Depths drops: important outcomes first, using the existing slate accent. */
+.crx-drop-key{display:flex;align-items:baseline;flex-wrap:wrap;gap:12px 24px;padding:13px 1px 15px;border-bottom:1px solid var(--line)}
+.crx-drop-key-label{font-size:11px;color:var(--accent);font-weight:760;white-space:nowrap}
+.crx-drop-key-label small{color:var(--muted);font-size:10px;font-weight:470;margin-left:5px}
+.crx-drop-key-items{display:flex;flex-wrap:wrap;gap:10px 24px;align-items:baseline}
+.crx-drop-key-item{display:inline-flex;align-items:baseline;gap:7px;white-space:nowrap}
+.crx-drop-key-item>span{font-size:11px;color:var(--muted)}
+.crx-drop-key-item>b{font-size:14px;font-variant-numeric:tabular-nums;color:var(--text);font-weight:790}
+.crx-drop-cols{align-items:start;gap:22px;padding-top:17px}
+.crx-drop-column{min-width:0;display:flex;flex-direction:column;gap:20px}
+.crx-drop-column>.crx-drop-section{width:100%;min-width:0;margin:0}
+.crx-drop-section table tbody tr.crx-drop-important td{background:color-mix(in srgb,var(--accent) 8%,var(--surface-1));font-weight:740}
+.crx-drop-section table tbody tr.crx-drop-important td:first-child{border-left:2px solid var(--accent);padding-left:7px;color:var(--accent-bright,var(--accent));}
+.crx-drop-section table tbody tr.crx-drop-important:hover td{background:color-mix(in srgb,var(--accent) 13%,var(--surface-1))}
+@media(max-width:880px){.crx-drop-cols{grid-template-columns:1fr;gap:20px}.crx-drop-column{gap:20px}}
+@media(max-width:520px){.crx-drop-key{gap:9px}.crx-drop-key-label{width:100%}.crx-drop-key-items{gap:8px 16px}}
+/* Six evenly spaced summary metrics; no orphaned Hard Mode tiles at breakpoints. */
+#root .result-metrics{grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+#root .result-metrics>div{min-width:0}
+@media(max-width:1200px){#root .result-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:740px){#root .result-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:460px){#root .result-metrics{grid-template-columns:1fr}}

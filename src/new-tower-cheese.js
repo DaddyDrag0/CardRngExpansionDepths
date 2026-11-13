@@ -84,6 +84,7 @@ function render(){
  </div></details>
  <div class="tc-actions"><button id="tc-cheese" ${s.running?"disabled":""} type="button">Find Cheese</button><button id="tc-simulate" ${s.running?"disabled":""} type="button">Simulate deck</button><span id="tc-progress" role="status" aria-live="polite">${s.running?"Running…":s.error?esc(s.error):""}</span></div>
  ${output}
+ ${window.CRXTowerPackPlanner?.render(cfg.order)||""}
  <div class="tc-disclaimer">${!e.exact?"Random enemy lineup is an estimate. ":""}${t.freezeChance||t.noHealing||t.stun?"Some special effects are approximate. ":""}Simulated results.</div>
  </div>`;
 }
@@ -118,6 +119,7 @@ root.querySelectorAll("[data-tc-pool]").forEach(b=>b.addEventListener("click",()
  el("tc-simulate")?.addEventListener("click",()=>run("new-tower-sim",rerender));
  root.querySelectorAll("[data-use]").forEach(n=>n.addEventListener("click",()=>{const best=s.result?.recommendations?.[Number(n.dataset.use)];if(!best)return;s.team=best.loadout.cards.map(c=>c.cardName);s.borders=best.loadout.cards.map(c=>(c.borders||[])[0]||"");s.mutations=best.loadout.cards.map(c=>c.mutationWeather||"");s.abilityAura=best.loadout.abilityAura?.auraName||"";s.result=null;save();rerender()}));
  window.CRXCheeseCardSearch?.attach(root,cardList,thumbs);
+ window.CRXTowerPackPlanner?.bind(root,cfg.order);
 }
 function run(kind,rerender){
  if(s.running)return;

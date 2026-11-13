@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#080b10" />
   <meta name="crx-feedback-endpoint" content="https://cardrngexpansiondepths.dragoidc3.workers.dev/" />
-  <title>Card RNG Expansion · Depths Calculator</title>
+  <title>CardRng Calculators · Expansion</title>
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
@@ -16,6 +16,8 @@
   <script src="./src/site-version-watch.js"></script>
   <link rel="stylesheet" href="./src/depths-ui.css" />
   <link rel="stylesheet" href="./src/halloween-ui.css" />
+  <link rel="stylesheet" href="./src/cheese-2026.css" />
+  <link rel="stylesheet" href="./src/overhaul-hub.css" />
 </head>
 <body>
 <div id="themeSwitcher" class="theme-switcher" aria-label="Site theme">
@@ -27,9 +29,20 @@
     <button class="theme-choice" type="button" data-theme-choice="lava" aria-pressed="false"><i></i>Lava</button>
   </div>
 </div>
-<div id="root"><div class="loading">Loading Depths calculator…</div></div>
+<div id="root"><div class="loading">Loading CardRng Calculators…</div></div>
 <div id="cardTooltip" class="card-tooltip"></div>
+
+<script src="./src/depths-drops.js"></script>
+<script src="./src/tower-2026-data.js"></script>
+<script src="./src/cheese-card-search.js"></script>
+<script src="./src/tower-2026-rewards.js"></script>
+<script src="./src/new-tower-cheese.js"></script>
+<script src="./src/boss-2026-data.js"></script>
+<script src="./src/new-boss-cheese.js"></script>
+<script src="./src/trial-2026-data.js"></script>
+<script src="./src/new-trial-cheese.js"></script>
 <script src="./src/halloween-ui.js"></script>
 <script src="./src/depths-ui.js"></script>
+<script src="./src/overhaul-hub.js"></script>
 </body>
 </html>

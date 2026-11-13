@@ -3,6 +3,7 @@ import fs from 'node:fs'
 const loaderHtml = fs.readFileSync('index.html', 'utf8')
 const liveHtml = fs.readFileSync('index-base.html', 'utf8')
 const depthsUi = fs.readFileSync('src/depths-ui.js', 'utf8')
+const overhaulHub = fs.readFileSync('src/overhaul-hub.js', 'utf8')
 const feedbackUi = fs.readFileSync('src/feedback.js', 'utf8')
 const themeController = fs.readFileSync('src/theme-controller.js', 'utf8')
 const versionWatcher = fs.readFileSync('src/site-version-watch.js', 'utf8')
@@ -50,9 +51,10 @@ if (!liveHtml.includes('./src/depths-ui.js')) throw new Error('Extracted Depths 
 if (!liveHtml.includes('./src/depths-ui.css')) throw new Error('Extracted Depths UI styles are not loaded')
 if (liveHtml.includes("const root=document.getElementById('root')")) throw new Error('Depths application code returned to inline HTML')
 if (!depthsUi.includes('function sortPrefixMatches(')) throw new Error('Shared autocomplete sorter is missing')
-if (!depthsUi.includes("visibleUrl.searchParams.get('view')==='tower'")) throw new Error('Direct Tower view URL is not handled on load')
-if (!depthsUi.includes("url.searchParams.set('view','tower')")) throw new Error('Tower tab does not update the direct-link URL')
-if (!depthsUi.includes("url.searchParams.delete('view')")) throw new Error('Depths tab does not restore the base URL')
+// The 2026 hub owns Tower direct routes, while legacy Tower remains in depths-ui.js.
+if (!depthsUi.includes("visibleUrl.searchParams.get('view')==='tower'") && !overhaulHub.includes('get("view")==="tower"')) throw new Error('Direct Tower view URL is not handled on load')
+if (!depthsUi.includes("url.searchParams.set('view','tower')") && !overhaulHub.includes('url.searchParams.set("calc",to)')) throw new Error('Tower tab does not update the direct-link URL')
+if (!depthsUi.includes("url.searchParams.delete('view')") && !overhaulHub.includes('url.searchParams.delete("view")')) throw new Error('Depths tab does not restore the base URL')
 
 if (!depthsUi.includes("towerExcludedCards:['Robin Hood','Pandora']")) throw new Error('Robin Hood and Pandora must default OFF in Tower cheese search')
 if (!depthsUi.includes("towerHasEndTimes:false")) throw new Error('End Times must default OFF in Tower cheese search')

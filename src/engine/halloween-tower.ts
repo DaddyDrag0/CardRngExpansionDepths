@@ -50,9 +50,11 @@ export const HALLOWEEN_REPORTED_BANS = [
 export const HALLOWEEN_UNAVAILABLE_EVENT_NAMES = ['Santa Claus','Anubis & Hades','Supreme Frank'] as const
 const CURRENT_REISSUED_NAMES = new Set(['Pestilence','Famine','War','Death'])
 export function halloweenUnavailableEvent(name:string):boolean {
+  // Explicitly reported unavailable cards must stay unavailable even when a
+  // newer exported catalog no longer contains the card definition.
+  if((HALLOWEEN_UNAVAILABLE_EVENT_NAMES as readonly string[]).includes(name))return true
   const card=CARD_MAP.get(name)
   if(!card)return false
-  if((HALLOWEEN_UNAVAILABLE_EVENT_NAMES as readonly string[]).includes(name))return true
   return Boolean(card.expires && card.pack !== 'Halloween3' && !CURRENT_REISSUED_NAMES.has(name))
 }
 // Halloween Part 2 rules prohibit ALL duplicate player cards, not just Julius.
@@ -93,6 +95,10 @@ export function halloweenPackReward(floor:number):number {
   return 2_000*Math.ceil(f/5)
 }
 export function halloweenBanReason(name:string,extraBans:readonly string[]=[],includeLegacy=false):string|null{
+  // Reported special-event exclusions apply even if the current data export
+  // omits the card altogether (e.g. Supreme Frank).
+  if((HALLOWEEN_UNAVAILABLE_EVENT_NAMES as readonly string[]).includes(name))
+    return 'Event-exclusive card reported not owned by players'
   const card=CARD_MAP.get(name)
   if(!card)return 'Unknown card'
   if(card.unobtainable)return 'Not an obtainable card'
@@ -100,8 +106,6 @@ export function halloweenBanReason(name:string,extraBans:readonly string[]=[],in
   if(extraBans.includes(name))return 'Banned in your personal restrictions'
   if((HALLOWEEN_REPORTED_BANS as readonly string[]).includes(name))return 'Reported Halloween Tower ban'
   if(card.pack==='Christmas'&&!includeLegacy)return 'Christmas event card unavailable for the current Halloween Tower'
-  if((HALLOWEEN_UNAVAILABLE_EVENT_NAMES as readonly string[]).includes(name))
-    return 'Event-exclusive card reported not owned by players'
   if(!includeLegacy&&halloweenUnavailableEvent(name))return 'Legacy event card not known to be re-released (opt in if owned)'
   return null
 }

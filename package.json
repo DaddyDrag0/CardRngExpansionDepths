@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "build:workers": "esbuild src/browser-worker.ts --bundle --platform=browser --format=iife --target=es2020 --minify --outfile=browser/depths-worker.js && node scripts/tower-2026-worker-smoke.mjs",
+    "build:workers": "node scripts/depths-2026-worker-smoke.mjs && node scripts/tower-2026-worker-smoke.mjs",
     "test:data": "tsx scripts/data-integrity.ts",
     "test:engine": "tsx scripts/engine-smoke.ts && tsx scripts/stall-regression.ts && tsx scripts/ability-trace-regression.ts && tsx scripts/announcement-balance-regression.ts && tsx scripts/anubis-regression.ts && tsx scripts/combat-corrections-regression.ts && tsx scripts/insatiable-unholy-regression.ts && tsx scripts/order-cosmos-regression.ts && tsx scripts/revive-grinch-regression.ts && tsx scripts/robin-hood-regression.ts && tsx scripts/tower-cheese-search-regression.ts && tsx scripts/tower-cheese-corrections-regression.ts && tsx scripts/tower-cheese-parity-regression.ts && tsx scripts/new-aura-regression.ts && tsx scripts/aura-farm-origin-regression.ts && tsx scripts/manga-update-regression.ts && tsx scripts/mutation-update-regression.ts && tsx scripts/halloween-combat-regression.ts && tsx scripts/halloween-interactions-regression.ts && tsx scripts/halloween-tower-regression.ts && tsx scripts/halloween-infinite-regression.ts",
     "test:depths": "tsx scripts/depths-regression.ts && tsx scripts/depths-rewards-regression.ts && tsx scripts/depths-time-regression.ts && tsx scripts/watchdog-heartbeat-regression.ts",
@@ -17,7 +17,8 @@
     "test:video-game": "node --import tsx scripts/video-game-update-regression.ts",
     "halloween:labels": "tsx scripts/generate-halloween-labels.ts",
     "build:tower-worker:legacy": "esbuild src/tower-worker.ts --bundle --platform=browser --format=iife --target=es2020 --minify --outfile=browser/tower-worker-legacy.js",
-    "test:overhaul": "node scripts/overhaul-ui-regression.mjs && node scripts/tower-2026-worker-smoke.mjs"
+    "test:overhaul": "node scripts/overhaul-ui-regression.mjs && node scripts/depths-2026-worker-smoke.mjs && node scripts/tower-2026-worker-smoke.mjs",
+    "build:depths-worker:legacy": "esbuild src/browser-worker.ts --bundle --platform=browser --format=iife --target=es2020 --minify --outfile=browser/depths-worker-legacy.js"
   },
   "devDependencies": {
     "esbuild": "latest",

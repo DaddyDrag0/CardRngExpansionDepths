@@ -26,6 +26,13 @@ assert.ok(css.includes(".cc-card-search-popup"),"Styled autocomplete missing");
 assert.ok(css.includes(".tc-pack-grid"),"Responsive reward inputs missing");
 assert.ok(read("src/cheese-card-search.js").includes('input.removeAttribute("list")'),"Native white datalist still active");
 
+const cards=Array.from({length:7},(_,i)=>i+1).flatMap(i=>JSON.parse(read("src/data/cards-"+i+".json")));
+assert.equal(cards.length,new Set(cards.map(card=>card.name)).size,"Duplicate card names break exact selection");
+assert.equal(cards.find(card=>card.name==="Count Muscula")?.rarity,2000000);
+assert.equal(cards.find(card=>card.name==="Count Muscula (Legacy)")?.rarity,2000);
+assert.equal(cards.find(card=>card.name==="Skeleton King")?.rarity,3333000);
+assert.equal(cards.find(card=>card.name==="Skeleton King (Legacy)")?.rarity,3333);
+
 const towerCode = read("src/tower-2026-data.js");
 const tower = JSON.parse(towerCode.replace(/^window\.CRXTowerConfig2026=/,"").replace(/;\s*$/,""));
 assert.equal(tower.order.length,11);

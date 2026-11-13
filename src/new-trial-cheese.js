@@ -40,9 +40,10 @@ function render(){
  else if(s.result?.wins!==undefined)result=`<div class="cc-results cc-single"><h3>Simulation</h3><strong>${(s.result.winRate*100).toFixed(2)}%</strong><small>${s.result.wins}/${s.result.runs} wins · ${fmt(s.result.averageTurns)} turns${s.result.trusted===false?" · Unverified abilities":""}</small></div>`;
  return `<div class="cc-page"><div class="cc-page-top"><h2>Trial Cheese</h2><small>Daily / Weekly / Monthly</small></div>
  <div class="cc-controls"><label>Trial<select id="tr-mode">${options(["Daily","Weekly","Monthly"],s.mode)}</select></label><label>Floor<input id="tr-floor" type="number" min="1" max="${d.max}" value="${f.f}"></label><label>Simulation runs<select id="tr-runs">${options(["100","200","500","1000"],String(s.runs))}</select></label></div>
- <div class="cc-stats"><b>${fmt(f.hp)} HP</b><b>${fmt(f.attack)} ATK</b><span>${f.fixed?"Fixed boss floor":"Random enemy floor"}</span><span>${(d.purple*100).toFixed(0)}% Purple Gem on completion</span>${f.fixed?.aura?`<span>Enemy Aura: ${esc(f.fixed.aura)}</span>`:""}</div>
+ <div class="cc-stats"><b>${fmt(f.hp)} HP</b><b>${fmt(f.attack)} ATK</b><span>${f.fixed?"Fixed boss floor":"Manual enemy lineup"}</span><span>${(d.purple*100).toFixed(0)}% Purple Gem on completion</span>${f.fixed?.aura?`<span>Enemy Aura: ${esc(f.fixed.aura)}</span>`:""}</div>
+ ${!f.fixed?`<p class="cc-activity-note">The actual enemies on this floor are random. Enter the four cards from your in-game battle; generated guesses would make Cheese results unreliable.</p>`:""}
  <div class="cc-heading"><h3>Enemy team</h3><small>${f.fixed?"Fixed lineup":"Enter the four enemies"}</small></div>
- <div class="cc-enemies">${names.map((n,i)=>`<div class="cc-enemy">${portrait(n)}<div class="cc-enemy-info">${f.fixed?`<small>Enemy ${i+1}</small><b title="${esc(n)}">${esc(n)}</b>`:`<label>Enemy ${i+1}<input list="tr-cards" data-tr-enemy="${i}" value="${esc(n||"")}" placeholder="Choose enemy"></label>`}${card(n)?`<span title="${esc(card(n).ability||"")}">${esc(card(n).ability||"")}</span>`:""}</div></div>`).join("")}</div>
+ <div class="cc-enemies">${names.map((n,i)=>`<div class="cc-enemy">${portrait(n)}<div class="cc-enemy-info">${f.fixed?`<small>Enemy ${i+1}</small><b title="${esc(n)}">${esc(n)}</b>`:`<label>Enemy ${i+1}<input list="tr-cards" data-tr-enemy="${i}" value="${esc(n||"")}" placeholder="Actual enemy name"></label>`}${card(n)?`<span title="${esc(card(n).ability||"")}">${esc(card(n).ability||"")}</span>`:""}</div></div>`).join("")}</div>
  <div class="cc-heading"><h3>Your deck</h3></div><div class="cc-manual-grid">${team}</div>
  <details class="cc-options" ${s.optionsOpen?"open":""}><summary>Search options</summary><div class="cc-pool"><label>Ability Aura<input id="tr-aura" value="${esc(s.aura)}"></label><label>Red Gem PvE bonus %<input id="tr-gem" type="number" min="0" max="100" value="${Number(s.gem)||0}"></label><label>Additional search cards<textarea id="tr-extra" rows="2" placeholder="Card 1, Card 2">${esc(s.extraCards)}</textarea></label><label>Exclude cards<textarea id="tr-excluded" rows="2" placeholder="Card 1, Card 2">${esc(s.excludedCards)}</textarea></label><label>Cards owned<textarea id="tr-owned" rows="2" placeholder="Optional: only cards you own">${esc(s.owned)}</textarea></label><label class="cc-ownership"><input type="checkbox" id="tr-ownedonly" ${s.onlyOwned?"checked":""}> Search only owned cards</label></div></details>
  <datalist id="tr-cards">${cards.map(c=>`<option value="${esc(c.name)}"></option>`).join("")}</datalist>
@@ -54,7 +55,7 @@ function bind(root,rerender){
  root.querySelector(".cc-options")?.addEventListener("toggle",e=>{if(s.optionsOpen!==e.target.open){s.optionsOpen=e.target.open;save()}});
  const update=(id,key,coerce=x=>x)=>el(id)?.addEventListener("change",e=>{s[key]=coerce(e.target.type==="checkbox"?e.target.checked:e.target.value);s.result=null;save();rerender()});
  update("tr-mode","mode",x=>{s.floor=configs[x].max;s.enemies=["","","",""];return x});
- update("tr-floor","floor",Number);update("tr-runs","runs",Number);
+ update("tr-floor","floor",x=>{s.enemies=["","","",""];return Number(x)});update("tr-runs","runs",Number);
  update("tr-aura","aura");update("tr-gem","gem",Number);update("tr-extra","extraCards");update("tr-excluded","excludedCards");update("tr-owned","owned");update("tr-ownedonly","onlyOwned");
  for(const [name,key] of [["data-tr-team","team"],["data-tr-border","borders"],["data-tr-mutation","mutations"],["data-tr-enemy","enemies"]])
   root.querySelectorAll(`[${name}]`).forEach(x=>x.addEventListener("change",()=>{s[key][Number(x.getAttribute(name))]=x.value;s.result=null;save();rerender()}));
@@ -65,7 +66,7 @@ function bind(root,rerender){
 }
 function run(kind,rerender){
  const f=getFloor(),owned=parse(s.owned);
- if(f.enemyNames.length!==4||f.enemyNames.some(x=>!card(x))){s.error="Enter four valid enemies to simulate this floor";rerender();return;}
+ if(f.enemyNames.length!==4||f.enemyNames.some(x=>!card(x))){s.error="Enter the four actual enemy names for this floor";rerender();return;}
  if(s.onlyOwned&&owned.length<4){s.error="Enter at least four owned cards";rerender();return;}
  if(kind==="new-tower-sim"&&s.team.some(x=>!card(x))){s.error="Select four valid cards";rerender();return;}
  if(!worker)worker=new Worker("./browser/tower-worker.js?v="+(window.__CRX_SITE_VERSION||"2026"));

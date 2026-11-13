@@ -8,6 +8,15 @@ const source = readFileSync("browser/tower-worker.js", "utf8");
 for (const token of ["new-tower-cheese", "new-tower-sim", "maxRapture", "mutatedOnly", "noAuras"]) {
   assert.ok(source.includes(token), "Deployed Tower worker missing " + token);
 }
+const exported2026Abilities = [
+ "Behind Reality","Cracked Crown","Crushing Depths","Delayed Impact",
+ "Devour the Deep","Dimensional Slip","Divine Flood","Dream Doppelgänger",
+ "Eternal Slumber","Forgotten Existence","Lucid Dream","Perfect Reflection",
+ "Rewrite Existence","Sands of Renewal","Siren's Song","Sunken Kingdom","Terrorize"
+];
+for (const name of exported2026Abilities) {
+ assert.ok(source.split(name).length >= 4, "2026 worker does not contain a modeled handler for " + name);
+}
 const messages = [];
 const worker = { postMessage: message => messages.push(message) };
 new Function("self", "performance", source)(worker, performance);
@@ -57,4 +66,14 @@ const restrictions = request("special-mode", {
   mode: { noAuras: true, noHealing: true, freezeChance: 0.25, bleed: 0.15, burn: 0.2 }
 });
 assert.equal(restrictions.ok, true, restrictions.error);
-console.log("Tower/Boss/Trial 2026 worker smoke: passed (5 scenarios).");
+for (const [index,names] of [
+ ["Abyssal Siren","Nightmare Stag","The Floodbringer","The Waking Comet"],
+ ["The Drowned Monarch","The Mirrorborn","The Sandman","The False Creator"]
+].entries()) {
+ const newCards=names.map(cardName=>({cardName,borders:[],mutationWeather:null}));
+ const result=request("new-abilities-"+index,{loadout:{cards:newCards,statAura:null,abilityAura:null}});
+ assert.equal(result.ok,true,result.error);
+ assert.deepEqual(result.result.unsupportedAbilities,[]);
+ assert.equal(result.result.trusted,true);
+}
+console.log("Tower/Boss/Trial 2026 worker smoke: passed (7 scenarios; 17 handlers scanned).");

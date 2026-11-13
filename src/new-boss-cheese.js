@@ -22,6 +22,15 @@ const card=x=>cards.find(c=>c.name===x);
 const current=()=>source.bosses.find(x=>x.id===state.bossId)||source.bosses[0];
 const mode=()=>current().difficulty[Math.max(0,Math.min(4,Number(state.difficulty)-1))];
 const isRapture=x=>card(x)?.weather==="Rapture";
+const asBans=value=>Array.isArray(value)?value.filter(name=>typeof name==="string"&&name.trim()):[];
+function activityBans(){
+ const boss=current(), difficulty=String(state.difficulty),difficultyName=source.difficultyNames?.[Number(state.difficulty)-1]||"";
+ const byBoss=source.bannedByBoss?.[boss.id]??source.bannedByBoss?.[boss.name];
+ const byLevel=source.bannedByDifficulty?.[difficulty]??source.bannedByDifficulty?.[difficultyName];
+ const localBans=Array.isArray(byBoss)?byBoss:byBoss&&typeof byBoss==="object"?
+   [...asBans(byBoss.all),...asBans(byBoss[difficulty]),...asBans(byBoss[difficultyName])]:[];
+ return [...new Set([...asBans(source.bannedCards),...asBans(byLevel),...asBans(localBans)])];
+}
 const save=()=>{try{const {result,error,running,...rest}=state;localStorage.setItem(SAVE,JSON.stringify(rest))}catch(_){}};
 const options=(a,v)=>a.map(x=>`<option value="${esc(x)}" ${String(v)===String(x)?"selected":""}>${esc(x)}</option>`).join("");
 const portrait=(name,size="small")=>{const c=card(name),url=c&&thumbs[String(c.imageAssetId)];return `<div class="cc-portrait ${size}">${url?`<img loading="lazy" src="${esc(url)}" alt="">`:`<span>${esc(String(name||"?").slice(0,1))}</span>`}</div>`};
@@ -45,11 +54,12 @@ function results(){
 function render(){
  if(!cards.length&&!loading)load();
  const boss=current(),level=mode();
- const groups=source.bosses.filter(x=>x.group===boss.group),bans=source.bannedCards||[];
+ const groups=source.bosses.filter(x=>x.group===boss.group),bans=activityBans();
  const raptures=state.team.filter(isRapture).length;
  return `<div class="cc-page"><div class="cc-page-top"><h2>Boss Cheese</h2><small>16 bosses · 5 difficulties each</small></div>
  <div class="cc-controls"><label>Group${groupOpts()}</label><label>Boss<select id="bc-boss">${groups.map(x=>`<option value="${esc(x.id)}" ${x.id===boss.id?"selected":""}>${esc(x.name)}</option>`).join("")}</select></label><label>Difficulty<select id="bc-difficulty">${source.difficultyNames.map((x,i)=>`<option value="${i+1}" ${Number(state.difficulty)===i+1?"selected":""}>${esc(x)}</option>`).join("")}</select></label><label>Runs<select id="bc-runs">${options(["100","200","500","1000"],String(state.runs))}</select></label></div>
  <div class="cc-stats"><b>${fmt(level.hp)} HP</b><b>${fmt(level.attack)} ATK</b><span>Max 1 Rapture card</span>${level.enemyAura?`<span>Enemy Aura: ${esc(level.enemyAura)} (Galaxy)</span>`:""}</div>
+ ${bans.length?`<p class="cc-activity-bans">Banned: ${bans.map(esc).join(", ")}</p>`:""}
  <div class="cc-heading"><h3>Enemy team</h3><small>Fixed lineup</small></div>
  <div class="cc-enemies">${level.team.map((name,i)=>`<div class="cc-enemy">${portrait(name,"large")}<div class="cc-enemy-info"><small>Enemy ${i+1}</small><b title="${esc(name)}">${esc(name)}</b><span title="${esc(card(name)?.ability||"")}">${esc(card(name)?.ability||"")}</span></div></div>`).join("")}</div>
  <div class="cc-heading"><h3>Your deck</h3><small>${raptures}/1 Rapture selected</small></div>
@@ -92,7 +102,7 @@ function bind(root,rerender){
 }
 function run(kind,rerender){
  if(state.running)return;
- const level=mode(),banned=source.bannedCards||[],id=++seq;
+ const level=mode(),banned=activityBans(),id=++seq;
  const owned=parse(state.owned);
  if(state.ownedOnly&&owned.length<4){state.error="Enter at least four owned cards";rerender();return;}
  if(kind==="new-tower-sim"){

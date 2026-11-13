@@ -50,9 +50,11 @@ export const HALLOWEEN_REPORTED_BANS = [
 export const HALLOWEEN_UNAVAILABLE_EVENT_NAMES = ['Santa Claus','Anubis & Hades','Supreme Frank'] as const
 const CURRENT_REISSUED_NAMES = new Set(['Pestilence','Famine','War','Death'])
 export function halloweenUnavailableEvent(name:string):boolean {
+  // Explicitly reported unavailable cards must stay unavailable even when a
+  // newer exported catalog no longer contains the card definition.
+  if((HALLOWEEN_UNAVAILABLE_EVENT_NAMES as readonly string[]).includes(name))return true
   const card=CARD_MAP.get(name)
   if(!card)return false
-  if((HALLOWEEN_UNAVAILABLE_EVENT_NAMES as readonly string[]).includes(name))return true
   return Boolean(card.expires && card.pack !== 'Halloween3' && !CURRENT_REISSUED_NAMES.has(name))
 }
 // Halloween Part 2 rules prohibit ALL duplicate player cards, not just Julius.

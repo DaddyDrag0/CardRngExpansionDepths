@@ -1,12 +1,12 @@
 /* Depths Battle Replay: deterministic event playback, not a second battle
    simulator. Loaded only after someone selects Watch Replay in Depths. */
-const replayScriptUrl = document.currentScript?.src || new URL('./src/depths-battle-replay-v41.js', document.baseURI).href;
+const replayScriptUrl = document.currentScript?.src || new URL('./src/depths-battle-replay-v42.js', document.baseURI).href;
 let stylesheetLoaded = false;
 function ensureStyles() {
   if (stylesheetLoaded || document.querySelector('[data-depth-replay-css]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = new URL('./depths-battle-replay.css?v=20261116-r41', replayScriptUrl).href;
+  link.href = new URL('./depths-battle-replay.css?v=20261116-r42', replayScriptUrl).href;
   link.dataset.depthReplayCss = '1';
   document.head.appendChild(link);
   stylesheetLoaded = true;
@@ -138,11 +138,16 @@ function openBattleReplay({debug,cardImages={},abilityDescriptions={},teamIndex=
     return source?'<img class="'+cls+'" loading="lazy" alt="" src="'+esc(source)+'">':
       '<span class="rpl-placeholder">'+esc((card?.name||'?').slice(0,1))+'</span>';
   }
+  function cardAttributes(card,side) {
+    if(!card)return ' disabled aria-disabled="true"';
+    return ' data-rpl-card-side="'+esc(side)+'" data-rpl-card-id="'+esc(card.id)+'"'+
+      ' aria-label="'+esc(card.name+' · '+(card.ability||'No recorded ability'))+'"';
+  }
   function roster(list,side,current) {
     return '<div class="rpl-roster">'+list.slice(0,5).map((card,i)=>{
       const selected=card.id===current?.id?' chosen':'';
-      return '<div class="rpl-mini'+selected+(card.dead?' dead':'')+'" title="'+esc(card.name)+'">'+
-        img(card)+'<span>'+esc(card.name)+'</span></div>';
+      return '<button type="button" class="rpl-mini'+selected+(card.dead?' dead':'')+'"'+cardAttributes(card,side)+'>'+
+        img(card)+'<span>'+esc(card.name)+'</span></button>';
     }).join('')+'</div>';
   }
   function stageCard(card,side,event) {
@@ -154,7 +159,7 @@ function openBattleReplay({debug,cardImages={},abilityDescriptions={},teamIndex=
     return '<div class="rpl-champion '+(side==='Allies'?'ally':'enemy')+
       (isAttack&&actor?' attacking':'')+(isAttack&&target?' damaged':'')+
       (event?.type==='entry'&&actor?' entering':'')+'">'+
-      '<div class="rpl-champion-portrait">'+img(card)+'</div>'+
+      '<button type="button" class="rpl-champion-portrait"'+cardAttributes(card,side)+'>'+img(card)+'</button>'+
       '<div class="rpl-champion-name">'+esc(card?.name||'—')+'</div>'+
       '<div class="rpl-champion-ability">'+esc(card?.ability||'')+'</div>'+
       '<div class="rpl-HP-text">'+num(card?.hp)+' / '+num(card?.maxHp)+' HP</div>'+
@@ -173,14 +178,12 @@ function openBattleReplay({debug,cardImages={},abilityDescriptions={},teamIndex=
     return visible.slice(lo,hi).map(i=>{
       const e=events[i],info=abilityInfo(e);
       const heading=info?info.card+' · '+info.ability:'';
-      const tooltip=info?info.ability+': '+(info.description||'No description in imported game data.')+' | Recorded: '+info.effect:'';
-      return '<button type="button" data-rpl-event="'+i+'" class="rpl-event '+(info?'rpl-event-ability ':'')+(i===pos?'active':'')+'"'+
-       (info?' title="'+esc(tooltip)+'"':'')+'>'+
+      return '<button type="button" data-rpl-event="'+i+'" class="rpl-event '+(info?'rpl-event-ability ':'')+(i===pos?'active':'')+'">'+
        '<span class="rpl-event-tag">'+eventKind(e)+'</span>'+
        '<span class="rpl-event-detail">'+(info?
           '<strong class="rpl-ability-name">'+esc(heading)+'</strong><span class="rpl-recorded-effect">'+esc(info.effect)+'</span>'
           :esc(summarizeEvent(e)))+'</span>'+
-       '<small>Turn '+(e.turn||0)+(info?' · Hover for ability':'')+'</small></button>';
+       '<small>Turn '+(e.turn||0)+'</small></button>';
     }).join('');
   }
   function inspectorHtml(event){
@@ -194,18 +197,31 @@ function openBattleReplay({debug,cardImages={},abilityDescriptions={},teamIndex=
   function hideTooltip(){
     const tip=dialog.querySelector('[data-rpl-tooltip]');if(tip)tip.hidden=true;
   }
-  function showTooltip(button){
-    if(!button?.matches?.('button.rpl-event-ability[data-rpl-event]'))return;
-    const info=abilityInfo(events[Number(button.dataset.rplEvent)]),tip=dialog.querySelector('[data-rpl-tooltip]');
-    if(!info||!tip)return;
-    tip.innerHTML='<b>'+esc(info.card)+' · '+esc(info.ability)+'</b>'+
-       '<span>'+esc(info.description||'No ability description in imported game data.')+'</span>'+
-       '<small>Recorded: '+esc(info.effect)+'</small>';
+  function showCardTooltip(button){
+    if(!button?.matches?.('button[data-rpl-card-side][data-rpl-card-id]'))return;
+    const side=button.dataset.rplCardSide,id=button.dataset.rplCardId;
+    const card=(getState()[side]||[]).find(item=>item.id===id);
+    const tip=dialog.querySelector('[data-rpl-tooltip]');
+    if(!card||!tip)return;
+    const ability=String(card.ability||'').trim();
+    const description=ability?String(abilityDescriptions[ability]||'').trim():'';
+    tip.innerHTML='<b>'+esc(card.name)+'</b>'+
+      '<span class="rpl-tooltip-ability">'+esc(ability||'No recorded ability')+'</span>'+
+      '<span>'+esc(description||(ability?'No description in imported game data.':'No ability recorded for this card.'))+'</span>';
     tip.hidden=false;
-    const rect=button.getBoundingClientRect(),width=310;
+    const rect=button.getBoundingClientRect();
     const vw=Number(window.innerWidth)||1280,vh=Number(window.innerHeight)||800;
-    tip.style.left=Math.max(8,rect.left>=width+22?rect.left-width-12:Math.min(vw-width-8,rect.right+10))+'px';
-    tip.style.top=Math.max(8,Math.min(rect.top,vh-Math.max(190,tip.offsetHeight||170)-12))+'px';
+    const bounds=dialog.getBoundingClientRect?.()||{left:0,right:vw,top:0,bottom:vh};
+    const width=Math.min(310,vw-24),height=tip.offsetHeight||170;
+    const minX=Math.max(8,bounds.left+8),maxX=Math.max(minX,Math.min(vw-width-8,bounds.right-width-8));
+    const minY=Math.max(8,bounds.top+8),maxY=Math.max(minY,Math.min(vh-height-8,bounds.bottom-height-8));
+    let x=rect.right+12;
+    if(x>maxX)x=rect.left-width-12;
+    if(x<minX)x=rect.left+((rect.width||0)-width)/2;
+    let y=button.classList?.contains?.('rpl-mini')?rect.bottom+10:rect.top;
+    if(y>maxY)y=rect.top-height-10;
+    tip.style.left=Math.min(maxX,Math.max(minX,x))+'px';
+    tip.style.top=Math.min(maxY,Math.max(minY,y))+'px';
   }
   function paint(animate=false) {
     if(closed)return;
@@ -287,6 +303,9 @@ function openBattleReplay({debug,cardImages={},abilityDescriptions={},teamIndex=
       '<small data-rpl-caption></small></footer></div>';
   document.body.appendChild(dialog);
   dialog.addEventListener('click',event=>{
+    const cardButton=event.target.closest('button[data-rpl-card-side][data-rpl-card-id]');
+    if(cardButton){showCardTooltip(cardButton);return}
+    hideTooltip();
     const button=event.target.closest('button[data-rpl-play],button[data-rpl-first],button[data-rpl-prev],button[data-rpl-next],button[data-rpl-last],button[data-rpl-log],button[data-rpl-close],button[data-rpl-event],button[data-rpl-filter]');
     if(!button)return;
     if(button.hasAttribute('data-rpl-play'))play();
@@ -303,9 +322,13 @@ function openBattleReplay({debug,cardImages={},abilityDescriptions={},teamIndex=
       paint(false);
     }
   });
-  dialog.addEventListener('pointerover',e=>showTooltip(e.target?.closest?.('button.rpl-event-ability[data-rpl-event]')));
-  dialog.addEventListener('pointerout',e=>{if(!e.relatedTarget?.closest?.('button.rpl-event-ability[data-rpl-event]'))hideTooltip()});
-  dialog.addEventListener('focusin',e=>showTooltip(e.target?.closest?.('button.rpl-event-ability[data-rpl-event]')));
+  dialog.addEventListener('pointerover',e=>{
+    if(e.pointerType==='mouse'||e.pointerType==='pen')showCardTooltip(e.target?.closest?.('button[data-rpl-card-side][data-rpl-card-id]'));
+  });
+  dialog.addEventListener('pointerout',e=>{
+    if(!e.relatedTarget?.closest?.('button[data-rpl-card-side][data-rpl-card-id]'))hideTooltip();
+  });
+  dialog.addEventListener('focusin',e=>showCardTooltip(e.target?.closest?.('button[data-rpl-card-side][data-rpl-card-id]')));
   dialog.addEventListener('focusout',hideTooltip);
   dialog.querySelector('[data-rpl-events]').addEventListener('scroll',hideTooltip);
   dialog.querySelector('[data-rpl-range]').addEventListener('input',e=>{
@@ -319,4 +342,4 @@ function openBattleReplay({debug,cardImages={},abilityDescriptions={},teamIndex=
 }
 
 // Load as a classic script: This player uses a classic script for broad hosting compatibility.
-window.CRXDepthsReplay = {version:'v41',openBattleReplay};
+window.CRXDepthsReplay = {version:'v42',openBattleReplay};

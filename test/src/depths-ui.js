@@ -405,7 +405,7 @@ function decodeTeam(code){
     if(!replayScriptPromise){
       replayScriptPromise=new Promise((resolve,reject)=>{
         const script=document.createElement('script');
-        script.src=versioned('./src/depths-battle-replay-v41.js');
+        script.src=versioned('./src/depths-battle-replay-v42.js');
         script.async=true;
         script.onload=()=>window.CRXDepthsReplay?.version==='v41'?resolve():reject(new Error('Replay v41 did not initialize'));
         script.onerror=()=>reject(new Error('Unable to load replay script from this site'));

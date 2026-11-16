@@ -126,3 +126,13 @@ overflow:hidden;border:2px solid #395367;box-shadow:0 8px 25px #0007,0 0 22px #5
 .rpl-ability-tooltip b{font-size:12px;color:#a3e2d5}
 .rpl-ability-tooltip span{font-size:11px;line-height:1.55;color:#e1ebf3;overflow-wrap:anywhere}
 .rpl-ability-tooltip small{font-size:10px;color:#a7bdc9;border-top:1px solid #2b5262;padding-top:8px;line-height:1.5;overflow-wrap:anywhere}
+
+/* v42 — ability info belongs to deck cards and active battle portraits. */
+.rpl-dialog button.rpl-mini{padding:0;background:transparent;border:0;border-radius:5px;cursor:help;color:inherit;text-align:center;font:inherit;flex:0 0 auto}
+.rpl-dialog button.rpl-mini:hover,.rpl-dialog button.rpl-mini:focus-visible{background:transparent;border:0;opacity:1;filter:none}
+.rpl-dialog button.rpl-mini:focus-visible img,.rpl-dialog button.rpl-mini:hover img{outline:2px solid #8cddd1;outline-offset:2px}
+.rpl-dialog button.rpl-champion-portrait{display:block;padding:0;cursor:help;color:inherit}
+.rpl-dialog button.rpl-champion-portrait:hover,.rpl-dialog button.rpl-champion-portrait:focus-visible{border-color:#8cddd1;box-shadow:0 0 0 2px #59bbac55,0 8px 25px #0007}
+.rpl-dialog button.rpl-mini:focus-visible,.rpl-dialog button.rpl-champion-portrait:focus-visible{outline:2px solid #8cddd1;outline-offset:3px}
+.rpl-ability-tooltip .rpl-tooltip-ability{font-weight:800;color:#a3e2d5;font-size:12px}
+.rpl-ability-tooltip{z-index:200}

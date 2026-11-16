@@ -699,3 +699,26 @@ details.ban-lab[open]>summary::after{content:'−'}
 @container depths-controls (max-width:500px){
  .ban-lab .ban-lab-actions{margin-left:0}
 }
+
+/* v40 - muted, thin scrollbars instead of the default bright browser gutters.
+   Cover page scrolling and each independently scrollable panel. */
+:where(html, body, .depths-workspace, .depths-workspace *) {
+  scrollbar-width: thin;
+  scrollbar-color: #3e6168 #141d26;
+}
+:where(html, body, .depths-workspace, .depths-workspace *)::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+:where(html, body, .depths-workspace, .depths-workspace *)::-webkit-scrollbar-track {
+  background: #141d26;
+  border-radius: 10px;
+}
+:where(html, body, .depths-workspace, .depths-workspace *)::-webkit-scrollbar-thumb {
+  background: #3e6168;
+  border: 2px solid #141d26;
+  border-radius: 10px;
+}
+:where(html, body, .depths-workspace, .depths-workspace *)::-webkit-scrollbar-thumb:hover {
+  background: #58818a;
+}

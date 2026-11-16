@@ -1,11 +1,8 @@
-(function CardRngDepthsHeader(){
+(function CardRngDepthsBootstrap(){
 "use strict";
 function ready(){
  const root=document.getElementById('root');if(!root)return;
  // Depths only. The retired cheese makers are saved under archive/cheese.
- const header=document.createElement('header');header.id='crx-mini-header';
- header.innerHTML='<div class="crx-mini-inner"><a class="crx-mini-brand" href="?calc=depths">CardRng <b>Calculators</b></a></div>';
- document.body.prepend(header);
  const container=document.createElement('div');container.id='crx-simple-body';
  root.before(container);container.appendChild(root);
  // Treat old cheese and tower URLs as the Depths home.

@@ -401,3 +401,103 @@ details.ban-lab[open]>summary::after{content:'−'}
  .depth-control-mode{grid-column:auto}
  .depth-run-actions{justify-content:flex-start}
 }
+
+
+/* v32: independent setup columns. No row-spanning loadout can enlarge the
+   area between the test controls and the full-width results. */
+.workspace.depths-workspace{
+ display:flex;
+ flex-direction:column;
+ align-items:stretch;
+ gap:12px;
+ grid-template-columns:none;
+ grid-template-rows:none;
+}
+.workspace.depths-workspace>.depth-setup-shell{
+ display:grid;
+ grid-template-columns:minmax(0,1.07fr) minmax(0,1.85fr);
+ align-items:start;
+ gap:12px;
+ width:100%;
+ min-width:0;
+}
+.depth-setup-shell>.loadout{min-width:0;align-self:start}
+.depth-setup-shell>.depth-right-shell{
+ min-width:0;
+ display:grid;
+ grid-template-columns:minmax(0,.85fr) minmax(350px,1fr);
+ grid-template-rows:auto max-content;
+ align-items:start;
+ gap:12px;
+}
+.depth-right-shell>.library{
+ min-width:0;
+ grid-column:1;
+ grid-row:1;
+ max-height:720px;
+ overflow:hidden;
+ display:flex;
+ flex-direction:column;
+}
+.depth-right-shell>.library>.library-list{
+ overflow-y:auto;
+ flex:1;
+ min-height:0;
+}
+.depth-right-shell>.simulation{
+ min-width:0;
+ grid-column:2;
+ grid-row:1;
+ max-height:720px;
+ overflow-y:auto;
+ overscroll-behavior:contain;
+ align-self:start;
+}
+.depth-right-shell>.simulation>.panel-head{
+ position:sticky;
+ top:0;
+ z-index:4;
+ background:var(--panel-grad-top,var(--surface-2));
+ border-bottom:1px solid var(--line);
+}
+.depth-right-shell>.depth-control-dock{
+ min-width:0;
+ grid-column:1 / -1;
+ grid-row:2;
+ align-self:start;
+}
+.workspace.depths-workspace>.results-panel{
+ grid-row:auto;
+ grid-column:auto;
+ align-self:stretch;
+ width:100%;
+ max-width:none;
+ min-width:0;
+ margin:0;
+}
+@media(max-width:1199px){
+ .workspace.depths-workspace>.depth-setup-shell{
+  grid-template-columns:minmax(0,1fr);
+ }
+ .depth-setup-shell>.depth-right-shell{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+ }
+ .depth-right-shell>.simulation{
+  max-height:660px;
+ }
+}
+@media(max-width:759px){
+ .depth-setup-shell>.depth-right-shell{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+ }
+ .depth-right-shell>.library,.depth-right-shell>.simulation,.depth-right-shell>.depth-control-dock{
+  width:100%;
+  box-sizing:border-box;
+ }
+ .depth-right-shell>.library{order:1;max-height:520px}
+ .depth-right-shell>.simulation{order:2;max-height:none;overflow:visible}
+ .depth-right-shell>.depth-control-dock{order:3}
+ .depth-right-shell>.simulation>.panel-head{position:static}
+}

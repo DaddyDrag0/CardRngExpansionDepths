@@ -401,13 +401,14 @@ function decodeTeam(code){
 }
   let replayScriptPromise=null;
   function ensureReplayScript(){
-    if(window.CRXDepthsReplay?.version==='v41')return Promise.resolve();
+    if(window.CRXDepthsReplay?.version==='v42'&&typeof window.CRXDepthsReplay.openBattleReplay==='function')return Promise.resolve();
     if(!replayScriptPromise){
       replayScriptPromise=new Promise((resolve,reject)=>{
         const script=document.createElement('script');
         script.src=versioned('./src/depths-battle-replay-v42.js');
         script.async=true;
-        script.onload=()=>window.CRXDepthsReplay?.version==='v41'?resolve():reject(new Error('Replay v41 did not initialize'));
+        script.onload=()=>window.CRXDepthsReplay?.version==='v42'&&typeof window.CRXDepthsReplay.openBattleReplay==='function'
+          ?resolve():reject(new Error('Replay v42 failed to initialize (version mismatch or missing player)'));
         script.onerror=()=>reject(new Error('Unable to load replay script from this site'));
         document.head.appendChild(script);
       }).catch(error=>{replayScriptPromise=null;throw error});

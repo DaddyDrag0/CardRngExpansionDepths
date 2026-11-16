@@ -1,7 +1,7 @@
 (function CardRngDepthsHeader(){
 "use strict";
 const build=String(window.__CRX_SITE_VERSION||'');
-const version=build.match(/(?:^|-)v(\d+)(?:$|-)/i)?.[1]||'?';
+const version=build.match(/(?:^|-)v(\d+)(?=$|[^0-9])/i)?.[1]||'?';
 function ready(){
  const root=document.getElementById('root');if(!root)return;
  // Depths only. The retired cheese makers are saved under archive/cheese.

@@ -70,6 +70,7 @@ const fakeCard={
  classList:{contains:()=>true},
  getBoundingClientRect:()=>({left:980,right:1040,top:150,bottom:205,width:60})
 };
+fakeCard.closest=selector=>selector==='button[data-rpl-card-side][data-rpl-card-id]'?fakeCard:null;
 dialog.events.get("pointerover")({pointerType:"mouse",clientX:990,clientY:175,target:{closest:()=>fakeCard}});
 const tooltip=nodes.get("[data-rpl-tooltip]");
 assert.equal(tooltip.hidden,false,"Hovering a deck card should reveal the tooltip");

@@ -1,0 +1,36 @@
+name: CYBERPUNK Test Branch Audit
+
+on:
+  push:
+    branches: [overhaul-test-2026]
+    paths:
+      - '.github/workflows/cyberpunk-test-branch-audit.yml'
+      - 'src/**'
+      - 'browser/depths-worker.js'
+      - 'scripts/cyberpunk-regression.ts'
+      - 'scripts/depths-time-regression.ts'
+      - 'package.json'
+      - 'site-version.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - name: Run complete validation without replacing customized worker
+        run: npm run check
+      - name: Verify deployed CYBERPUNK abilities and skill-tree tiers
+        run: |
+          node --check browser/depths-worker.js
+          grep -q 'function __cyberOnDeath' browser/depths-worker.js
+          grep -q 'gi=6,yi=\[0,.5,1,1.5,2.5,4,5.5\]' browser/depths-worker.js

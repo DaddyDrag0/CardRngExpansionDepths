@@ -3,6 +3,7 @@ import fs from 'node:fs'
 const loaderHtml = fs.readFileSync('index.html', 'utf8')
 const liveHtml = fs.readFileSync('index-base.html', 'utf8')
 const depthsUi = fs.readFileSync('src/depths-ui.js', 'utf8')
+const overhaulHub = fs.readFileSync('src/overhaul-hub.js', 'utf8')
 const feedbackUi = fs.readFileSync('src/feedback.js', 'utf8')
 const themeController = fs.readFileSync('src/theme-controller.js', 'utf8')
 const versionWatcher = fs.readFileSync('src/site-version-watch.js', 'utf8')
@@ -34,9 +35,9 @@ for (const hook of ['depthBanLayouts','data-depth-ban-layout','data-depth-bans-e
 }
 if (!depthsUi.includes("payload={v:3,name:sanitizeBanName(state.depthBanNames[state.activeDepthBanLayout],state.activeDepthBanLayout),bans:sanitizeBanList(state.depthBans)}")) throw new Error('Ban export must contain only the active layout')
 if (!depthsUi.includes('setActiveDepthBans(decoded.bans)')) throw new Error('Ban import must target the currently viewed layout')
-if (!depthsUi.includes('runs:15,startFloor:1,cap:300000,seed:1000')) throw new Error('Depths start floor/default floor cap state is not initialized correctly')
-if (!depthsUi.includes('id="startFloorInput" type="number" min="1" max="80000"')) throw new Error('Depths Start Floor input must be limited to 1-80,000')
-if (!depthsUi.includes('state.startFloor=Math.min(80000,Math.max(1,Math.floor(Number(s.startFloor)||1)))')) throw new Error('Depths Start Floor restore path must clamp to 1-80,000')
+if (!depthsUi.includes('runs:15,normalFloorStride:10,hardFloorStride:1,startFloor:1,cap:300000,seed:1000')) throw new Error('Depths start floor/default floor cap state is not initialized correctly')
+if (!depthsUi.includes('id="startFloorInput" type="number" min="1" max="300000"')) throw new Error('Depths Start Floor input must support 1-300,000')
+if (!depthsUi.includes('state.startFloor=Math.min(300000,Math.max(1,Math.floor(Number(s.startFloor)||1)))')) throw new Error('Depths Start Floor restore path must clamp to 1-300,000')
 if (!depthsUi.includes('startFloor:state.startFloor')) throw new Error('Depths Start Floor is not sent to the simulation worker')
 if (!depthsUi.includes('chronoShard:true')) throw new Error('Chrono Shard timing toggle must default on')
 if (!depthsUi.includes('data-chrono-shard')) throw new Error('Chrono Shard timing toggle is missing from the UI')
@@ -50,15 +51,11 @@ if (!liveHtml.includes('./src/depths-ui.js')) throw new Error('Extracted Depths 
 if (!liveHtml.includes('./src/depths-ui.css')) throw new Error('Extracted Depths UI styles are not loaded')
 if (liveHtml.includes("const root=document.getElementById('root')")) throw new Error('Depths application code returned to inline HTML')
 if (!depthsUi.includes('function sortPrefixMatches(')) throw new Error('Shared autocomplete sorter is missing')
-if (!depthsUi.includes("visibleUrl.searchParams.get('view')==='tower'")) throw new Error('Direct Tower view URL is not handled on load')
-if (!depthsUi.includes("url.searchParams.set('view','tower')")) throw new Error('Tower tab does not update the direct-link URL')
-if (!depthsUi.includes("url.searchParams.delete('view')")) throw new Error('Depths tab does not restore the base URL')
-
-if (!depthsUi.includes("towerExcludedCards:['Robin Hood','Pandora']")) throw new Error('Robin Hood and Pandora must default OFF in Tower cheese search')
-if (!depthsUi.includes("towerHasEndTimes:false")) throw new Error('End Times must default OFF in Tower cheese search')
-for (const removed of ['Ice King','Surtr','Control Freak']) {
-  if (depthsUi.includes(`TOWER_DEFAULT_CHEESE_CARDS=[${String.fromCharCode(39)}${removed}`)) throw new Error(`${removed} returned to the default Tower cheese pool`)
-}
+// The v29 site is Depths-only; cheese UI is stored under archive/cheese.
+if (!overhaulHub.includes("CardRngDepthsHeader")) throw new Error("Depths-only header is missing")
+if (overhaulHub.includes("Tower Cheese") || overhaulHub.includes("Trial Cheese")) throw new Error("Archived calculators are still in navigation")
+if (!depthsUi.includes('data-ban-lab-samples')) throw new Error("Ban Lab sample count control is missing")
+if (!depthsUi.includes('hardMode:true,floorStride:2')) throw new Error("Ban Lab must simulate Hard Depths using every second floor")
 
 if ((depthsUi.match(/matches\.sort\(\(a,b\)=>/g) || []).length !== 1) throw new Error('Autocomplete sorting must use one shared implementation')
 
@@ -88,7 +85,7 @@ for (const removedHook of ['data-library-mode="bans"', 'data-library-mode="pool"
 const workerSource = fs.readFileSync('src/browser-worker.ts', 'utf8')
 if (!workerSource.includes('chronoShard?: boolean')) throw new Error('Browser worker Chrono Shard request field is missing')
 if (!workerSource.includes('startFloor?: number')) throw new Error('Browser worker Start Floor request field is missing')
-if (!workerSource.includes('Math.min(80_000, Math.max(1')) throw new Error('Browser worker Start Floor must clamp to 1-80,000')
+if (!workerSource.includes('Math.min(300_000, Math.max(1')) throw new Error('Browser worker Start Floor must clamp to 1-300,000')
 if (!workerSource.includes('request.chronoShard !== false')) throw new Error('Browser worker does not apply the Chrono Shard timing toggle')
 for (const removedField of ['excludedCardNames', 'selectedCardNames']) {
   if (workerSource.includes(removedField)) throw new Error(`Removed calculator-only field returned: ${removedField}`)

@@ -1,7 +1,9 @@
 (()=>{
     const valid=new Set(['default','scarlet','slate','lava']);
-    let theme='default';
-    try{const saved=localStorage.getItem('crx-site-theme');if(valid.has(saved))theme=saved}catch(_){}
+    let theme='slate';
+    try{const saved=localStorage.getItem('crx-site-theme');if(valid.has(saved))theme=saved;
+      const migration='crx-slate-default-nov2026-v1';
+      if(!localStorage.getItem(migration)){theme='slate';localStorage.setItem(migration,'1');localStorage.setItem('crx-site-theme','slate');}}catch(_){}
     document.documentElement.dataset.theme=theme;
     window.addEventListener('DOMContentLoaded',()=>{
       const colors={default:'#080b10',scarlet:'#080406',slate:'#14191f',lava:'#090202'};

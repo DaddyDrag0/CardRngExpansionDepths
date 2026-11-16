@@ -1,6 +1,6 @@
-export type BorderName = 'Platinum' | 'Crystal' | 'Ruby' | 'Galaxy'
+export type BorderName = 'Platinum' | 'Emerald' | 'Crystal' | 'Ruby' | 'Galaxy'
 export type AuraBorderName = 'Platinum' | 'Crystal' | 'Galaxy'
-export type MutationWeather = 'Storm' | 'Snow' | 'Aurora' | 'Shroud' | 'Meteor Shower' | 'Time Storm' | 'Eclipse' | 'Virus' | 'Blood Rain' | 'Armageddon' | 'Manga' | 'Pumpkin Moon'
+export type MutationWeather = 'Storm' | 'Snow' | 'Aurora' | 'Shroud' | 'Meteor Shower' | 'Time Storm' | 'Eclipse' | 'Virus' | 'Blood Rain' | 'Armageddon' | 'Manga' | 'Pumpkin Moon' | 'The Great Deluge' | 'Reality Fracture' | 'Dreamfall'
 export type BattleTeam = 'Allies' | 'Enemies'
 
 export interface CardDefinition {
@@ -12,6 +12,10 @@ export interface CardDefinition {
   ability: string | null
   weather: string | null
   pack: string | null
+  collection?: string | null
+  limited?: boolean
+  sin?: boolean
+  virtue?: boolean
   boss: boolean
   unobtainable: boolean
   expires: boolean
@@ -128,10 +132,17 @@ export interface BattleDebugCard {
 
 export interface BattleDebugEvent {
   turn: number
-  type: 'turn' | 'death' | 'revive' | 'stall' | 'spawn' | 'ability'
+  type: 'turn' | 'entry' | 'attack' | 'death' | 'revive' | 'stall' | 'spawn' | 'ability'
   team: BattleTeam
   card: string
   detail: string
+  target?: string
+  targetTeam?: BattleTeam
+  targetHpBefore?: number
+  targetHpAfter?: number
+  targetMaxHp?: number
+  damageDealt?: number
+  blocked?: boolean
   hp?: number
   maxHp?: number
   damage?: number

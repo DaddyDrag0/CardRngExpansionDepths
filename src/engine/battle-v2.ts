@@ -21,6 +21,7 @@ const OTHER_TEAM: Record<BattleTeam, BattleTeam> = { Allies: 'Enemies', Enemies:
 const CARD_BY_NAME = new Map(cards.map((card) => [card.name, card] as const))
 
 const FULLY_SUPPORTED = new Set([
+  'Drowned', // Summoned by The Drowned Monarch: no additional proc beyond normal combat.
   'Gathering', 'Remembrance', 'Am I Beautiful?', 'Persistent', 'Chimeric',
   'First Progenitor', 'Undead Practitioner', 'Big and Large', 'Patience', 'Blade',
   'Clawless', 'Catastrophe', 'Frail', 'Fight Dirty', 'Assassinate', 'Humanity\'s Spirit',
@@ -89,6 +90,7 @@ const FULLY_SUPPORTED = new Set([
   'King of Horror', 'Stone Vigil', 'Never Fall Asleep', 'Cursed Orchard', 'Haunted Heirloom',
   'Trick or Treat!', 'Get Off My Lawn!', 'Venomous Web', 'Intangible',
   'Murder of Crows', 'Withering Curse', 'The Eight Pages',
+  'Caught On Tape', 'Night City Massacre', 'Hack', 'Sandevistan',
 ])
 
 const BENCH_AFFECTING_UNSUPPORTED = new Set<string>()
@@ -147,7 +149,7 @@ function debugCard(card: CombatCard) {
 
 function pushDebugEvent(runtime: Runtime, event: BattleDebug['events'][number]) {
   if (!runtime.captureDebug) return
-  if (runtime.debug.events.length >= 5000) runtime.debug.events.shift()
+  if (runtime.debug.events.length >= 20_000) return
   runtime.debug.events.push(event)
 }
 
@@ -418,6 +420,37 @@ function boostStats(card: CombatCard, mult: number) {
   card.damage *= mult
   card.maxHp *= mult
   card.hp *= mult
+}
+
+/** CYBERPUNK: Rowy's passive records the enemy on every second allied attack.
+ * Exact server-side trigger/tick rules are unavailable in this client export;
+ * this implements the published ability description using normal attack events.
+ */
+function recordCaughtOnTape(runtime: Runtime, attacker: CombatCard, target: CombatCard) {
+  if (attacker.team === target.team) return
+  const holder = runtime.state.teams[attacker.team].find((card) => alive(card) && hasAbility(runtime, card, 'Caught On Tape'))
+  if (!holder) return
+  holder.counters.cyberRecordAttacks = (holder.counters.cyberRecordAttacks || 0) + 1
+  if (holder.counters.cyberRecordAttacks % 2 !== 0) return
+  target.counters.cyberExposedTurns = 3
+  pushAbilityDebug(runtime, holder, 'Caught On Tape exposed ' + (effectiveCardName(target) || target.definition.name) + ' for 3 turns (+35% allied damage).')
+}
+
+function applyCaughtOnTapeKill(runtime: Runtime, dead: CombatCard) {
+  if ((dead.counters.cyberExposedTurns || 0) <= 0) return
+  const team = OTHER_TEAM[dead.team]
+  const holder = runtime.state.teams[team].find((card) => alive(card) && hasAbility(runtime, card, 'Caught On Tape'))
+  if (!holder) return
+  const stacks = Math.min(4, holder.counters.cyberExposureStacks || 0)
+  if (stacks >= 4) return
+  holder.counters.cyberExposureStacks = stacks + 1
+  for (const ally of runtime.state.teams[team]) {
+    if (!alive(ally)) continue
+    const base = ally.counters.cyberExposureBaseDamage || ally.damage
+    ally.counters.cyberExposureBaseDamage = base
+    ally.damage += base * 0.15
+  }
+  pushAbilityDebug(runtime, holder, 'Caught On Tape defeated an exposed enemy, granting allies +15% ATK (stack ' + (stacks + 1) + '/4).')
 }
 
 function stealStats(from: CombatCard, to: CombatCard, fraction: number) {
@@ -759,6 +792,10 @@ function onEntry(runtime: Runtime, card: CombatCard) {
   if (card.entered || !alive(card)) return
   card.entered = true
   card.flags.appearedOnField = true
+  pushDebugEvent(runtime, { turn: runtime.state.turn, type: 'entry', team: card.team,
+    card: effectiveCardName(card) || card.definition.name,
+    detail: (ability(card) || 'No ability') + ' · entered the field', hp: card.hp,
+    maxHp: card.maxHp, damage: card.damage })
   noteUnsupported(runtime.state, card)
   const enemyTeam = OTHER_TEAM[card.team]
   const enemy = active(runtime, enemyTeam)
@@ -777,6 +814,16 @@ function onEntry(runtime: Runtime, card: CombatCard) {
 
   // Video Game combat models are implemented from the current card definitions and
   // are covered by the dedicated regression suite below.
+  if (name === 'Hack') {
+    const victim = runtime.state.teams[enemyTeam]
+      .filter(alive)
+      .reduce<CombatCard | undefined>((max, candidate) => !max || candidate.damage > max.damage ? candidate : max, undefined)
+    if (victim) {
+      victim.counters.cyberHackPending = 1
+      pushAbilityDebug(runtime, card, 'Hack targeted ' + (effectiveCardName(victim) || victim.definition.name) + ' — it must strike its own ally on its next turn.')
+    }
+  }
+
   if (name === 'The D8') {
     card.damage *= 1 + (1 + Math.floor(rand(runtime, card.team) * 50)) / 100
     const hpFactor = 1 + (1 + Math.floor(rand(runtime, card.team) * 50)) / 100
@@ -1852,7 +1899,7 @@ function defensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
     case 'Avalon': if (damage < target.damage * 0.75) damage = 0; break
     case 'Heard but not Seen': {
       const dodge = Math.min(0.5, 0.2 + (target.counters.heardHits || 0) * 0.1)
-      if (rand(runtime, target.team) < dodge) damage = 0
+      if (rand(runtime, target.team) > 1 - dodge) damage = 0
       else target.counters.heardHits = (target.counters.heardHits || 0) + 1
       break
     }
@@ -2318,6 +2365,7 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   const confused = attacker.status.confused > 0 || attacker.flags.eternalConfusion
   const confusionSelfHit = confused && runtime.rng.next() < 0.5
   if (confusionSelfHit) target = attacker
+  const replayHpBefore = target.hp
   if (attacker.status.confused > 0 && !attacker.flags.eternalConfusion) attacker.status.confused -= 1
   if (confusionSelfHit) {
     pushAbilityDebug(runtime, attacker, 'Confusion caused this attack to hit itself.')
@@ -2412,6 +2460,9 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
 
   const shielder = runtime.state.boosts[target.team].shielder
   if (shielder) damage *= (100 - shielder) / 100
+  // Rowy's exposure is an offensive mark (not a defense modifier); any allied
+  // damage dealt to the recorded target is boosted until its three-turn timer ends.
+  if (attacker.team !== target.team && (target.counters.cyberExposedTurns || 0) > 0) damage *= 1.35
   // Inherited Heirloom is an external protective effect on the next card,
   // not an ability the inheritor needs to own.
   if (!bypass && canReceiveExternalProtection(target) && (target.counters.hauntedInheritedTurns || 0) > 0) damage *= 0.6
@@ -2547,6 +2598,14 @@ function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: Comb
   if (target.hp <= 0) tryRevive(runtime, attacker, target)
 
   if (hasAbility(runtime, attacker, 'Infinite Dagger Works') && rand(runtime, attacker.team) > 0.5) { attacker.flags.extraTurn = true; pushAbilityDebug(runtime, attacker, 'Infinite Dagger Works triggered — the opponent turn will be skipped.') }
+  if (runtime.captureDebug) pushDebugEvent(runtime, { turn: runtime.state.turn, type: 'attack',
+    team: attacker.team, card: effectiveCardName(attacker) || attacker.definition.name,
+    detail: (effectiveCardName(attacker) || attacker.definition.name) + ' attacked ' + (effectiveCardName(target) || target.definition.name),
+    target: effectiveCardName(target) || target.definition.name, targetTeam: target.team,
+    targetHpBefore: replayHpBefore, targetHpAfter: target.hp, targetMaxHp: target.maxHp,
+    damageDealt: Math.max(0, replayHpBefore - Math.max(0, target.hp)),
+    blocked: replayHpBefore === target.hp,
+    hp: attacker.hp, maxHp: attacker.maxHp, damage: attacker.damage })
   return damage
 }
 
@@ -2782,6 +2841,7 @@ function resolveDeaths(runtime: Runtime) {
       card.hp = 0
       card.dead = true
       runtime.state.fallen[team].push(card)
+      applyCaughtOnTapeKill(runtime, card)
 
       const finalTestament = runtime.state.boosts[team].finalTestament
       const inheritor = deck[0]
@@ -2914,6 +2974,7 @@ function tickOuroborosDecay(attacker: CombatCard) {
 }
 
 function statusEnd(runtime: Runtime, attacker: CombatCard) {
+  if ((attacker.counters.cyberExposedTurns || 0) > 0) attacker.counters.cyberExposedTurns -= 1
   tickOuroborosDecay(attacker)
   if ((attacker.counters.witheringCursed || 0) > 0 && !statusProtected(runtime, attacker.team)) {
     const stacks = Math.min(3, (attacker.counters.witheringCurseStacks || 0) + 1)
@@ -3337,6 +3398,25 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
   target = active(runtime, enemyTeam)
   if (!target) return
 
+  if ((attacker.counters.cyberHackPending || 0) > 0) {
+    attacker.counters.cyberHackPending = 0
+    const allies = runtime.state.teams[attacker.team].filter((card) => card !== attacker && alive(card))
+    if (allies.length) {
+      const victim = allies[Math.floor(rand(runtime, attacker.team) * allies.length)]
+      runAbilityTrace(runtime, attacker, 'Hack', () => {
+        pushAbilityDebug(runtime, attacker, 'Hack forced a friendly-fire attack on ' + (effectiveCardName(victim) || victim.definition.name) + '.')
+        dealDamage(runtime, attacker, victim)
+        resolveDeaths(runtime)
+      })
+      if (alive(attacker)) {
+        statusEnd(runtime, attacker)
+        processTeamTurnAbilities(runtime, attacker.team, attacker)
+        resolveDeaths(runtime)
+      }
+      return
+    }
+  }
+
   beforeAttack(runtime, attacker)
 
   if (hasAbility(runtime, attacker, 'Lotus Sutra')) runAbilityTrace(runtime, attacker, 'Lotus Sutra', () => doLotusSutra(runtime, attacker))
@@ -3372,6 +3452,25 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
     for (let i = 0; i < count; i++) {
       target = active(runtime, enemyTeam)
       if (!target || !alive(attacker)) break
+      if (hasAbility(runtime, attacker, 'Night City Massacre')) {
+        attacker.counters.cyberMassacreAttacks = (attacker.counters.cyberMassacreAttacks || 0) + 1
+        const threshold = Math.max(1, attacker.counters.cyberMassacreInterval || 3)
+        if (attacker.counters.cyberMassacreAttacks >= threshold) {
+          attacker.counters.cyberMassacreAttacks = 0
+          const victims = runtime.state.teams[enemyTeam].filter(alive)
+          let defeated = 0
+          for (const victim of victims) {
+            if (!alive(attacker) || !alive(victim)) continue
+            dealDamage(runtime, attacker, victim, 1.5)
+            if (victim.hp <= 0) defeated += 1
+            resolveDeaths(runtime)
+          }
+          attacker.counters.cyberMassacreInterval = Math.max(1, threshold - defeated)
+          pushAbilityDebug(runtime, attacker, 'Night City Massacre struck ' + victims.length + ' enemies for 150% ATK and defeated ' + defeated + '. Next trigger every ' + attacker.counters.cyberMassacreInterval + ' attack(s).')
+          recordCaughtOnTape(runtime, attacker, target)
+          continue
+        }
+      }
       if (hasAbility(runtime, attacker, 'Murder of Crows')) {
         attacker.counters.crowAttacks = (attacker.counters.crowAttacks || 0) + 1
         if (attacker.counters.crowAttacks % 3 === 0) {
@@ -3387,6 +3486,7 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
       }
       const critical = hasAbility(runtime, attacker, 'Jackpot') && rand(runtime, attacker.team) < 0.3
       const dealt = dealDamage(runtime, attacker, target, dance ? 0.5 : critical ? 1.5 : 1)
+      recordCaughtOnTape(runtime, attacker, target)
       const armageddonLethal = Boolean(attacker.flags.armageddonLethalThisHit)
       if (hasAbility(runtime, attacker, 'Fortify') && alive(attacker)) {
         const block = attacker.maxHp * 0.4
@@ -3396,6 +3496,20 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
       if (critical && alive(attacker) && alive(target)) dealDamage(runtime, attacker, target, 0.5)
       applyCollateralAfterHit(runtime, attacker, target, dealt)
       resolveDeaths(runtime)
+      if (hasAbility(runtime, attacker, 'Sandevistan') && alive(attacker)) {
+        attacker.counters.cyberSandevistanAttacks = (attacker.counters.cyberSandevistanAttacks || 0) + 1
+        if (attacker.counters.cyberSandevistanAttacks % 2 === 0) {
+          for (let extra = 0; extra < 3; extra++) {
+            const next = active(runtime, enemyTeam)
+            if (!next || !alive(attacker)) break
+            const scale = 0.75 * Math.pow(1.25, extra)
+            const extraDamage = dealDamage(runtime, attacker, next, scale)
+            applyCollateralAfterHit(runtime, attacker, next, extraDamage)
+            resolveDeaths(runtime)
+          }
+          pushAbilityDebug(runtime, attacker, 'Sandevistan fired three bonus strikes (75%, 93.75%, 117.19% ATK).')
+        }
+      }
       let insatiableChainCount = 0
       while (attacker.flags.insatiableAttack && alive(attacker) && active(runtime, enemyTeam)) {
         // A confirmed-kill chain should be finite. Keep a hard same-turn guard so

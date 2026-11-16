@@ -28,6 +28,9 @@ const expected: Record<MutationWeather, number> = {
   Armageddon: 6,
   Manga: 6.5,
   'Pumpkin Moon': 7.5,
+  'The Great Deluge': 8,
+  'Reality Fracture': 8.5,
+  Dreamfall: 9,
 }
 assert.deepEqual(WEATHER_MUTATION_STAT_MULTIPLIERS, expected)
 

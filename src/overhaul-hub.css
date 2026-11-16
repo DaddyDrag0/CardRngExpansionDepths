@@ -1,0 +1,687 @@
+
+/* CardRng Calculators 2026 — minimal navigation, inherited theme colors. */
+#crx-mini-header{position:relative;z-index:10;border-bottom:1px solid var(--line);background:var(--bg)}
+.crx-mini-inner{width:min(1540px,calc(100% - 40px));margin:auto;display:flex;align-items:center;gap:38px;min-height:68px;padding:0 2px}
+.crx-mini-brand{color:var(--text);text-decoration:none;font-weight:760;font-size:19px;letter-spacing:-.045em;white-space:nowrap}
+.crx-mini-brand b{color:var(--accent);font-weight:760}
+.crx-mini-inner nav{display:flex;align-items:center;gap:8px;flex:1}
+.crx-mini-inner nav button{border:0;border-bottom:2px solid transparent;background:none;padding:23px 13px 21px;font-size:12px;font-weight:690;color:var(--muted);cursor:pointer;white-space:nowrap;border-radius:0}
+.crx-mini-inner nav button.selected{color:var(--text);border-bottom-color:var(--accent)}
+.crx-mini-inner nav button:hover{color:var(--accent)}
+.crx-testmark{margin-left:auto;color:var(--muted);font-size:9px;font-weight:800;letter-spacing:.09em;margin-right:360px}
+#crx-simple-view{width:min(1540px,calc(100% - 40px));margin:auto;padding:28px 0 70px}
+#crx-simple-view[hidden],#crx-simple-body>#root[hidden]{display:none!important}
+.crx-simple{width:min(100%,1140px)}
+.crx-title{margin:3px 0 18px}.crx-title h2{font-size:27px;letter-spacing:-.035em;font-weight:730}
+.crx-filter{display:flex;gap:12px;align-items:end;flex-wrap:wrap;padding:10px 0 20px;border-bottom:1px solid var(--line)}
+.crx-filter label,.tc label{color:var(--muted);font-size:10px;font-weight:710;letter-spacing:.04em;display:flex;flex-direction:column;gap:6px}
+.crx-filter input,.crx-filter select,.tc input,.tc select,.tc textarea{font:inherit;letter-spacing:0;color:var(--text);background:var(--surface-1);border:1px solid var(--line-strong);border-radius:7px;padding:9px 10px;outline:0;min-height:35px}
+.crx-filter input:focus,.crx-filter select:focus,.tc input:focus,.tc select:focus,.tc textarea:focus{border-color:var(--accent-line)}
+.crx-filter label{min-width:145px}
+.crx-quick-stats{display:flex;align-items:flex-start;gap:40px;flex-wrap:wrap;padding:24px 2px 12px}
+.crx-quick-stats>div{display:flex;flex-direction:column;gap:8px}
+.crx-quick-stats small{color:var(--muted);font-size:11px}
+.crx-quick-stats strong{font-size:25px;color:var(--text);font-weight:730;letter-spacing:-.035em}
+.crx-muted{color:var(--muted);font-size:12px;padding:10px 2px;line-height:1.6}
+.theme-switcher{top:11px!important;right:15px!important;transform:scale(.9);transform-origin:top right}
+.tc{max-width:1250px}
+.tc-bar{display:flex;flex-wrap:wrap;gap:12px;align-items:end;max-width:800px;padding:6px 0 18px}
+.tc-bar>label{min-width:145px}
+.tc-bar select,.tc-bar input{width:100%}
+.tc-stats{display:flex;align-items:center;gap:22px;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.tc-stats strong{font-size:18px;font-weight:710;white-space:nowrap}.tc-stats span{font-size:11px;color:var(--muted)}
+.tc-rules,.tc-bans{color:var(--muted);padding:9px 0 0;font-size:11px}
+.tc-bans{color:var(--accent)}
+.tc-label{display:flex;gap:14px;align-items:baseline;padding:26px 0 12px}
+.tc-label h3{font-size:17px;font-weight:710;letter-spacing:-.025em}.tc-label small{font-size:11px;color:var(--muted)}
+.tc-enemies{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.tc-enemies input{width:100%}
+.tc-team{display:flex;flex-direction:column;gap:7px}
+.tc-member{display:grid;grid-template-columns:minmax(190px,1fr) 180px 210px;gap:10px;max-width:900px}
+.tc-member input,.tc-member select{width:100%}
+.tc-extra{border-top:1px solid var(--line);margin-top:23px;padding-top:14px}
+.tc-extra summary{cursor:pointer;width:max-content;color:var(--muted);font-size:12px;font-weight:680}
+.tc-extra-grid{padding-top:16px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;max-width:900px}
+.tc-extra input,.tc-extra textarea{width:100%}.tc-extra .tc-check{display:flex;flex-direction:row;align-items:center;gap:7px;letter-spacing:0}
+.tc-check input{min-height:unset;width:auto}
+.tc-actions{display:flex;align-items:center;gap:10px;margin-top:22px;flex-wrap:wrap}
+.tc-actions button,.tc-recommend button{border-radius:7px;border:1px solid var(--line-strong);background:var(--surface-2);cursor:pointer;color:var(--text);padding:10px 15px;font-size:12px;font-weight:700}
+.tc-actions button:first-child{background:var(--accent-soft);border-color:var(--accent-line);color:var(--accent-bright)}
+.tc-actions button:hover,.tc-recommend button:hover{border-color:var(--accent-line-focus)}
+.tc-actions button:disabled{opacity:.45;cursor:wait}
+#tc-progress{font-size:11px;color:var(--muted)}
+.tc-disclaimer{padding:16px 0;color:var(--muted);font-size:11px;line-height:1.55}
+.tc-result-simple{display:flex;align-items:baseline;gap:14px;margin-top:24px;padding-top:17px;border-top:1px solid var(--line)}
+.tc-result-simple strong{font-size:22px;color:var(--accent)}
+.tc-result-simple span{font-size:11px;color:var(--muted)}
+.tc-results{margin-top:24px;border-top:1px solid var(--line);max-width:1120px}
+.tc-results-title{font-weight:750;font-size:15px;padding:17px 0 7px}
+.tc-recommend{display:grid;grid-template-columns:100px 1fr 250px 82px;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.tc-recommend strong{font-size:15px;color:var(--accent)}
+.tc-recommend>span{font-size:12px;color:var(--text)}
+.tc-recommend small{font-size:10px;color:var(--muted)}
+.tc-recommend button{padding:8px}
+.crx-drop-details{margin:11px 13px 8px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);overflow:hidden}
+.crx-drop-details summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;padding:14px 16px;font-size:12px;font-weight:730}
+.crx-drop-details summary::-webkit-details-marker{display:none}
+.crx-drop-details summary:after{content:'+';margin-left:auto;font-size:17px;font-weight:400;color:var(--muted)}
+.crx-drop-details[open] summary:after{content:'−'}
+.crx-drop-details summary small{font-size:10px;color:var(--muted);font-weight:480}
+.crx-drop-inside{padding:4px 16px 14px;border-top:1px solid var(--line)}
+.crx-drop-small{font-size:10px;color:var(--muted);padding:12px 0}
+.crx-drop-cols{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.crx-drop-cols h5{font-size:12px;margin:9px 0;font-weight:720}
+.crx-drop-cols h5 small{font-size:10px;font-weight:400;color:var(--muted);margin-left:5px}
+.crx-drop-cols table{width:100%;border-collapse:collapse;font-size:11px}
+.crx-drop-cols th{color:var(--muted);font-size:9px;text-align:left;font-weight:600}
+.crx-drop-cols td,.crx-drop-cols th{padding:5px 4px 5px 0;border-bottom:1px solid var(--line-inner)}
+.crx-drop-cols td:nth-child(n+2),.crx-drop-cols th:nth-child(n+2){text-align:right;font-variant-numeric:tabular-nums}
+.crx-drop-inside>p{font-size:10px;color:var(--muted);margin-top:13px}
+@media(max-width:1000px){.crx-testmark{margin-right:0}.theme-switcher{position:relative!important;top:auto!important;right:auto!important;margin:6px 20px!important}.tc-recommend{grid-template-columns:90px 1fr 90px}.tc-recommend small{grid-column:2}.tc-recommend button{grid-column:3;grid-row:1/3}}
+@media(max-width:700px){.crx-mini-inner{width:calc(100% - 22px);min-height:64px;flex-wrap:wrap;gap:3px;padding:11px 0 0}.crx-mini-brand{font-size:17px}.crx-mini-inner nav{order:3;width:100%;overflow:auto;gap:2px}.crx-mini-inner nav button{padding:13px 10px}.crx-testmark{margin-left:auto}#crx-simple-view{width:calc(100% - 22px);padding-top:22px}.crx-quick-stats{gap:23px}.crx-quick-stats strong{font-size:20px}.tc-enemies{grid-template-columns:repeat(2,minmax(0,1fr))}.tc-member{grid-template-columns:1fr 94px 135px;gap:6px}.tc-extra-grid{grid-template-columns:1fr}.crx-drop-cols{grid-template-columns:1fr}.tc-recommend{grid-template-columns:1fr auto}.tc-recommend strong{grid-column:1}.tc-recommend span,.tc-recommend small{grid-column:1}.tc-recommend button{grid-column:2;grid-row:1/4}}
+@media(max-width:480px){.tc-member{grid-template-columns:1fr 86px 105px}.tc-member label{font-size:9px}.tc-enemies{grid-template-columns:1fr 1fr}.tc-stats{gap:10px;flex-wrap:wrap}}
+
+/* Original in-page tabs are replaced by the compact top navigation. */
+#root [data-tower-tab],#root [data-halloween-tab]{display:none!important}
+#root .source-tab[data-view="tower"],#root .source-tab[data-view="halloween"]{display:none!important}
+
+.crx-gem-drop-section{margin-top:17px;border-top:1px solid var(--line);padding-top:10px;max-width:620px}
+.crx-gem-drop-section h5{font-size:12px;margin:6px 0 10px;font-weight:720}
+.crx-gem-drop-section h5 small{font-size:10px;color:var(--muted);font-weight:400;margin-left:5px}
+.crx-gem-drop-section table{width:100%;border-collapse:collapse;font-size:11px}
+.crx-gem-drop-section th{color:var(--muted);font-size:9px;text-align:left;font-weight:600}
+.crx-gem-drop-section th,.crx-gem-drop-section td{padding:5px 4px 5px 0;border-bottom:1px solid var(--line-inner)}
+.crx-gem-drop-section th:nth-child(n+2),.crx-gem-drop-section td:nth-child(n+2){text-align:right;font-variant-numeric:tabular-nums}
+
+/* Refined Depths drops: subtle typographic hierarchy, no extra dashboard cards. */
+.crx-drop-details{background:var(--surface-1);border:1px solid var(--line);margin:12px 0;border-radius:9px}
+.crx-drop-details>summary{padding:15px 19px;gap:10px}
+.crx-drop-details>summary span{font-size:13px;font-weight:740}
+.crx-drop-details>summary small{font-size:11px}
+.crx-drop-details[open]>summary{border-bottom:1px solid var(--line)}
+.crx-drop-inside{padding:0 18px 17px;border:0}
+.crx-drop-overview{display:flex;gap:24px;align-items:center;flex-wrap:wrap;padding:15px 1px;color:var(--muted);font-size:11px;border-bottom:1px solid var(--line)}
+.crx-drop-overview b{font-size:13px;color:var(--text);font-weight:740}
+.crx-drop-cols{display:grid;grid-template-columns:1fr 1fr;gap:26px;padding-top:15px}
+.crx-drop-section{min-width:0}
+.crx-drop-section-head{display:flex;align-items:baseline;gap:9px;padding:4px 2px 11px}
+.crx-drop-section-head h5{margin:0;font-size:13px;font-weight:720;color:var(--text)}
+.crx-drop-section-head span{font-size:10px;color:var(--muted)}
+.crx-drop-scroll{width:100%;overflow-x:auto}
+.crx-drop-section table{width:100%;border-collapse:collapse;font-size:11px;white-space:nowrap}
+.crx-drop-section table th{padding:11px 9px;background:var(--surface-2);border-bottom:1px solid var(--line);font-size:10px;letter-spacing:0;color:var(--muted);font-weight:620;text-align:right}
+.crx-drop-section table th:first-child{text-align:left;border-radius:5px 0 0 0}
+.crx-drop-section table th:last-child{border-radius:0 5px 0 0}
+.crx-drop-section table td{padding:9px 9px;border-bottom:1px solid var(--line-inner);font-variant-numeric:tabular-nums;text-align:right;color:var(--text)}
+.crx-drop-section table td:first-child{text-align:left;font-weight:590}
+.crx-drop-section table tbody tr:nth-child(even){background:color-mix(in srgb,var(--surface-2) 48%,transparent)}
+.crx-drop-section table tbody tr:hover{background:var(--surface-hover)}
+.crx-drop-inside>.crx-drop-section{max-width:750px;margin-top:23px}
+.crx-drop-note{font-size:10px;color:var(--muted);padding:12px 1px 0;margin:0}
+@media(max-width:880px){.crx-drop-cols{grid-template-columns:1fr;gap:15px}}
+
+
+/* Depths drops: important outcomes first, using the existing slate accent. */
+.crx-drop-key{display:flex;align-items:baseline;flex-wrap:wrap;gap:12px 24px;padding:13px 1px 15px;border-bottom:1px solid var(--line)}
+.crx-drop-key-label{font-size:11px;color:var(--accent);font-weight:760;white-space:nowrap}
+.crx-drop-key-label small{color:var(--muted);font-size:10px;font-weight:470;margin-left:5px}
+.crx-drop-key-items{display:flex;flex-wrap:wrap;gap:10px 24px;align-items:baseline}
+.crx-drop-key-item{display:inline-flex;align-items:baseline;gap:7px;white-space:nowrap}
+.crx-drop-key-item>span{font-size:11px;color:var(--muted)}
+.crx-drop-key-item>b{font-size:14px;font-variant-numeric:tabular-nums;color:var(--text);font-weight:790}
+.crx-drop-cols{align-items:start;gap:22px;padding-top:17px}
+.crx-drop-column{min-width:0;display:flex;flex-direction:column;gap:20px}
+.crx-drop-column>.crx-drop-section{width:100%;min-width:0;margin:0}
+.crx-drop-section table tbody tr.crx-drop-important td{background:color-mix(in srgb,var(--accent) 8%,var(--surface-1));font-weight:740}
+.crx-drop-section table tbody tr.crx-drop-important td:first-child{border-left:2px solid var(--accent);padding-left:7px;color:var(--accent-bright,var(--accent));}
+.crx-drop-section table tbody tr.crx-drop-important:hover td{background:color-mix(in srgb,var(--accent) 13%,var(--surface-1))}
+@media(max-width:880px){.crx-drop-cols{grid-template-columns:1fr;gap:20px}.crx-drop-column{gap:20px}}
+@media(max-width:520px){.crx-drop-key{gap:9px}.crx-drop-key-label{width:100%}.crx-drop-key-items{gap:8px 16px}}
+/* Hard Depths gems occupy their own reward section, not a continuation
+   of the potions column. Quiet, minimal separators. */
+.crx-drop-gem-block{
+ margin-top:27px;
+ padding-top:19px;
+ border-top:1px solid var(--line-strong,var(--line));
+}
+.crx-drop-gem-block .crx-drop-section{
+ max-width:900px;
+}
+.crx-drop-gem-block .crx-drop-section-head{
+ padding:0 2px 13px;
+}
+.crx-drop-gem-block .crx-drop-section-head h5{
+ font-size:15px;
+}
+.crx-drop-gem-block .crx-drop-section-head span{
+ font-size:11px;
+}
+.crx-drop-gem-block table{
+ border-top:1px solid var(--line-inner);
+}
+@media(max-width:880px){
+ .crx-drop-gem-block{margin-top:22px;padding-top:17px}
+}
+
+/* Six evenly spaced summary metrics; no orphaned Hard Mode tiles at breakpoints. */
+#root .result-metrics{grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+#root .result-metrics>div{min-width:0}
+@media(max-width:1200px){#root .result-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:740px){#root .result-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:460px){#root .result-metrics{grid-template-columns:1fr}}
+
+/* Tower Cheese resilient layout: keep the new two-element card markup compact even if the optional cheese skin fails to load. */
+#crx-simple-view .tc-enemies{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+#crx-simple-view .tc-enemy-card{display:flex;align-items:center;gap:10px;min-width:0;min-height:94px;padding:10px;overflow:hidden}
+#crx-simple-view .tc-enemy-card>.cc-portrait{flex:0 0 49px;width:49px;height:64px;min-width:49px;border-radius:5px}
+#crx-simple-view .tc-enemy-info{display:flex;flex:1 1 0;min-width:0;flex-direction:column;align-items:stretch;justify-content:center;gap:5px}
+#crx-simple-view .tc-enemy-label{display:block;color:var(--muted);font-size:10px;font-weight:650;line-height:1.15}
+#crx-simple-view .tc-enemy-name{display:block;min-width:0;color:var(--text);font-size:12px;font-weight:720;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#crx-simple-view .tc-ability{display:block;min-width:0;max-width:100%;color:var(--muted);font-size:10px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#crx-simple-view .tc-enemy-info input{width:100%;min-width:0}
+#crx-simple-view .tc-team{display:flex;flex-direction:column;gap:9px;width:100%;max-width:1140px}
+#crx-simple-view .tc-member{display:flex;align-items:center;gap:15px;min-width:0;width:100%;max-width:none;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--surface-1)}
+#crx-simple-view .tc-member>.cc-portrait{width:43px;height:55px;min-width:43px;flex:0 0 43px;border-radius:5px}
+#crx-simple-view .tc-member-fields{display:grid;grid-template-columns:minmax(0,1fr) 315px;align-items:end;gap:10px;flex:1 1 0;min-width:0}
+#crx-simple-view .tc-member-fields>label{display:flex;min-width:0;flex-direction:column;gap:6px}
+#crx-simple-view .tc-member-fields>label input{width:100%;min-width:0;height:35px}
+#crx-simple-view .tc-member-details{display:grid;grid-template-columns:minmax(0,130px) minmax(0,175px);align-items:end;gap:10px;margin:0;min-width:0}
+#crx-simple-view .tc-member-details>label{display:flex;flex-direction:column;gap:6px;min-width:0}
+#crx-simple-view .tc-member-details select{width:100%;min-width:0;height:35px;min-height:35px}
+@media(max-width:930px){
+ #crx-simple-view .tc-enemies{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:760px){
+ #crx-simple-view .tc-member{align-items:flex-start;gap:10px}
+ #crx-simple-view .tc-member-fields{grid-template-columns:minmax(0,1fr);gap:9px}
+ #crx-simple-view .tc-member-details{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:480px){
+ #crx-simple-view .tc-enemies{grid-template-columns:1fr}
+ #crx-simple-view .tc-member>.cc-portrait{flex-basis:39px;min-width:39px;width:39px;height:51px}
+}
+
+/* ── Cheese Studio / 2026 overhaul ───────────────────────────────────────
+   Editorial dark interface, card-forward, no generic dashboard tiles.
+   Keep all existing theme tokens and controls, so theme switching works. */
+#crx-simple-view .cc-rework{
+ --studio-ink:var(--text);--studio-muted:var(--muted);
+ --studio-line:var(--line-strong);--studio-glow:rgba(var(--accent-rgb),.08);
+ max-width:1370px!important;width:100%;margin:0 auto;padding-bottom:55px;
+ color:var(--studio-ink);isolation:isolate
+}
+#crx-simple-view .cc-rework .cc-hero{
+ position:relative;overflow:hidden;display:flex;align-items:center;
+ justify-content:space-between;gap:20px;margin:0 0 16px;
+ padding:29px clamp(19px,3.5vw,45px) 31px;
+ border-radius:13px;background:
+ radial-gradient(ellipse at 95% -15%,rgba(var(--accent-rgb),.16),transparent 48%),
+ linear-gradient(115deg,var(--surface-1),var(--surface-2));
+ border:1px solid var(--line);
+}
+#crx-simple-view .cc-rework .cc-hero:before{
+ content:"";position:absolute;top:0;left:0;right:0;height:2px;
+ background:linear-gradient(90deg,var(--accent),transparent 78%);opacity:.85
+}
+#crx-simple-view .cc-rework .cc-kicker{
+ display:block;margin:0 0 10px;font-size:10px;font-weight:800;
+ color:var(--accent);letter-spacing:.22em;text-transform:uppercase
+}
+#crx-simple-view .cc-rework .cc-hero h2{
+ font-size:clamp(32px,3.4vw,50px);line-height:1.06;letter-spacing:-.047em;
+ font-weight:790;margin:0 0 9px;text-shadow:0 1px 14px rgba(0,0,0,.08)
+}
+#crx-simple-view .cc-rework .cc-hero small{font-size:12px;line-height:1.5;color:var(--muted)}
+#crx-simple-view .cc-rework .cc-hero-index{
+ display:flex;align-items:center;gap:13px;flex:0 0 auto;
+ border-left:1px solid var(--line-strong);padding-left:23px;min-height:55px
+}
+#crx-simple-view .cc-rework .cc-hero-index b{
+ font-size:clamp(33px,4vw,58px);font-weight:780;line-height:1;letter-spacing:-.07em;
+ font-variant-numeric:tabular-nums;color:var(--accent)
+}
+#crx-simple-view .cc-rework .cc-hero-index span{
+ line-height:1.6;color:var(--muted);font-size:9px;
+ letter-spacing:.13em;font-weight:800
+}
+/* Match strip: compact inputs and a clear HP/attack hierarchy */
+#crx-simple-view .cc-rework .cc-match-strip{padding:15px 3px 9px;margin-bottom:10px}
+#crx-simple-view .cc-rework .tc-bar,
+#crx-simple-view .cc-rework .cc-controls{
+ display:flex;align-items:flex-end;flex-wrap:wrap;gap:12px 16px;
+ padding:0 0 15px;margin:0;border:0
+}
+#crx-simple-view .cc-rework .tc-bar>label,
+#crx-simple-view .cc-rework .cc-controls>label{
+ min-width:125px;max-width:330px;flex:1 1 125px
+}
+#crx-simple-view .cc-rework .tc-bar>label:first-child{flex:1.6 1 215px}
+#crx-simple-view .cc-rework .cc-controls>label:nth-child(2){flex:1.4 1 200px}
+#crx-simple-view .cc-rework .cc-hardcore-switch,
+#crx-simple-view .cc-rework .tc-hardcore-toggle{
+ flex:0 0 auto!important;min-width:115px!important;max-width:155px!important;
+ display:flex!important;flex-direction:row!important;align-items:center!important;
+ justify-content:space-between;gap:10px;
+ padding:9px 11px;border-radius:8px;border:1px solid var(--line-strong);
+ background:var(--surface-2);margin-bottom:1px;min-height:42px;
+ letter-spacing:0!important
+}
+#crx-simple-view .cc-rework .cc-hardcore-switch input,
+#crx-simple-view .cc-rework .tc-hardcore-toggle input{
+ width:17px!important;height:17px!important;min-height:17px!important;
+ margin:0!important;accent-color:var(--accent);cursor:pointer
+}
+#crx-simple-view .cc-rework select,
+#crx-simple-view .cc-rework input:not([type=checkbox]),
+#crx-simple-view .cc-rework textarea{
+ background:var(--surface-2);color:var(--text);border-color:var(--line-strong);
+ border-radius:7px;min-height:39px;font-size:12px;box-shadow:none;
+ transition:border-color .15s ease,background .15s ease
+}
+#crx-simple-view .cc-rework select:focus,
+#crx-simple-view .cc-rework input:focus,
+#crx-simple-view .cc-rework textarea:focus{
+ outline:2px solid rgba(var(--accent-rgb),.2);outline-offset:1px;
+ border-color:var(--accent);background:var(--surface-1)
+}
+#crx-simple-view .cc-rework .tc-stats,
+#crx-simple-view .cc-rework .cc-stats{
+ display:flex;align-items:baseline;gap:9px 24px;flex-wrap:wrap;
+ padding:12px 0 4px;margin:0;border-top:1px solid var(--line);
+ background:none
+}
+#crx-simple-view .cc-rework .tc-stats strong,
+#crx-simple-view .cc-rework .cc-stats b{
+ font-size:23px;line-height:1.2;font-weight:790;letter-spacing:-.04em;
+ color:var(--text);font-variant-numeric:tabular-nums
+}
+#crx-simple-view .cc-rework .tc-stats span,
+#crx-simple-view .cc-rework .cc-stats span{
+ font-size:10px;line-height:1.5;color:var(--muted);
+ font-weight:650;letter-spacing:0
+}
+#crx-simple-view .cc-rework .tc-rules,
+#crx-simple-view .cc-rework .tc-bans,
+#crx-simple-view .cc-rework .cc-activity-bans,
+#crx-simple-view .cc-rework .cc-activity-note{
+ display:block;padding:7px 2px;margin:4px 0 0;
+ font-size:10px;line-height:1.6;color:var(--muted);background:none;border:0
+}
+#crx-simple-view .cc-rework .cc-hardcore-rules{
+ border:0;border-bottom:1px solid var(--line);padding:8px 0 10px;margin:0 0 7px;
+ color:var(--muted);font-size:10px
+}
+#crx-simple-view .cc-rework .cc-hardcore-rules>summary{cursor:pointer;color:var(--accent);font-weight:740;font-size:11px}
+#crx-simple-view .cc-rework .cc-hardcore-rules p{line-height:1.8;margin-top:11px}
+/* The main fight occupies one uninterrupted visual stage */
+#crx-simple-view .cc-rework .cc-arena{
+ display:grid;grid-template-columns:minmax(0,.88fr) minmax(0,1.12fr);
+ gap:0;min-height:390px;margin:17px 0 0;
+ background:linear-gradient(140deg,var(--surface-1),var(--surface-2));
+ border:1px solid var(--line);border-radius:12px;overflow:hidden
+}
+#crx-simple-view .cc-rework .cc-opponents{
+ padding:21px clamp(13px,2.2vw,27px) 25px;border-right:1px solid var(--line);
+ min-width:0;position:relative
+}
+#crx-simple-view .cc-rework .cc-players{
+ padding:21px clamp(13px,2.2vw,27px) 25px;min-width:0;position:relative
+}
+#crx-simple-view .cc-rework .cc-opponents:before{
+ position:absolute;content:"OPPOSITION";right:22px;top:21px;
+ font-size:9px;letter-spacing:.18em;color:var(--muted);opacity:.48;font-weight:700
+}
+#crx-simple-view .cc-rework .cc-players:before{
+ position:absolute;content:"YOUR LINEUP";right:20px;top:21px;
+ font-size:9px;letter-spacing:.18em;color:var(--accent);opacity:.6;font-weight:730
+}
+#crx-simple-view .cc-rework .tc-label,
+#crx-simple-view .cc-rework .cc-heading{
+ margin:0 0 17px;padding:0;min-height:30px;
+ display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px
+}
+#crx-simple-view .cc-rework .tc-label h3,
+#crx-simple-view .cc-rework .cc-heading h3{
+ font-size:17px;line-height:1.3;font-weight:780;letter-spacing:-.025em;
+ margin:0;color:var(--text)
+}
+#crx-simple-view .cc-rework .cc-label small,
+#crx-simple-view .cc-rework .tc-label small,
+#crx-simple-view .cc-rework .cc-heading small{
+ font-size:10px;line-height:1.4;color:var(--muted);font-weight:500
+}
+#crx-simple-view .cc-rework .tc-label button,
+#crx-simple-view .cc-rework .cc-heading button{
+ margin-left:auto;min-height:30px;padding:6px 9px;
+ background:transparent;color:var(--muted);border:1px solid var(--line-strong);
+ border-radius:6px;font-size:10px;font-weight:650;cursor:pointer
+}
+#crx-simple-view .cc-rework .tc-label button:hover,
+#crx-simple-view .cc-rework .cc-heading button:hover{
+ color:var(--accent);border-color:var(--accent)
+}
+#crx-simple-view .cc-rework .tc-enemies,
+#crx-simple-view .cc-rework .cc-enemies{
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;
+ width:100%;max-width:none
+}
+#crx-simple-view .cc-rework .tc-enemy-card,
+#crx-simple-view .cc-rework .cc-enemy{
+ display:flex;align-items:center;min-height:91px;min-width:0;
+ padding:10px;background:rgba(8,12,19,.15);border:1px solid var(--line);
+ border-radius:8px;gap:10px
+}
+#crx-simple-view .cc-rework .tc-enemy-card .cc-portrait,
+#crx-simple-view .cc-rework .cc-enemy .cc-portrait{
+ flex:0 0 51px;min-width:51px;width:51px;height:69px;border-radius:5px;overflow:hidden
+}
+#crx-simple-view .cc-rework .tc-enemy-info,
+#crx-simple-view .cc-rework .cc-enemy-info{min-width:0;overflow:hidden;flex:1}
+#crx-simple-view .cc-rework .tc-enemy-name,
+#crx-simple-view .cc-rework .cc-enemy-info b{font-size:12px;line-height:1.3;font-weight:730;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+#crx-simple-view .cc-rework .tc-ability,
+#crx-simple-view .cc-rework .cc-enemy-info>span{display:block;max-width:100%;font-size:10px;line-height:1.4;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#crx-simple-view .cc-rework .tc-team,
+#crx-simple-view .cc-rework .cc-manual-grid{
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:10px;max-width:none;width:100%;align-items:stretch
+}
+#crx-simple-view .cc-rework .tc-member,
+#crx-simple-view .cc-rework .cc-manual-slot{
+ display:flex!important;flex-direction:row!important;align-items:flex-start!important;
+ min-width:0;max-width:none;width:100%;gap:10px;
+ padding:11px;background:rgba(8,12,19,.16);border:1px solid var(--line);
+ border-radius:8px;transition:border-color .15s ease,background .15s ease
+}
+#crx-simple-view .cc-rework .tc-member:hover,
+#crx-simple-view .cc-rework .cc-manual-slot:hover{
+ border-color:var(--accent-line);background:var(--surface-1)
+}
+#crx-simple-view .cc-rework .tc-member>.cc-portrait,
+#crx-simple-view .cc-rework .cc-manual-slot>.cc-portrait{
+ flex:0 0 53px;min-width:53px;width:53px;height:70px;
+ border-radius:6px;overflow:hidden;box-shadow:0 3px 13px rgba(0,0,0,.12)
+}
+#crx-simple-view .cc-rework .tc-member-fields,
+#crx-simple-view .cc-rework .cc-manual-fields{
+ display:block;min-width:0;flex:1;max-width:none
+}
+#crx-simple-view .cc-rework .tc-member-fields>label,
+#crx-simple-view .cc-rework .cc-manual-fields>label{display:flex;flex-direction:column;gap:5px}
+#crx-simple-view .cc-rework .tc-member-details,
+#crx-simple-view .cc-rework .cc-manual-sub{
+ display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+ gap:7px;margin-top:8px;width:100%;max-width:none
+}
+#crx-simple-view .cc-rework .tc-member input,
+#crx-simple-view .cc-rework .cc-manual-slot input,
+#crx-simple-view .cc-rework .tc-member select,
+#crx-simple-view .cc-rework .cc-manual-slot select{min-width:0!important;max-width:100%!important;width:100%!important;min-height:34px;font-size:11px;padding:5px 7px}
+#crx-simple-view .cc-rework .tc-member label,
+#crx-simple-view .cc-rework .cc-manual-slot label{min-width:0!important;font-size:9px;color:var(--muted)}
+#crx-simple-view .cc-rework .tc-member .cc-portrait:has(>span),
+#crx-simple-view .cc-rework .cc-manual-slot .cc-portrait:has(>span){
+ background:linear-gradient(145deg,var(--surface-2),var(--surface-1));
+ border:1px dashed var(--line-strong)
+}
+/* Primary actions remain visible before the optional filter shelf */
+#crx-simple-view .cc-rework .tc-actions,
+#crx-simple-view .cc-rework .cc-actions{
+ display:flex;gap:9px 12px;align-items:center;flex-wrap:wrap;
+ margin:0 0 7px;padding:20px 1px 15px;border-bottom:1px solid var(--line);
+ min-height:74px
+}
+#crx-simple-view .cc-rework .tc-actions button,
+#crx-simple-view .cc-rework .cc-actions button{
+ min-height:43px;height:43px;padding:0 18px;line-height:1;
+ border-radius:7px;font-size:12px;font-weight:760;cursor:pointer;
+ transition:border-color .15s ease,background .15s ease,transform .15s ease
+}
+#crx-simple-view .cc-rework .tc-actions button:first-child,
+#crx-simple-view .cc-rework .cc-actions button:first-child{
+ background:var(--accent);border:1px solid var(--accent);color:#091117;
+ font-weight:820;letter-spacing:0
+}
+#crx-simple-view .cc-rework .tc-actions button:first-child:hover:enabled,
+#crx-simple-view .cc-rework .cc-actions button:first-child:hover:enabled{filter:brightness(1.1)}
+#crx-simple-view .cc-rework .cc-ai-button{
+ background:transparent!important;color:var(--accent)!important;
+ border:1px solid var(--accent-line)!important
+}
+#crx-simple-view .cc-rework .cc-ai-button:hover:enabled{background:var(--accent-soft)!important}
+#crx-simple-view .cc-rework .tc-actions button:nth-child(3),
+#crx-simple-view .cc-rework .cc-actions button:nth-child(3){
+ background:var(--surface-2);border:1px solid var(--line-strong);color:var(--text)
+}
+#crx-simple-view .cc-rework .tc-actions button:disabled,
+#crx-simple-view .cc-rework .cc-actions button:disabled{opacity:.5;cursor:wait}
+#crx-simple-view .cc-rework #tc-progress,
+#crx-simple-view .cc-rework #bc-progress,
+#crx-simple-view .cc-rework #tr-progress{
+ flex:1 1 150px;min-height:16px;color:var(--muted);
+ font-size:11px;font-weight:650;line-height:1.5
+}
+#crx-simple-view .cc-rework .tc-actions button:hover:enabled,
+#crx-simple-view .cc-rework .cc-actions button:hover:enabled{transform:translateY(-1px)}
+#crx-simple-view .cc-rework .tc-extra,
+#crx-simple-view .cc-rework .cc-options,
+#crx-simple-view .cc-rework .cc-additional{
+ margin:12px 0 0;padding:7px 1px 0;border-top:0;max-width:none
+}
+#crx-simple-view .cc-rework .tc-extra>summary,
+#crx-simple-view .cc-rework .cc-options>summary,
+#crx-simple-view .cc-rework .cc-additional>summary{
+ display:list-item!important;width:max-content;max-width:100%;
+ cursor:pointer;font-size:11px;font-weight:730;color:var(--muted);
+ padding:9px 2px;transition:color .16s ease
+}
+#crx-simple-view .cc-rework .tc-extra>summary:hover,
+#crx-simple-view .cc-rework .cc-options>summary:hover,
+#crx-simple-view .cc-rework .cc-additional>summary:hover{color:var(--accent)}
+#crx-simple-view .cc-rework .tc-extra-grid,
+#crx-simple-view .cc-rework .cc-pool{
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:13px 17px;align-items:end;margin-top:4px;
+ padding:17px 18px 20px;max-width:none;
+ border:1px solid var(--line);border-radius:9px;
+ background:linear-gradient(140deg,var(--surface-2),var(--surface-1))
+}
+#crx-simple-view .cc-rework .tc-extra-grid input,
+#crx-simple-view .cc-rework .tc-extra-grid textarea,
+#crx-simple-view .cc-rework .cc-pool input,
+#crx-simple-view .cc-rework .cc-pool textarea{
+ background:var(--surface-1);width:100%;max-width:none
+}
+#crx-simple-view .cc-rework .tc-extra-grid button,
+#crx-simple-view .cc-rework .cc-pool button:not(.cc-pool-list button){
+ background:var(--surface-1)!important;color:var(--text)!important;
+ border:1px solid var(--line-strong)!important;border-radius:7px;
+ min-height:38px;padding:8px 13px;font-size:11px;font-weight:700;cursor:pointer
+}
+#crx-simple-view .cc-rework .tc-extra-grid button:disabled,
+#crx-simple-view .cc-rework .cc-pool button:disabled{
+ background:var(--surface-2)!important;color:var(--muted)!important;
+ border-color:var(--line)!important;opacity:.55;cursor:not-allowed
+}
+#crx-simple-view .cc-rework .tc-extra-grid .tc-pool-list,
+#crx-simple-view .cc-rework .cc-pool-list{
+ display:flex;flex-wrap:wrap;gap:6px
+}
+#crx-simple-view .cc-rework .tc-pool-list button,
+#crx-simple-view .cc-rework .cc-pool-list button{
+ min-height:30px!important;padding:6px 10px!important;
+ background:var(--accent-soft)!important;color:var(--text)!important;
+ border:1px solid var(--accent-line)!important;border-radius:6px!important;
+ font-size:10px!important;cursor:pointer
+}
+#crx-simple-view .cc-rework .tc-pool-list button.off,
+#crx-simple-view .cc-rework .cc-pool-list button.off{
+ background:var(--surface-1)!important;color:var(--muted)!important;
+ border:1px solid var(--line-strong)!important;opacity:.62
+}
+#crx-simple-view .cc-rework .cc-ai-effort{padding:9px 0 8px;margin:0}
+#crx-simple-view .cc-rework .cc-ai-effort select{min-width:95px}
+#crx-simple-view .cc-rework .cc-results,
+#crx-simple-view .cc-rework .tc-results,
+#crx-simple-view .cc-rework .tc-result-simple{
+ border:0;background:transparent;padding:14px 0 9px;
+ margin:10px 0 0;max-width:none
+}
+#crx-simple-view .cc-rework .cc-results h3,
+#crx-simple-view .cc-rework .tc-results-title{
+ font-size:20px;font-weight:810;letter-spacing:-.034em;margin:0 0 15px;
+ color:var(--text)
+}
+#crx-simple-view .cc-rework .cc-ai-metadata{
+ font-size:11px;color:var(--muted);margin:4px 0 13px
+}
+#crx-simple-view .cc-rework .tc-recommend,
+#crx-simple-view .cc-rework .cc-rec{
+ border:1px solid var(--line);background:var(--surface-1);
+ display:grid;grid-template-columns:110px minmax(0,1fr) auto;
+ align-items:center;gap:12px 18px;min-width:0;
+ border-radius:9px;margin:9px 0;padding:15px 16px
+}
+#crx-simple-view .cc-rework .tc-recommend>strong,
+#crx-simple-view .cc-rework .cc-rec>strong{
+ color:var(--accent);font-size:30px;font-weight:800;
+ letter-spacing:-.055em;white-space:nowrap;line-height:1.1
+}
+#crx-simple-view .cc-rework .tc-recommend>span,
+#crx-simple-view .cc-rework .cc-rec-line{
+ display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));
+ gap:8px;min-width:0;width:100%;align-items:center
+}
+#crx-simple-view .cc-rework .tc-rec-card,
+#crx-simple-view .cc-rework .cc-rec-line>span{
+ display:flex!important;min-width:0;gap:7px;align-items:center
+}
+#crx-simple-view .cc-rework .tc-rec-card .cc-portrait,
+#crx-simple-view .cc-rework .cc-rec-line .cc-portrait{
+ width:36px;height:49px;flex:0 0 36px;min-width:36px;
+ border-radius:5px;overflow:hidden
+}
+#crx-simple-view .cc-rework .tc-rec-card b,
+#crx-simple-view .cc-rework .cc-rec-line b{
+ display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;
+ font-size:10px;font-weight:720;line-height:1.4
+}
+#crx-simple-view .cc-rework .tc-recommend>small,
+#crx-simple-view .cc-rework .cc-rec>small{
+ grid-column:2;grid-row:2;justify-self:start;
+ margin:0;font-size:10px;color:var(--muted)
+}
+#crx-simple-view .cc-rework .tc-recommend>button,
+#crx-simple-view .cc-rework .cc-rec>button{
+ grid-column:3;grid-row:1/3;justify-self:end;
+ min-height:39px;background:var(--surface-2);border:1px solid var(--line-strong);
+ color:var(--text);font-weight:730;border-radius:7px;padding:8px 15px;
+ white-space:nowrap;cursor:pointer
+}
+#crx-simple-view .cc-rework .cc-rec>button:hover,
+#crx-simple-view .cc-rework .tc-recommend>button:hover{border-color:var(--accent);color:var(--accent)}
+#crx-simple-view .cc-rework .tc-result-simple,
+#crx-simple-view .cc-rework .cc-single{
+ display:flex;align-items:baseline;gap:11px 19px;flex-wrap:wrap;
+ padding:19px 21px;margin:18px 0;
+ background:linear-gradient(100deg,var(--surface-1),var(--surface-2));
+ border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:7px
+}
+#crx-simple-view .cc-rework .tc-result-simple>strong,
+#crx-simple-view .cc-rework .cc-single>strong{
+ font-size:clamp(26px,3vw,43px);font-weight:820;
+ letter-spacing:-.055em;color:var(--accent);line-height:1.1
+}
+#crx-simple-view .cc-rework .tc-result-simple>span,
+#crx-simple-view .cc-rework .cc-single>small{
+ color:var(--muted);font-size:11px;line-height:1.6
+}
+#crx-simple-view .cc-rework .tc-disclaimer,
+#crx-simple-view .cc-rework .cc-foot{
+ font-size:10px;line-height:1.6;color:var(--muted);
+ padding:13px 0 0;margin:5px 0
+}
+@media(max-width:1120px){
+ #crx-simple-view .cc-rework .cc-arena{grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr)}
+ #crx-simple-view .cc-rework .tc-team,
+ #crx-simple-view .cc-rework .cc-manual-grid{grid-template-columns:1fr}
+ #crx-simple-view .cc-rework .tc-recommend,
+ #crx-simple-view .cc-rework .cc-rec{grid-template-columns:92px minmax(0,1fr) auto}
+ #crx-simple-view .cc-rework .tc-rec-card b,
+ #crx-simple-view .cc-rework .cc-rec-line b{font-size:9px}
+}
+@media(max-width:810px){
+ #crx-simple-view .cc-rework .cc-arena{grid-template-columns:1fr}
+ #crx-simple-view .cc-rework .cc-opponents{border-right:0;border-bottom:1px solid var(--line)}
+ #crx-simple-view .cc-rework .tc-team,
+ #crx-simple-view .cc-rework .cc-manual-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #crx-simple-view .cc-rework .cc-hero-index{display:none}
+ #crx-simple-view .cc-rework .tc-recommend,
+ #crx-simple-view .cc-rework .cc-rec{grid-template-columns:90px minmax(0,1fr) auto}
+}
+@media(max-width:640px){
+ #crx-simple-view .cc-rework .cc-hero{padding:25px 20px}
+ #crx-simple-view .cc-rework .cc-hero h2{font-size:33px}
+ #crx-simple-view .cc-rework .tc-team,
+ #crx-simple-view .cc-rework .cc-manual-grid{grid-template-columns:1fr}
+ #crx-simple-view .cc-rework .tc-enemies,
+ #crx-simple-view .cc-rework .cc-enemies{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #crx-simple-view .cc-rework .cc-opponents,
+ #crx-simple-view .cc-rework .cc-players{padding:18px 13px}
+ #crx-simple-view .cc-rework .cc-opponents:before,
+ #crx-simple-view .cc-rework .cc-players:before{display:none}
+ #crx-simple-view .cc-rework .tc-recommend,
+ #crx-simple-view .cc-rework .cc-rec{grid-template-columns:1fr auto;gap:9px}
+ #crx-simple-view .cc-rework .tc-recommend>strong,
+ #crx-simple-view .cc-rework .cc-rec>strong{grid-column:1;grid-row:1}
+ #crx-simple-view .cc-rework .tc-recommend>span,
+ #crx-simple-view .cc-rework .cc-rec-line{grid-column:1/3;grid-row:2}
+ #crx-simple-view .cc-rework .tc-recommend>small,
+ #crx-simple-view .cc-rework .cc-rec>small{grid-column:1/3;grid-row:3}
+ #crx-simple-view .cc-rework .tc-recommend>button,
+ #crx-simple-view .cc-rework .cc-rec>button{grid-column:2;grid-row:1}
+ #crx-simple-view .cc-rework .tc-actions,
+ #crx-simple-view .cc-rework .cc-actions{gap:8px}
+ #crx-simple-view .cc-rework .tc-actions button,
+ #crx-simple-view .cc-rework .cc-actions button{flex:1 1 125px;padding:0 9px}
+ #crx-simple-view .cc-rework #tc-progress,
+ #crx-simple-view .cc-rework #bc-progress,
+ #crx-simple-view .cc-rework #tr-progress{flex:1 0 100%}
+ #crx-simple-view .cc-rework .tc-extra-grid,
+ #crx-simple-view .cc-rework .cc-pool{grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce){
+ #crx-simple-view .cc-rework button,#crx-simple-view .cc-rework input,
+ #crx-simple-view .cc-rework select{transition:none!important}
+}
+
+/* Sample-backed win percentage labels and trustworthy verification affordance. */
+#crx-simple-view .cc-rework .tc-recommend>strong>small,
+#crx-simple-view .cc-rework .cc-rec>strong>small{
+ display:block;font-size:9px;font-weight:750;letter-spacing:.12em;line-height:1.65;
+ margin-bottom:4px;color:var(--muted)
+}
+#crx-simple-view .cc-rework .tc-recommend>small,
+#crx-simple-view .cc-rework .cc-rec>small{font-variant-numeric:tabular-nums}
+#crx-simple-view .cc-rework .cc-results .cc-rec small,
+#crx-simple-view .cc-rework .tc-results .tc-recommend small{line-height:1.6}
+#crx-simple-view .cc-rework .cc-match-caveat{
+ display:flex;align-items:flex-start;gap:9px;margin:10px 0 0;
+ font-size:11px;line-height:1.5;color:var(--muted)
+}
+#crx-simple-view .cc-rework .cc-match-caveat b{color:var(--accent);font-weight:800}
+.depth-timing-note{
+ display:flex;flex-direction:column;justify-content:center;
+ gap:4px;max-width:310px;min-height:38px;align-self:stretch
+}
+.depth-timing-note b{color:var(--text);font-size:11px;font-weight:730}
+.depth-timing-note small{color:var(--muted);font-size:9px;line-height:1.5}
+
+/* Recoverable Depths startup failure instead of a permanent spinner. */
+#crx-simple-body>#root .crx-load-error{display:grid;place-items:center;min-height:52vh;text-align:center;color:var(--text)}
+#crx-simple-body>#root .crx-load-error b{display:block;font-size:18px;font-weight:780;margin-bottom:9px}
+#crx-simple-body>#root .crx-load-error p{color:var(--muted);font-size:12px;margin:0 0 18px;line-height:1.6}
+#crx-simple-body>#root .crx-load-error button{border:1px solid var(--accent-line);background:var(--accent-soft);border-radius:7px;padding:10px 16px;color:var(--text);font-size:12px;font-weight:750;cursor:pointer}
+
+/* Build number next to TEST in the calculator header. */
+.crx-testmark .crx-version{display:inline-block;margin-left:6px;font-weight:800;letter-spacing:0;font-size:10px;color:var(--accent-bright,var(--text));font-variant-numeric:tabular-nums}

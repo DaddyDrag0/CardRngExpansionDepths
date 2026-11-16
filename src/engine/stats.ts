@@ -2,6 +2,7 @@ import type { BorderName, CardDefinition, MutationWeather, TeamCard } from '../t
 
 export const BORDER_RARITY_MULTIPLIERS: Record<BorderName, number> = {
   Platinum: 100,
+  Emerald: 1_000,
   Crystal: 10_000,
   Ruby: 100_000,
   Galaxy: 1_000_000,
@@ -20,6 +21,9 @@ export const WEATHER_MUTATION_STAT_MULTIPLIERS: Record<MutationWeather, number> 
   Armageddon: 6,
   Manga: 6.5,
   'Pumpkin Moon': 7.5,
+  'The Great Deluge': 8,
+  'Reality Fracture': 8.5,
+  Dreamfall: 9,
 }
 
 export function mutationStatMultiplier(weather?: MutationWeather | null): number {

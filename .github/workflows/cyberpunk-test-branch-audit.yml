@@ -9,6 +9,10 @@ on:
       - 'browser/depths-worker.js'
       - 'scripts/cyberpunk-regression.ts'
       - 'scripts/depths-time-regression.ts'
+      - 'scripts/depths-ban-replay-smoke.mjs'
+      - 'index.html'
+      - 'index-base.html'
+      - 'test/**'
       - 'package.json'
       - 'site-version.json'
   workflow_dispatch:

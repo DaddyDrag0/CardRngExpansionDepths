@@ -13,16 +13,22 @@ const v34=source.match(/const __v34Modeled=new Set\((\[[\s\S]*?\])\)/);
 assert(base&&v26&&v34,"Cannot identify actual deployed worker ability registry and extensions");
 const registered=new Set([...JSON.parse(base[1]),...JSON.parse(v26[1]),...JSON.parse(v34[1]),"Drowned","Lucky 🤡"]);
 const unique=new Set(cards.map(c=>c.ability).filter(Boolean));
-const uncovered=cards.filter(c=>c.ability&&!registered.has(c.ability)).map(c=>({card:c.name,ability:c.ability,description:descriptions[c.ability]||""}));
+const unavailable=cards.filter(c=>c.unobtainable);
+const available=cards.filter(c=>!c.unobtainable);
+const uncovered=available.filter(c=>c.ability&&!registered.has(c.ability)).map(c=>({card:c.name,ability:c.ability,description:descriptions[c.ability]||""}));
+const legacyUnregistered=unavailable.filter(c=>c.ability&&!registered.has(c.ability)).map(c=>({card:c.name,ability:c.ability}));
 const explicitlyUnverifiable=["Goon Detector","Reversal Rite","Nil","Cooked 🎪"];
 assert.equal(cards.length,352,"Game card data changed; reassess the entire roster");
-assert.deepEqual(uncovered.map(x=>x.ability).sort(),[...explicitlyUnverifiable].sort(),
- "New or unsupported card abilities must be audited rather than silently ignored");
+assert.deepEqual(uncovered,[],"Obtainable cards must not have unrecognized ability registrations");
+assert.deepEqual(legacyUnregistered.map(c=>c.ability).sort(),[...explicitlyUnverifiable].sort(),
+ "Archived, unobtainable card data must not be presented as currently available");
 const approximations=["Experimental Treatment","Mutate","Shared Power","Three Gifts","Nothing"];
 const noncombat=["Lucky 🤡","Anullment"];
 const exact=[...unique].filter(a=>registered.has(a)&&!approximations.includes(a)&&!noncombat.includes(a));
 console.log("Depths card coverage:",JSON.stringify({
- cards:cards.length,uniqueAbilities:unique.size,registeredAbilities:[...unique].filter(a=>registered.has(a)).length,
+ cards:cards.length,availableCards:available.length,uniqueAbilities:unique.size,
+ registeredAbilities:[...unique].filter(a=>registered.has(a)).length,
+ archivedUnobtainableMissingAbilities:legacyUnregistered,
  modeledButGameParityUnverified:exact.length,
  approximationCount:approximations.length,approximations,
  noncombatCount:noncombat.length,noncombat,

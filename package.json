@@ -12,13 +12,14 @@
     "test:depths": "tsx scripts/depths-regression.ts && tsx scripts/depths-rewards-regression.ts && tsx scripts/depths-time-regression.ts && tsx scripts/watchdog-heartbeat-regression.ts",
     "test:player": "tsx scripts/player-coverage.ts",
     "test:ui": "node --check src/depths-ui.js && node --check src/feedback.js && node --check src/theme-controller.js && node --check src/site-version-watch.js && node --check server/feedback-worker.mjs && node scripts/feedback-snapshot-regression.mjs && node scripts/validate-ui.mjs && node scripts/depths-inline-relic-regression.mjs && node --check src/depths-battle-replay.js",
-    "check": "npm run build && npm run test:data && npm run test:engine && npm run test:depths && npm run test:player && npm run test:ui && npm run test:overhaul",
+    "check": "npm run build && npm run test:data && npm run test:engine && npm run test:depths && npm run test:player && npm run test:ui && npm run test:overhaul && npm run test:cards",
     "preview": "vite preview",
     "test:video-game": "node --import tsx scripts/video-game-update-regression.ts",
     "halloween:labels": "tsx scripts/generate-halloween-labels.ts",
     "build:tower-worker:legacy": "esbuild src/tower-worker.ts --bundle --platform=browser --format=iife --target=es2020 --minify --outfile=browser/tower-worker-legacy.js",
     "test:overhaul": "node scripts/depths-2026-worker-smoke.mjs && node scripts/depths-ban-replay-smoke.mjs",
-    "build:depths-worker:legacy": "esbuild src/browser-worker.ts --bundle --platform=browser --format=iife --target=es2020 --minify --outfile=browser/depths-worker-legacy.js"
+    "build:depths-worker:legacy": "esbuild src/browser-worker.ts --bundle --platform=browser --format=iife --target=es2020 --minify --outfile=browser/depths-worker-legacy.js",
+    "test:cards": "node scripts/depths-card-coverage.mjs"
   },
   "devDependencies": {
     "esbuild": "latest",

@@ -376,11 +376,13 @@ details.ban-lab[open]>summary::after{content:'−'}
 .depth-control-settings .hard-mode-toggle small{font-size:9px;line-height:1.45}
 .depth-control-settings .hard-mode-toggle button{flex:none;margin-left:8px}
 @media(min-width:1200px){
- .workspace.depths-workspace{grid-template-rows:auto auto auto;align-items:start}
- .workspace.depths-workspace>.loadout{grid-column:1;grid-row:1}
+ /* Keep the taller loadout on the left. Use the empty area UNDER both
+    card library and simulator settings for the controls, as requested. */
+ .workspace.depths-workspace{grid-template-rows:auto max-content auto;align-items:start}
+ .workspace.depths-workspace>.loadout{grid-column:1;grid-row:1 / span 2}
  .workspace.depths-workspace>.library{grid-column:2;grid-row:1}
- .workspace.depths-workspace>.depth-control-dock{grid-column:1 / 3;grid-row:2}
- .workspace.depths-workspace>.simulation{grid-column:3;grid-row:1 / span 2;max-height:720px;overflow-y:auto;align-self:stretch}
+ .workspace.depths-workspace>.simulation{grid-column:3;grid-row:1;max-height:720px;overflow-y:auto;align-self:start}
+ .workspace.depths-workspace>.depth-control-dock{grid-column:2 / 4;grid-row:2;align-self:start}
  .workspace.depths-workspace>.results-panel{grid-column:1 / -1;grid-row:3;margin-top:4px}
 }
 @media(min-width:760px) and (max-width:1199px){

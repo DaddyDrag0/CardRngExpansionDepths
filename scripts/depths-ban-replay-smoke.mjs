@@ -91,7 +91,7 @@ assert(css.includes('.depth-right-shell>.depth-control-dock{'),"Test controls mu
 assert(css.includes('grid-template-rows:auto max-content;'),"Test controls need a natural-height second row");
 assert(css.includes('.workspace.depths-workspace>.results-panel{\n grid-row:auto;'),"Results must not be pinned to an oversized implicit grid row");
 assert(ui.includes("depths-battle-replay-v42.js"),"Replay player must load from unique v42 URL");
-assert(replayCode.includes("version:\'v41\'"),"Replay player must export correct version");
+assert(replayCode.includes("version:\'v42\'"),"Replay player must export correct version");
 
 assert(css.includes('container:depths-controls / inline-size'),"Control panel must size against its own width");
 assert(css.includes('@container depths-controls (max-width:860px)'),"Narrow panel must reorganize into two columns");

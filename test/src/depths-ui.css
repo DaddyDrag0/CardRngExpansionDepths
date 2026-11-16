@@ -501,3 +501,75 @@ details.ban-lab[open]>summary::after{content:'−'}
  .depth-right-shell>.depth-control-dock{order:3}
  .depth-right-shell>.simulation>.panel-head{position:static}
 }
+
+
+/* v33: The control panel responds to ITS own width, not to viewport size.
+   The setup occupies only the two right columns on large screens. */
+.workspace.depths-workspace .depth-control-dock{
+ container:depths-controls / inline-size;
+ overflow:hidden;
+}
+.workspace.depths-workspace .depth-control-dock .depth-control-settings{
+ grid-template-columns:minmax(0,1.02fr) minmax(0,1.48fr) minmax(0,1.13fr);
+ gap:12px;
+ align-items:start;
+}
+.workspace.depths-workspace .depth-control-dock .depth-control-runs .run-options{
+ display:grid;
+ grid-template-columns:repeat(6,minmax(0,1fr));
+ width:100%;
+ gap:4px;
+}
+.workspace.depths-workspace .depth-control-dock .depth-control-interval .run-options{
+ display:grid;
+ grid-template-columns:repeat(4,minmax(0,1fr));
+ width:100%;
+ gap:4px;
+}
+.workspace.depths-workspace .depth-control-dock .run-options button{
+ width:100%;
+ min-width:0;
+ min-height:32px;
+ padding:7px 2px;
+ border-radius:7px;
+ font-size:10px;
+ line-height:1.2;
+ white-space:nowrap;
+ text-align:center;
+ box-sizing:border-box;
+}
+.workspace.depths-workspace .depth-control-dock .depth-control-settings .hard-mode-toggle{
+ min-width:0;
+ box-sizing:border-box;
+}
+.workspace.depths-workspace .depth-control-dock .hard-mode-toggle small{
+ overflow-wrap:break-word;
+}
+@container depths-controls (max-width:860px){
+ .depth-control-settings{
+  grid-template-columns:minmax(0,1fr) minmax(0,1.4fr)!important;
+  row-gap:11px;
+  column-gap:14px;
+ }
+ .depth-control-mode{grid-column:1 / -1}
+ .depth-control-settings .hard-mode-toggle{
+  min-height:52px;
+  padding:9px 12px;
+ }
+ .depth-control-settings .hard-mode-toggle small{max-width:560px}
+ .depth-control-head{gap:9px;margin-bottom:12px}
+}
+@container depths-controls (max-width:510px){
+ .depth-control-settings{
+  grid-template-columns:minmax(0,1fr)!important;
+  gap:14px;
+ }
+ .depth-control-mode{grid-column:auto}
+ .depth-control-head{align-items:flex-start;gap:10px}
+ .depth-run-actions{width:100%;justify-content:flex-start;gap:7px}
+ .depth-run-actions button{flex:1 1 auto;padding:8px 9px}
+ .depth-control-settings .depth-control-runs .run-options,
+ .depth-control-settings .depth-control-interval .run-options{
+  gap:5px;
+ }
+}

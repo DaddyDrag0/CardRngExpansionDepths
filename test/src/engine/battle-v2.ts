@@ -1477,6 +1477,17 @@ function onEntry(runtime: Runtime, card: CombatCard) {
               pushAbilityDebug(runtime, card, 'Horned Attack overkill bypassed Paradox on the card behind the defeated target.')
             }
             next.hp -= overflowDamage
+            // Dummy-tested: one lone Noveau Riche behind the front card is
+            // pierced outright. With two Noveaus in the enemy lineup, both
+            // retain their three-life Unpaid Interns protection on overflow.
+            // Include fallen cards so removing one copy cannot drop the count.
+            if (next.hp <= 0 && next.definition.name === 'Noveau Riche') {
+              const copies = [
+                ...runtime.state.teams[enemyTeam],
+                ...runtime.state.fallen[enemyTeam],
+              ].filter((enemy) => enemy.definition.name === 'Noveau Riche').length
+              if (copies >= 2) tryRevive(runtime, card, next)
+            }
           }
           resolveDeaths(runtime)
         }

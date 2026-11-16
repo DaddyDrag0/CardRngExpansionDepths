@@ -130,6 +130,7 @@ function openBattleReplay({debug,cardImages={},abilityDescriptions={},teamIndex=
   const abilityInfo=event=>abilityForEvent(event,initial,abilityDescriptions);
   const dialog=document.createElement('dialog');dialog.className='rpl-dialog';
   let pos=-1,playing=false,speed=1,timer=null,closed=false,filter='all';
+  let lastCardPointer=null,pinnedCard=null;
   function stopTimer(){if(timer!==null)clearTimeout(timer);timer=null}
   function pause(){playing=false;stopTimer();const btn=dialog.querySelector('[data-rpl-play]');if(btn)btn.textContent='▶ Play'}
   const getState=()=>frameState(initial,events,checkpoints,pos);
@@ -248,6 +249,13 @@ function openBattleReplay({debug,cardImages={},abilityDescriptions={},teamIndex=
     dialog.querySelector('[data-rpl-events]').innerHTML=eventLog();
     const inspector=dialog.querySelector('[data-rpl-ability-inspector]');
     if(inspector){inspector.hidden=event?.type!=='ability';inspector.innerHTML=inspectorHtml(event)}
+    const candidates=Array.from(stage.querySelectorAll?.('button[data-rpl-card-side][data-rpl-card-id]')||[]);
+    let hovered=pinnedCard?candidates.find(btn=>btn.dataset.rplCardSide===pinnedCard.side&&btn.dataset.rplCardId===pinnedCard.id):null;
+    if(!hovered&&lastCardPointer&&typeof document.elementFromPoint==='function'){
+      const found=document.elementFromPoint(lastCardPointer.x,lastCardPointer.y)?.closest?.('button[data-rpl-card-side][data-rpl-card-id]');
+      if(found&&(!stage.contains||stage.contains(found)))hovered=found;
+    }
+    if(hovered)showCardTooltip(hovered);
     dialog.querySelector('[data-rpl-play]').textContent=playing?'Ⅱ Pause':'▶ Play';
     dialog.querySelector('[data-rpl-caption]').textContent=debug.truncated
      ?'Trace was capped at 20,000 events. Replayed data comes from the recorded fight.'
@@ -304,8 +312,11 @@ function openBattleReplay({debug,cardImages={},abilityDescriptions={},teamIndex=
   document.body.appendChild(dialog);
   dialog.addEventListener('click',event=>{
     const cardButton=event.target.closest('button[data-rpl-card-side][data-rpl-card-id]');
-    if(cardButton){showCardTooltip(cardButton);return}
-    hideTooltip();
+    if(cardButton){
+      pinnedCard={side:cardButton.dataset.rplCardSide,id:cardButton.dataset.rplCardId};
+      showCardTooltip(cardButton);return;
+    }
+    pinnedCard=null;lastCardPointer=null;hideTooltip();
     const button=event.target.closest('button[data-rpl-play],button[data-rpl-first],button[data-rpl-prev],button[data-rpl-next],button[data-rpl-last],button[data-rpl-log],button[data-rpl-close],button[data-rpl-event],button[data-rpl-filter]');
     if(!button)return;
     if(button.hasAttribute('data-rpl-play'))play();
@@ -323,10 +334,27 @@ function openBattleReplay({debug,cardImages={},abilityDescriptions={},teamIndex=
     }
   });
   dialog.addEventListener('pointerover',e=>{
-    if(e.pointerType==='mouse'||e.pointerType==='pen')showCardTooltip(e.target?.closest?.('button[data-rpl-card-side][data-rpl-card-id]'));
+    if(e.pointerType==='mouse'||e.pointerType==='pen'){
+      const btn=e.target?.closest?.('button[data-rpl-card-side][data-rpl-card-id]');
+      if(btn){
+        if(Number.isFinite(e.clientX)&&Number.isFinite(e.clientY))
+          lastCardPointer={x:e.clientX,y:e.clientY};
+        showCardTooltip(btn);
+      }
+    }
+  });
+  dialog.addEventListener('pointermove',e=>{
+    if(e.pointerType!=='mouse'&&e.pointerType!=='pen')return;
+    const btn=e.target?.closest?.('button[data-rpl-card-side][data-rpl-card-id]');
+    if(btn&&Number.isFinite(e.clientX)&&Number.isFinite(e.clientY)){
+      lastCardPointer={x:e.clientX,y:e.clientY};
+    }else if(!btn){lastCardPointer=null;if(!pinnedCard)hideTooltip()}
   });
   dialog.addEventListener('pointerout',e=>{
-    if(!e.relatedTarget?.closest?.('button[data-rpl-card-side][data-rpl-card-id]'))hideTooltip();
+    if(e.target?.isConnected===false)return; // A replay frame replaced the hovered card.
+    if(!e.relatedTarget?.closest?.('button[data-rpl-card-side][data-rpl-card-id]')){
+      lastCardPointer=null;if(!pinnedCard)hideTooltip();
+    }
   });
   dialog.addEventListener('focusin',e=>showCardTooltip(e.target?.closest?.('button[data-rpl-card-side][data-rpl-card-id]')));
   dialog.addEventListener('focusout',hideTooltip);

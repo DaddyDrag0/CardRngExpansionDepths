@@ -48,7 +48,40 @@ const targetSource=replayCode.match(/function targetOf\(state,event\)\s*\{[\s\S]
 assert(targetSource,"Target resolver missing");
 const target=new Function(targetSource+";return targetOf")();
 assert.equal(target({Allies:[],Enemies:[]},null),null,"First replay frame must not crash when no event exists");
-console.log("Depths v29 smoke passed: parallel-ban configuration, Hard 2-floor sim, zero-frame replay target safety, no cheese navigation.");
+
+const nodes=new Map();
+const emptyElement=()=>({
+ innerHTML:"",textContent:"",value:"",dataset:{},
+ classList:{add(){},remove(){},toggle(){}},
+ addEventListener(){},
+});
+const dialog={
+ innerHTML:"",className:"",shown:false,events:new Map(),
+ querySelector(sel){if(!nodes.has(sel))nodes.set(sel,emptyElement());return nodes.get(sel)},
+ querySelectorAll(){return []},
+ addEventListener(name,fn){this.events.set(name,fn)},
+ showModal(){this.shown=true},
+ close(){this.shown=false},
+ remove(){this.removed=true}
+};
+const pageDocument={
+ currentScript:{src:"https://daddydrag0.github.io/CardRngExpansionDepths/test/src/depths-battle-replay-v30.js"},
+ baseURI:"https://daddydrag0.github.io/CardRngExpansionDepths/test/",
+ querySelector(){return null},
+ createElement(tag){return tag==="dialog"?dialog:emptyElement()},
+ head:{appendChild(){}},body:{appendChild(){}}
+};
+const mockWindow={};
+new Function("document","window",replayCode)(pageDocument,mockWindow);
+assert.equal(mockWindow.CRXDepthsReplay.version,"v30");
+const opened=mockWindow.CRXDepthsReplay.openBattleReplay({debug:replay.debug,floor:10,teamIndex:0,runIndex:0});
+assert(dialog.shown,"Opening replay should show modal without exceptions");
+assert(nodes.get("[data-rpl-stage]")?.innerHTML?.includes("YOUR DECK"),"First empty-event frame must paint normally");
+opened.seek(0);
+opened.seek(replay.debug.events.findIndex(e=>e.type==="attack"));
+opened.close();
+
+console.log("Depths v30 smoke passed: real replay modal opens at frame zero and advances, Hard Depths worker, and compact controls.");
 
 assert(ui.includes("depth-control-dock")&&ui.includes("data-run-ready"),"Test team/run/interval/mode controls must be in the deck-side dock");
 assert(ui.includes("depths-battle-replay-v30.js"),"Replay player must load from unique v30 URL");

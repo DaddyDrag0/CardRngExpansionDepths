@@ -67,3 +67,640 @@
 
 .depth-relic-grade{display:block;margin-top:7px;padding:7px 9px;min-width:155px;max-width:100%;border-radius:7px;background:var(--surface-3);border:1px solid var(--line-strong);color:var(--text);font-size:11px;cursor:pointer}
 .relic-toggle>div{min-width:0}
+
+/* Source-grounded Depths timing controls and optional real-run calibration. */
+.sim-field:has(#depthBattleSpeedBase) select,.sim-field:has(#depthSpeedBlessing) select,
+.sim-field:has(#depthAttackAnimationScale) input,.sim-field:has(#depthFloorOverhead) input{
+ width:100%;min-height:37px;padding:8px 11px;border-radius:9px;
+ background:var(--surface-1);color:var(--text);border:1px solid var(--line-strong);
+ font-size:11px;font-variant-numeric:tabular-nums
+}
+.sim-field:has(#depthBattleSpeedBase) small,.sim-field:has(#depthSpeedBlessing) small,
+.sim-field:has(#depthAttackAnimationScale) small,.sim-field:has(#depthFloorOverhead) small{
+ display:block;color:var(--muted);font-size:9px;line-height:1.4;margin-top:6px
+}
+.depth-timing-calibration{margin:12px 0 0;padding:11px 13px;border:1px solid var(--line-strong);border-radius:10px;background:var(--surface-1)}
+.depth-timing-calibration summary{cursor:pointer;color:var(--text);font-size:11px;font-weight:700}
+.depth-timing-calibration p,.depth-timing-calibration small{font-size:10px;line-height:1.5;color:var(--muted)}
+.depth-timing-calibration p{margin:10px 0}
+.depth-timing-calibration label{display:inline-flex;flex-direction:column;font-size:10px;font-weight:650;gap:5px;margin-right:9px}
+.depth-timing-calibration input{min-height:34px;max-width:170px;background:var(--surface-2);color:var(--text);border:1px solid var(--line-strong);border-radius:6px;padding:6px 9px;font-size:11px}
+.depth-timing-calibration button{min-height:34px;background:var(--accent);color:#0b1015;border:0;border-radius:6px;padding:7px 12px;font-size:11px;font-weight:750;cursor:pointer}
+.depth-timing-calibration button:hover{filter:brightness(1.08)}
+.depth-timing-calibration small{display:block;margin-top:9px}
+@media(max-width:620px){.depth-timing-calibration button{margin-top:8px;display:block}}
+
+/* Depths speed-build comparison, sourced from simulated per-floor timing. */
+.depth-speed-comparison{border-top:1px solid var(--line-strong);padding:12px 0 18px;margin:8px 0 15px}
+.depth-speed-comparison-title{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 13px;margin-bottom:12px}
+.depth-speed-comparison-title b{font-size:14px;color:var(--text);font-weight:800}
+.depth-speed-comparison-title small{font-size:10px;color:var(--muted);line-height:1.4}
+.depth-speed-scroll{overflow-x:auto}
+.depth-speed-comparison table{border-collapse:collapse;width:100%;min-width:575px;font-size:11px}
+.depth-speed-comparison th{text-align:right;color:var(--muted);font-weight:700;font-size:10px;padding:7px 11px;border-bottom:1px solid var(--line-strong);white-space:nowrap}
+.depth-speed-comparison td{text-align:right;color:var(--text);padding:10px 11px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+.depth-speed-comparison th:first-child,.depth-speed-comparison td:first-child,.depth-speed-comparison th:nth-child(2),.depth-speed-comparison td:nth-child(2){text-align:left}
+.depth-speed-comparison tbody tr:first-child td{color:var(--accent);font-weight:800}
+.depth-speed-comparison tbody tr:hover td{background:var(--surface-2)}
+
+
+/* Ban Lab: flat editorial comparison, separate from loadout chips. */
+.depth-step-options{margin:7px 0 5px;flex-wrap:wrap}
+.depth-step-options button{min-width:65px}
+.depth-step-note{font-size:10px;color:var(--muted);line-height:1.5}
+.ban-lab{margin-top:22px;padding:21px 0 2px;border-top:1px solid var(--line-strong,var(--line));color:var(--text)}
+.ban-lab-head{display:flex;justify-content:space-between;align-items:end;gap:10px;margin-bottom:9px}
+.ban-lab-head h4{font-size:17px;font-weight:780;letter-spacing:-.015em;margin:4px 0 0}
+.ban-lab-head>small{color:var(--muted);font-size:10px}
+.ban-lab-intro{font-size:11px;line-height:1.6;max-width:650px;color:var(--muted);margin:4px 0 14px}
+.ban-lab-option{display:flex;gap:9px;align-items:center;color:var(--text);font-size:11px;cursor:pointer}
+.ban-lab-option input{accent-color:var(--accent);cursor:pointer}
+.ban-lab-actions{display:flex;flex-wrap:wrap;gap:8px;margin:15px 0}
+.ban-lab-actions button,.ban-lab-result>button{background:var(--surface-2);border:1px solid var(--line-strong,var(--line));border-radius:8px;color:var(--text);font-size:11px;font-weight:680;min-height:36px;padding:9px 13px;cursor:pointer}
+.ban-lab-actions button:hover:not(:disabled),.ban-lab-result>button:hover{border-color:var(--accent)}
+.ban-lab-actions button:disabled{opacity:.4;cursor:not-allowed}
+.ban-lab-actions button.ban-lab-both{background:var(--accent-soft);border-color:var(--accent-line);color:var(--accent-bright,var(--text))}
+.ban-lab-actions button.ban-lab-stop{color:#f1a6ac;border-color:#7b383c}
+.ban-lab-progress{padding:10px 0 13px;font-size:11px;color:var(--accent);font-variant-numeric:tabular-nums}
+.ban-lab-results{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:23px;margin-top:8px}
+.ban-lab-result{padding:16px 0;border-top:1px solid var(--line);min-width:0}
+.ban-lab-result>b{font-size:13px;font-weight:790}
+.ban-lab-result>p{color:var(--muted);font-size:10px;line-height:1.6;min-height:35px;margin:6px 0 12px}
+.ban-lab-result>small,.ban-lab-count{font-size:10px;color:var(--muted);display:block;margin:10px 0}
+.ban-lab-numbers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:8px 0}
+.ban-lab-numbers span{display:flex;flex-direction:column;gap:5px}
+.ban-lab-numbers small{font-size:9px;line-height:1.35;color:var(--muted)}
+.ban-lab-numbers strong{font-size:17px;font-weight:820;font-variant-numeric:tabular-nums}
+.ban-lab-chips{display:flex;flex-wrap:wrap;gap:5px;margin:12px 0}
+.ban-lab-chips span{font-size:10px;color:var(--text);border:1px solid var(--line);background:var(--surface-1);border-radius:6px;padding:5px 7px}
+.ban-lab-result>button{font-size:10px;margin-top:4px}
+.ban-lab-caveat{display:block;color:var(--muted);font-size:10px;line-height:1.5;margin:12px 0 0}
+@media(max-width:700px){.ban-lab-results{grid-template-columns:1fr;gap:11px}.ban-lab-head{align-items:start;flex-direction:column}.ban-lab-result>p{min-height:auto}}
+
+
+/* Depths-focused layout: results sit below loadout + library, independently
+   from the tall simulator and Ban Lab sidebar. Preserve all existing colors. */
+@media(min-width:1200px){
+ .workspace.depths-workspace{
+  grid-template-columns:minmax(0,1.07fr) minmax(0,.8fr) minmax(350px,1fr);
+  grid-template-rows:auto minmax(0,1fr);
+  align-items:start;
+ }
+ .workspace.depths-workspace>.loadout{grid-column:1;grid-row:1}
+ .workspace.depths-workspace>.library{grid-column:2;grid-row:1}
+ .workspace.depths-workspace>.simulation{grid-column:3;grid-row:1 / span 2}
+ .workspace.depths-workspace>.results-panel{
+  grid-column:1 / span 2;grid-row:2;
+  margin:0;min-width:0;align-self:start;
+ }
+ .workspace.depths-workspace .result-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .workspace.depths-workspace .results-panel .results-title{padding-top:15px;padding-bottom:15px}
+}
+@media(min-width:760px) and (max-width:1199px){
+ .workspace.depths-workspace{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto auto auto}
+ .workspace.depths-workspace>.loadout{grid-column:1;grid-row:1}
+ .workspace.depths-workspace>.library{grid-column:2;grid-row:1}
+ .workspace.depths-workspace>.results-panel{grid-column:1/-1;grid-row:2;margin:0}
+ .workspace.depths-workspace>.simulation{grid-column:1/-1;grid-row:3}
+}
+@media(max-width:759px){
+ .workspace.depths-workspace{grid-template-columns:minmax(0,1fr)}
+ .workspace.depths-workspace>.loadout,
+ .workspace.depths-workspace>.library,
+ .workspace.depths-workspace>.simulation,
+ .workspace.depths-workspace>.results-panel{grid-column:1;grid-row:auto;margin:0;min-width:0}
+ .workspace.depths-workspace>.results-panel{order:4}
+}
+
+
+/* Ban Lab is an expandable power-user tool instead of a permanent tall sidebar. */
+details.ban-lab{margin-top:17px;padding:0 0 2px}
+details.ban-lab>summary.ban-lab-head{
+ cursor:pointer;display:flex;align-items:center;list-style:none;margin:0;
+ min-height:60px;padding:11px 1px 10px;user-select:none;
+}
+details.ban-lab>summary::-webkit-details-marker{display:none}
+details.ban-lab>summary:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+details.ban-lab>summary small{white-space:nowrap}
+details.ban-lab>summary::after{content:'+';font-size:21px;font-weight:500;color:var(--muted);margin-left:8px}
+details.ban-lab[open]>summary::after{content:'−'}
+.ban-lab-body{padding:0 0 12px}
+.ban-lab-budget{display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--muted);font-size:10px;margin:13px 0}
+.ban-lab-budget select{background:var(--surface-1);border:1px solid var(--line-strong,var(--line));border-radius:7px;color:var(--text);padding:7px 10px;font-size:11px}
+.ban-lab-window{color:var(--accent);font-size:10px!important;line-height:1.5!important;min-height:0!important}
+.ban-lab-note{color:var(--muted);font-size:10px!important;line-height:1.5!important}
+@media(max-width:700px){
+ details.ban-lab>summary.ban-lab-head{flex-direction:row}
+ .ban-lab-head>small{display:none}
+}
+
+
+/* November Depths usability correction: persistent test controls, full-width results.
+   Keep the calculator palette; let card contents adapt to available width. */
+.depth-launch-bar{
+ position:sticky;top:8px;z-index:60;display:flex;align-items:center;
+ justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 12px;
+ padding:11px 14px;border:1px solid var(--line-strong,var(--line));
+ border-radius:13px;background:var(--panel-grad-top,#1d2530);
+ box-shadow:0 6px 28px rgba(0,0,0,.24);
+}
+.depth-launch-status{display:flex;flex-direction:column;gap:3px;min-width:120px}
+.depth-launch-status>b{color:var(--text);font-size:12px;font-weight:800}
+.depth-launch-status>small{color:var(--muted);font-size:10px}
+.depth-launch-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end;flex:1}
+.depth-launch-actions>button{border-radius:8px;padding:9px 11px;font-size:11px;font-weight:720;min-height:36px;cursor:pointer;white-space:nowrap}
+.depth-launch-actions>button:disabled{opacity:.4;cursor:not-allowed}
+.depth-launch-actions>.depth-launch-primary{background:var(--accent-deep);border:1px solid var(--accent-line);color:var(--accent-text)}
+.depth-launch-actions>.depth-launch-secondary{background:var(--surface-2);border:1px solid var(--line-strong,var(--line));color:var(--text)}
+.depth-launch-actions>.depth-launch-link{border:1px solid transparent;background:transparent;color:var(--accent-bright,var(--text))}
+.depth-launch-actions>.depth-launch-cancel{border:1px solid #834045;background:rgba(131,64,69,.15);color:#f1a6ac}
+.depth-launch-progress{font-size:10px;color:var(--muted);max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.depth-launch-actions>button:hover:not(:disabled){filter:brightness(1.15)}
+#depth-settings,#depth-results{scroll-margin-top:92px}
+/* The results panel takes the entire page width, never the leftover area beside
+   simulator settings. */
+@media(min-width:1200px){
+ .workspace.depths-workspace{
+  grid-template-columns:minmax(0,1.07fr) minmax(0,.85fr) minmax(350px,1fr);
+  grid-template-rows:auto auto;
+  align-items:start;
+ }
+ .workspace.depths-workspace>.loadout{grid-column:1;grid-row:1}
+ .workspace.depths-workspace>.library{grid-column:2;grid-row:1}
+ .workspace.depths-workspace>.simulation{grid-column:3;grid-row:1}
+ .workspace.depths-workspace>.results-panel{grid-column:1/-1;grid-row:2;min-width:0;margin:0}
+}
+@media(min-width:760px) and (max-width:1199px){
+ .workspace.depths-workspace{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto auto auto}
+ .workspace.depths-workspace>.simulation{grid-column:1/-1;grid-row:2}
+ .workspace.depths-workspace>.results-panel{grid-column:1/-1;grid-row:3;margin:0;min-width:0}
+}
+.workspace.depths-workspace>.results-panel{width:100%;max-width:none}
+.workspace.depths-workspace .result-grid{
+ display:grid;
+ grid-template-columns:repeat(auto-fit,minmax(min(100%,760px),1fr));
+ align-items:start;gap:16px;padding:16px;
+}
+.workspace.depths-workspace .result-card{
+ min-width:0;max-width:none;box-sizing:border-box;container-type:inline-size;
+ padding:18px;overflow:hidden;
+}
+.workspace.depths-workspace .result-metrics{
+ display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;
+}
+.workspace.depths-workspace .result-metrics div{min-width:0;padding:12px}
+.workspace.depths-workspace .result-metrics span{font-size:10px;line-height:1.35;overflow-wrap:anywhere}
+.workspace.depths-workspace .result-metrics b{font-size:clamp(14px,1.2vw,19px);overflow-wrap:anywhere}
+.workspace.depths-workspace .result-meta{font-size:10px;gap:7px 13px;line-height:1.5}
+.workspace.depths-workspace .floor-strip{max-height:none}
+.workspace.depths-workspace .floor-strip span,.workspace.depths-workspace .enemy-chips i{font-size:10px;padding:6px 9px}
+.workspace.depths-workspace .result-card .crx-drop-details,
+.workspace.depths-workspace .result-card .crx-drop-inside,
+.workspace.depths-workspace .result-card .crx-drop-column,
+.workspace.depths-workspace .result-card .crx-drop-section{min-width:0;max-width:100%}
+.workspace.depths-workspace .result-card .crx-drop-scroll{max-width:100%;overflow-x:auto}
+.workspace.depths-workspace .result-card .crx-drop-scroll table{width:100%}
+@container (max-width:800px){
+ .workspace.depths-workspace .result-card .crx-drop-cols{grid-template-columns:minmax(0,1fr)}
+ .workspace.depths-workspace .result-card .crx-drop-key-items{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@container (max-width:480px){
+ .workspace.depths-workspace .result-card .result-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .workspace.depths-workspace .result-card .crx-drop-key-items{grid-template-columns:1fr}
+}
+@media(max-width:759px){
+ .depth-launch-bar{position:sticky;top:0;padding:9px 10px;gap:8px;border-radius:0}
+ .depth-launch-status{flex-basis:100%}
+ .depth-launch-actions{justify-content:flex-start}
+ .depth-launch-actions>button{font-size:10px;padding:8px}
+ .workspace.depths-workspace>.results-panel{grid-column:1;grid-row:auto;order:4}
+ .workspace.depths-workspace .result-grid{grid-template-columns:minmax(0,1fr);padding:10px}
+ .workspace.depths-workspace .result-card{padding:12px}
+ #depth-settings,#depth-results{scroll-margin-top:150px}
+}
+
+/* v29: cap the setup workspace height; results start immediately below it. */
+@media(min-width:1200px){
+ .workspace.depths-workspace{grid-template-rows:minmax(0,auto) auto;align-items:start}
+ .workspace.depths-workspace>.simulation{grid-column:3;grid-row:1;max-height:720px;overflow-y:auto;overscroll-behavior:contain}
+ .workspace.depths-workspace>.library{grid-column:2;grid-row:1;max-height:720px;overflow:hidden;display:flex;flex-direction:column}
+ .workspace.depths-workspace>.library .library-list{overflow-y:auto;flex:1;min-height:0}
+ .workspace.depths-workspace>.loadout{grid-column:1;grid-row:1}
+ .workspace.depths-workspace>.results-panel{grid-column:1/-1;grid-row:2;margin-top:4px}
+}
+.sim-head-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.sim-head-actions>.sim-run{border-radius:8px;min-height:35px;padding:7px 13px;cursor:pointer}
+.sim-head-actions>.sim-run:disabled{opacity:.38}
+.sim-head-actions>small{font-size:10px;color:var(--muted)}
+.ban-lab{margin-top:15px!important}
+.ban-lab-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0 9px}
+.ban-lab-toolbar .ban-lab-samples{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text)}
+.ban-lab-toolbar .ban-lab-samples select{border:1px solid var(--line-strong);border-radius:8px;padding:8px;color:var(--text);background:var(--surface-2);font-size:11px}
+.ban-lab-toolbar .ban-lab-option{margin:0}
+.ban-lab-toolbar .ban-lab-actions{margin:0 0 0 auto}
+.ban-lab-intro{font-size:10px!important;line-height:1.55;max-width:100%;margin:7px 0 12px!important}
+.ban-lab-summary{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--accent);padding:8px 0}
+.ban-lab-frequency{margin:10px 0}.ban-lab-frequency>small{font-size:10px;color:var(--muted)}
+.ban-lab-frequency>div{display:flex;flex-wrap:wrap;gap:6px;margin:7px 0}
+.ban-lab-frequency>div span{font-size:10px;border:1px solid var(--line);border-radius:7px;background:var(--surface-2);padding:5px 7px}
+.ban-lab-chips{margin:10px 0 13px}
+.depth-speed-comparison{padding:12px 18px!important;margin:0!important}
+.depth-speed-comparison-title{display:flex!important;align-items:center!important;gap:10px!important}
+.depth-speed-comparison-title small{font-size:11px;line-height:1.45}
+.depth-speed-scroll{overflow-x:auto;max-width:100%;scrollbar-gutter:stable}
+.depth-speed-comparison table{width:100%;min-width:920px;table-layout:auto;border-collapse:collapse}
+.depth-speed-comparison th,.depth-speed-comparison td{padding:12px 14px!important;font-size:11px!important;white-space:nowrap;line-height:1.5;vertical-align:middle}
+.depth-speed-comparison th:first-child,.depth-speed-comparison td:first-child{width:35px}
+.depth-speed-comparison td:nth-child(2){font-weight:700}
+.depth-ranking-note{display:block;color:var(--muted);font-size:10px;margin:10px 0}
+@media(max-width:1199px){.workspace.depths-workspace>.simulation{max-height:660px;overflow-y:auto;overscroll-behavior:contain}}
+@media(max-width:759px){.workspace.depths-workspace>.simulation{max-height:none;overflow:visible}.sim-head-actions{justify-content:flex-start}}
+
+/* Keep the test action visible inside the capped settings panel. */
+@media(min-width:760px){.workspace.depths-workspace>.simulation>.panel-head{position:sticky;top:0;z-index:4;background:var(--panel-grad-top,var(--surface-2));border-bottom:1px solid var(--line);}}
+
+
+/* v30: Deck-side test controls replace the unused space below team setup. */
+.depth-right-shell>.depth-control-dock{
+ min-width:0;
+ width:100%;
+ box-sizing:border-box;
+ padding:14px 16px 16px;
+ border:1px solid var(--line-strong,var(--line));
+ border-radius:12px;
+ background:var(--surface-1,#1b2530);
+ align-self:start;
+}
+.depth-control-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:14px}
+.depth-control-head h3{font-size:15px;line-height:1.25;margin:3px 0 0}
+.depth-run-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;min-width:0}
+.depth-run-actions button{
+ min-height:35px;cursor:pointer;border-radius:8px;padding:8px 13px;
+ background:var(--surface-2,#26313e);color:var(--text,#e4edf5);
+ border:1px solid var(--line-strong,#3d4b5c);font-size:11px;font-weight:750;letter-spacing:0;
+}
+.depth-run-actions button:hover:not(:disabled){filter:brightness(1.13)}
+.depth-run-actions button:disabled{opacity:.42;cursor:not-allowed}
+.depth-run-actions .depth-test-primary{background:var(--accent-soft,rgba(30,90,80,.35));border-color:var(--accent-line,#3b8e78);color:var(--accent-bright,#b4e7d7)}
+.depth-run-actions .depth-cancel,.depth-run-actions .depth-cancel:hover{
+ background:rgba(117,40,51,.27)!important;border-color:#944b5c!important;color:#ffd4dc!important;
+ box-shadow:none!important;opacity:1!important;
+}
+.depth-run-progress{font-size:11px;line-height:1.5;color:var(--muted,#9ba8b7);max-width:335px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.depth-control-settings{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.45fr) minmax(0,1.2fr);gap:16px}
+.depth-control-settings>div{min-width:0}
+.depth-control-settings .sim-field{margin:0;padding:0}
+.depth-control-settings .sim-field>span{display:block;font-size:10px;margin-bottom:9px}
+.depth-control-settings .run-options{display:flex;flex-wrap:wrap;gap:5px}
+.depth-control-settings .run-options button{min-width:32px;min-height:32px;font-size:10px;flex:0 0 auto}
+.depth-control-settings .depth-step-note{font-size:9px;line-height:1.45;display:block;margin-top:7px}
+.depth-control-settings .hard-mode-toggle{
+ border:1px solid var(--line-strong,var(--line));border-radius:10px;
+ margin:0;padding:9px 10px;min-height:67px;display:flex;align-items:center;justify-content:space-between;
+ background:var(--surface-2);
+}
+.depth-control-settings .hard-mode-toggle>div{min-width:0}
+.depth-control-settings .hard-mode-toggle small{font-size:9px;line-height:1.45}
+.depth-control-settings .hard-mode-toggle button{flex:none;margin-left:8px}
+@media(min-width:1200px){
+ /* Keep the taller loadout on the left. Use the empty area UNDER both
+    card library and simulator settings for the controls, as requested. */
+ .workspace.depths-workspace{grid-template-rows:auto max-content auto;align-items:start}
+ .workspace.depths-workspace>.loadout{grid-column:1;grid-row:1 / span 2}
+ .workspace.depths-workspace>.library{grid-column:2;grid-row:1}
+ .workspace.depths-workspace>.simulation{grid-column:3;grid-row:1;max-height:720px;overflow-y:auto;align-self:start}
+ .workspace.depths-workspace>.depth-control-dock{grid-column:2 / 4;grid-row:2;align-self:start}
+ .workspace.depths-workspace>.results-panel{grid-column:1 / -1;grid-row:3;margin-top:4px}
+}
+@media(min-width:760px) and (max-width:1199px){
+ .workspace.depths-workspace>.loadout{grid-column:1;grid-row:1}
+ .workspace.depths-workspace>.library{grid-column:2;grid-row:1}
+ .workspace.depths-workspace>.depth-control-dock{grid-column:1 / -1;grid-row:2}
+ .workspace.depths-workspace>.simulation{grid-column:1 / -1;grid-row:3}
+ .workspace.depths-workspace>.results-panel{grid-column:1 / -1;grid-row:4}
+}
+@media(max-width:900px){.depth-control-settings{grid-template-columns:1fr 1fr}.depth-control-mode{grid-column:1 / -1}}
+@media(max-width:759px){
+ .workspace.depths-workspace>.depth-control-dock{grid-column:1;grid-row:auto;order:3}
+ .workspace.depths-workspace>.simulation{order:4}
+ .workspace.depths-workspace>.results-panel{order:5}
+ .depth-control-settings{grid-template-columns:1fr}
+ .depth-control-mode{grid-column:auto}
+ .depth-run-actions{justify-content:flex-start}
+}
+
+
+/* v32: independent setup columns. No row-spanning loadout can enlarge the
+   area between the test controls and the full-width results. */
+.workspace.depths-workspace{
+ display:flex;
+ flex-direction:column;
+ align-items:stretch;
+ gap:12px;
+ grid-template-columns:none;
+ grid-template-rows:none;
+}
+.workspace.depths-workspace>.depth-setup-shell{
+ display:grid;
+ grid-template-columns:minmax(0,1.07fr) minmax(0,1.85fr);
+ align-items:start;
+ gap:12px;
+ width:100%;
+ min-width:0;
+}
+.depth-setup-shell>.loadout{min-width:0;align-self:start}
+.depth-setup-shell>.depth-right-shell{
+ min-width:0;
+ display:grid;
+ grid-template-columns:minmax(0,.85fr) minmax(350px,1fr);
+ grid-template-rows:auto max-content;
+ align-items:start;
+ gap:12px;
+}
+.depth-right-shell>.library{
+ min-width:0;
+ grid-column:1;
+ grid-row:1;
+ max-height:720px;
+ overflow:hidden;
+ display:flex;
+ flex-direction:column;
+}
+.depth-right-shell>.library>.library-list{
+ overflow-y:auto;
+ flex:1;
+ min-height:0;
+}
+.depth-right-shell>.simulation{
+ min-width:0;
+ grid-column:2;
+ grid-row:1;
+ max-height:720px;
+ overflow-y:auto;
+ overscroll-behavior:contain;
+ align-self:start;
+}
+.depth-right-shell>.simulation>.panel-head{
+ position:sticky;
+ top:0;
+ z-index:4;
+ background:var(--panel-grad-top,var(--surface-2));
+ border-bottom:1px solid var(--line);
+}
+.depth-right-shell>.depth-control-dock{
+ min-width:0;
+ grid-column:1 / -1;
+ grid-row:2;
+ align-self:start;
+}
+.workspace.depths-workspace>.results-panel{
+ grid-row:auto;
+ grid-column:auto;
+ align-self:stretch;
+ width:100%;
+ max-width:none;
+ min-width:0;
+ margin:0;
+}
+@media(max-width:1199px){
+ .workspace.depths-workspace>.depth-setup-shell{
+  grid-template-columns:minmax(0,1fr);
+ }
+ .depth-setup-shell>.depth-right-shell{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+ }
+ .depth-right-shell>.simulation{
+  max-height:660px;
+ }
+}
+@media(max-width:759px){
+ .depth-setup-shell>.depth-right-shell{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+ }
+ .depth-right-shell>.library,.depth-right-shell>.simulation,.depth-right-shell>.depth-control-dock{
+  width:100%;
+  box-sizing:border-box;
+ }
+ .depth-right-shell>.library{order:1;max-height:520px}
+ .depth-right-shell>.simulation{order:2;max-height:none;overflow:visible}
+ .depth-right-shell>.depth-control-dock{order:3}
+ .depth-right-shell>.simulation>.panel-head{position:static}
+}
+
+
+/* v33: The control panel responds to ITS own width, not to viewport size.
+   The setup occupies only the two right columns on large screens. */
+.workspace.depths-workspace .depth-control-dock{
+ container:depths-controls / inline-size;
+ overflow:hidden;
+}
+.workspace.depths-workspace .depth-control-dock .depth-control-settings{
+ grid-template-columns:minmax(0,1.02fr) minmax(0,1.48fr) minmax(0,1.13fr);
+ gap:12px;
+ align-items:start;
+}
+.workspace.depths-workspace .depth-control-dock .depth-control-runs .run-options{
+ display:grid;
+ grid-template-columns:repeat(6,minmax(0,1fr));
+ width:100%;
+ gap:4px;
+}
+.workspace.depths-workspace .depth-control-dock .depth-control-interval .run-options{
+ display:grid;
+ grid-template-columns:repeat(4,minmax(0,1fr));
+ width:100%;
+ gap:4px;
+}
+.workspace.depths-workspace .depth-control-dock .depth-control-interval .run-options:has(>button:nth-child(3):last-child){
+ grid-template-columns:repeat(3,minmax(0,1fr));
+}
+.workspace.depths-workspace .depth-control-dock .run-options button{
+ width:100%;
+ min-width:0;
+ min-height:32px;
+ padding:7px 2px;
+ border-radius:7px;
+ font-size:10px;
+ line-height:1.2;
+ white-space:nowrap;
+ text-align:center;
+ box-sizing:border-box;
+}
+.workspace.depths-workspace .depth-control-dock .depth-control-settings .hard-mode-toggle{
+ min-width:0;
+ box-sizing:border-box;
+}
+.workspace.depths-workspace .depth-control-dock .hard-mode-toggle small{
+ overflow-wrap:break-word;
+}
+@container depths-controls (max-width:860px){
+ .depth-control-settings{
+  grid-template-columns:minmax(0,1fr) minmax(0,1.4fr)!important;
+  row-gap:11px;
+  column-gap:14px;
+ }
+ .depth-control-mode{grid-column:1 / -1}
+ .depth-control-settings .hard-mode-toggle{
+  min-height:52px;
+  padding:9px 12px;
+ }
+ .depth-control-settings .hard-mode-toggle small{max-width:560px}
+ .depth-control-head{gap:9px;margin-bottom:12px}
+}
+@container depths-controls (max-width:510px){
+ .depth-control-settings{
+  grid-template-columns:minmax(0,1fr)!important;
+  gap:14px;
+ }
+ .depth-control-mode{grid-column:auto}
+ .depth-control-head{align-items:flex-start;gap:10px}
+ .depth-run-actions{width:100%;justify-content:flex-start;gap:7px}
+ .depth-run-actions button{flex:1 1 auto;padding:8px 9px}
+ .depth-control-settings .depth-control-runs .run-options,
+ .depth-control-settings .depth-control-interval .run-options{
+  gap:5px;
+ }
+}
+
+
+/* v34: Test controls must stay INSIDE their own card. Hard Mode gets its own
+   full-width row instead of being squeezed into three columns. */
+.depth-right-shell>.depth-control-dock{
+ width:100%;
+ max-width:100%;
+ min-width:0;
+ box-sizing:border-box;
+ overflow:hidden;
+}
+.depth-right-shell>.depth-control-dock *{box-sizing:border-box}
+.depth-right-shell>.depth-control-dock .depth-control-settings{
+ width:100%;
+ max-width:100%;
+ min-width:0;
+ display:grid;
+ grid-template-columns:minmax(0,1fr) minmax(0,1.4fr)!important;
+ gap:12px;
+ align-items:start;
+}
+.depth-right-shell>.depth-control-dock .depth-control-settings>div{
+ width:100%;
+ max-width:100%;
+ min-width:0;
+}
+.depth-right-shell>.depth-control-dock .depth-control-mode{grid-column:1 / -1}
+.depth-right-shell>.depth-control-dock .depth-control-settings .hard-mode-toggle{
+ width:100%;
+ max-width:100%;
+ min-width:0;
+ min-height:49px;
+ margin:0;
+ padding:8px 11px;
+ display:flex;
+ justify-content:space-between;
+ align-items:center;
+ gap:10px;
+}
+.depth-right-shell>.depth-control-dock .depth-control-settings .hard-mode-toggle>div{
+ flex:1 1 auto;
+ min-width:0;
+}
+.depth-right-shell>.depth-control-dock .depth-control-settings .hard-mode-toggle button{
+ flex:0 0 auto;
+ min-width:44px;
+ margin:0;
+}
+.depth-right-shell>.depth-control-dock .run-options{max-width:100%}
+.depth-right-shell>.depth-control-dock .run-options button{min-width:0;max-width:100%;padding:6px 2px}
+@container depths-controls (max-width:510px){
+ .depth-right-shell>.depth-control-dock .depth-control-settings{
+  grid-template-columns:minmax(0,1fr)!important;
+ }
+ .depth-right-shell>.depth-control-dock .depth-control-mode{grid-column:1}
+}
+
+/* v36 — always-visible compact Ban Lab. Keep the same dark palette. */
+.ban-lab{
+ margin-top:12px!important;
+ padding:12px 0 0!important;
+ border-top:1px solid var(--line-strong,var(--line));
+ min-width:0;
+}
+.ban-lab .ban-lab-head{margin:0 0 10px;display:flex;align-items:center}
+.ban-lab .ban-lab-head h4{font-size:14px;line-height:1.2;font-weight:790;letter-spacing:0;margin:0}
+.ban-lab .ban-lab-toolbar{
+ display:flex;align-items:center;flex-wrap:wrap;
+ gap:9px 12px;min-width:0;margin:0;
+}
+.ban-lab .ban-lab-samples{
+ display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
+ font-size:10px;color:var(--muted);
+}
+.ban-lab .ban-lab-samples select{
+ min-width:60px;min-height:32px;padding:6px 7px;
+ color:var(--text);background:var(--surface-2);
+ border:1px solid var(--line-strong,var(--line));border-radius:7px;
+}
+.ban-lab .ban-lab-option{
+ display:inline-flex;align-items:center;gap:7px;
+ min-width:0;font-size:10px;white-space:nowrap;
+}
+.ban-lab .ban-lab-option input{width:14px;height:14px;margin:0}
+.ban-lab .ban-lab-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 0 auto}
+.ban-lab .ban-lab-actions button{padding:7px 11px;min-height:33px;white-space:nowrap}
+.ban-lab .ban-lab-progress{
+ padding:10px 0 4px;margin:0;
+ color:var(--accent-bright,var(--accent));font-size:11px;
+}
+.ban-lab .ban-lab-found{
+ margin:12px 0 0;padding:11px 0 0;
+ border-top:1px solid var(--line);
+}
+.ban-lab .ban-lab-found-title{
+ display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+ color:var(--text);font-size:11px;
+}
+.ban-lab .ban-lab-found-title strong{font-size:12px;font-weight:760}
+.ban-lab .ban-lab-found-title span{color:var(--accent-bright,var(--accent));font-size:10px}
+.ban-lab .ban-lab-chips{display:flex;flex-wrap:wrap;gap:5px;margin:9px 0 11px}
+.ban-lab .ban-lab-chips span{
+ font-size:10px;line-height:1.3;
+ border:1px solid var(--line-strong,var(--line));
+ background:var(--surface-1);
+ border-radius:6px;padding:5px 7px;
+}
+.ban-lab .ban-lab-apply{
+ min-height:33px;padding:7px 12px;
+ border:1px solid var(--accent-line,var(--line));
+ border-radius:7px;background:var(--accent-soft,var(--surface-2));
+ color:var(--accent-bright,var(--text));font-size:11px;font-weight:700;cursor:pointer;
+}
+.ban-lab .ban-lab-apply:disabled{opacity:.4;cursor:not-allowed}
+.ban-lab .ban-lab-note{display:block;margin:5px 0 10px}
+@container depths-controls (max-width:500px){
+ .ban-lab .ban-lab-actions{margin-left:0}
+}
+
+/* v40 - muted, thin scrollbars instead of the default bright browser gutters.
+   Cover page scrolling and each independently scrollable panel. */
+:where(html, body, .depths-workspace, .depths-workspace *) {
+  scrollbar-width: thin;
+  scrollbar-color: #3e6168 #141d26;
+}
+:where(html, body, .depths-workspace, .depths-workspace *)::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+:where(html, body, .depths-workspace, .depths-workspace *)::-webkit-scrollbar-track {
+  background: #141d26;
+  border-radius: 10px;
+}
+:where(html, body, .depths-workspace, .depths-workspace *)::-webkit-scrollbar-thumb {
+  background: #3e6168;
+  border: 2px solid #141d26;
+  border-radius: 10px;
+}
+:where(html, body, .depths-workspace, .depths-workspace *)::-webkit-scrollbar-thumb:hover {
+  background: #58818a;
+}

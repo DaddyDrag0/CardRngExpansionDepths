@@ -21,6 +21,7 @@ const AURA_TIERS: Record<AuraBorderName, number> = {
 
 const CUSTOM_SKILL_VALUES: Record<string, readonly number[]> = {
   Berserker: [5, 10, 15, 20],
+  Spooked: [10, 15, 20, 25],
   'Flame Wizard': [15, 25, 35, 50],
   Shielder: [2, 5, 7, 10],
   'Synth Human': [8, 10, 12, 15],
@@ -155,6 +156,34 @@ export function applySkillAuraTeamEffects(
     return { aura, value, implemented: true }
   }
 
+  if (aura.name === 'Capricorn' || aura.name === "Jack-o'-Lantern") {
+    // CardStatTiers.IsLimited / IsHalloween from the CYBERPUNK export.
+    // "Eligible fighting card" counts the actual nonempty deck slots;
+    // the server's finer aura eligibility check is not included in the export.
+    const eventPacks = new Set(['Christmas', 'Valentines', 'Easter', 'Era2', 'Halloween', 'Halloween2'])
+    const halloweenFamilies = new Set(['Halloween', 'Halloween2', 'Halloween3'])
+    const isLimited = (card: CombatCard) => Boolean(
+      card.definition.expires || card.definition.limited || card.definition.collection ||
+      eventPacks.has(card.definition.pack || ''),
+    )
+    const isHalloween = (card: CombatCard) => halloweenFamilies.has(card.definition.pack || '')
+      || halloweenFamilies.has(card.definition.collection || '')
+    // Roblox CardStatTiers.IsEligible: regular non-limited/non-weather fighters
+    // and Halloween fighters count; Weather/Boss/Sin/Virtue are never eligible.
+    const eligibleCount = team.filter((card) => !card.definition.weather
+      && !card.definition.boss && !card.definition.sin && !card.definition.virtue
+      && (isHalloween(card) || !isLimited(card))).length
+    const multiplier = 1 + eligibleCount * value / 100
+    for (const card of team) {
+      const target = aura.name === 'Capricorn' ? isLimited(card) : isHalloween(card)
+      if (!target) continue
+      card.damage *= multiplier
+      card.maxHp *= multiplier
+      card.hp *= multiplier
+    }
+    return { aura, value, implemented: true }
+  }
+
   if (aura.name === 'Jurassic World') {
     const prehistoricCount = team.filter((card) => card.definition.pack === 'Prehistoric').length
     const bonus = prehistoricCount * value
@@ -221,7 +250,7 @@ export function buildSkillAuraBoosts(selection?: AuraSelection | null): {
     return { boosts, aura, implemented: true }
   }
 
-  if (aura.name === 'Jurassic World' || aura.name === 'Magical Elf') {
+  if (aura.name === 'Jurassic World' || aura.name === 'Magical Elf' || aura.name === 'Capricorn' || aura.name === "Jack-o'-Lantern") {
     return { boosts, aura, implemented: true }
   }
 

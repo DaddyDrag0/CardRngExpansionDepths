@@ -2,7 +2,7 @@
 
 import { simulateDepthsRun, type DepthsRunResult } from './engine/simulation'
 import { SeededRng } from './engine/rng'
-import { auraPacksForDepth, potionDropsForDepth } from './engine/depths-rewards'
+import { auraPacksForClearedRange, potionDropsForDepth } from './engine/depths-rewards'
 import { estimateDepthClearSeconds } from './engine/depths-time'
 import type { TeamLoadout } from './types'
 
@@ -22,8 +22,12 @@ interface BatchRequest {
   battleSpeedStructureLevel?: number
   skillTreeBattleSpeedLevel?: number
   floorOverheadSeconds?: number
+  baseBattleSpeed?: number
+  blessingMultiplier?: number
+  attackAnimationScale?: number
   chronoShard?: boolean
   hardMode?: boolean
+  floorStride?: number
 }
 
 interface SingleRunRequest {
@@ -37,6 +41,9 @@ interface SingleRunRequest {
   bannedCardNames?: string[]
   rebanLegacyDepths?: boolean
   hardMode?: boolean
+  floorStride?: number
+  lazyDebug?: boolean
+  timingSettings?: { chronoShard?: boolean; chronoShardLevel?: number; battleSpeedStructureLevel?: number; skillTreeBattleSpeedLevel?: number; floorOverheadSeconds?: number; baseBattleSpeed?: number; blessingMultiplier?: number; attackAnimationScale?: number }
 }
 
 type SimulationRequest = BatchRequest | SingleRunRequest
@@ -45,7 +52,7 @@ const STALL_WATCHDOG_MS = 20_000
 const LIVE_BATTLE_TURN_CAP = 10_000
 
 function normalizeStartFloor(value: number | undefined): number {
-  return Math.min(80_000, Math.max(1, Math.floor(Number(value) || 1)))
+  return Math.min(300_000, Math.max(1, Math.floor(Number(value) || 1)))
 }
 
 function runSeed(batchSeed: number, runIndex: number): number {
@@ -67,6 +74,10 @@ function summarize(
   chronoShardLevel = 0,
   bountifulDepthsLevel = 0,
   floorOverheadSeconds = 0.8,
+  baseBattleSpeed = 3,
+  blessingMultiplier = 1,
+  attackAnimationScale = 1,
+  startFloor = 1,
 ) {
   const unsupported = new Set<string>()
   for (const result of results) {
@@ -84,24 +95,37 @@ function summarize(
     low: estimatedFloorLow,
     high: estimatedFloorHigh,
     medianDepth,
-    auraPackLow: auraPacksForDepth(estimatedFloorLow) * (hardMode ? 3 : 1),
-    auraPackMedian: auraPacksForDepth(medianDepth) * (hardMode ? 3 : 1),
-    auraPackHigh: auraPacksForDepth(estimatedFloorHigh) * (hardMode ? 3 : 1),
+    auraPackLow: auraPacksForClearedRange(startFloor, estimatedFloorLow, hardMode),
+    auraPackMedian: auraPacksForClearedRange(startFloor, medianDepth, hardMode),
+    auraPackHigh: auraPacksForClearedRange(startFloor, estimatedFloorHigh, hardMode),
   }
   const potionRewards = hardMode ? null : {
-    low: potionDropsForDepth(estimatedFloorLow, bountifulDepths, bountifulDepthsLevel),
-    median: potionDropsForDepth(medianDepth, bountifulDepths, bountifulDepthsLevel),
-    high: potionDropsForDepth(estimatedFloorHigh, bountifulDepths, bountifulDepthsLevel),
+    low: potionDropsForDepth(estimatedFloorLow - 1, bountifulDepths, bountifulDepthsLevel, startFloor),
+    median: potionDropsForDepth(medianDepth - 1, bountifulDepths, bountifulDepthsLevel, startFloor),
+    high: potionDropsForDepth(estimatedFloorHigh - 1, bountifulDepths, bountifulDepthsLevel, startFloor),
     medianDepth,
     bountiful: bountifulDepths,
   }
   const totalBattles = results.reduce((sum, result) => sum + result.battles, 0)
   const totalTurns = results.reduce((sum, result) => sum + result.totalTurns, 0)
   const averageTurnsPerBattle = totalBattles > 0 ? totalTurns / totalBattles : 0
-  const estimatedSecondsLow = estimateDepthClearSeconds(estimate.low, averageTurnsPerBattle, chronoShard, battleSpeedStructureLevel, skillTreeBattleSpeedLevel, chronoShardLevel, floorOverheadSeconds)
-  const estimatedSecondsMedian = estimateDepthClearSeconds(estimate.medianDepth, averageTurnsPerBattle, chronoShard, battleSpeedStructureLevel, skillTreeBattleSpeedLevel, chronoShardLevel, floorOverheadSeconds)
-  const estimatedSecondsHigh = estimateDepthClearSeconds(estimate.high, averageTurnsPerBattle, chronoShard, battleSpeedStructureLevel, skillTreeBattleSpeedLevel, chronoShardLevel, floorOverheadSeconds)
-  const auraCardsPerHour = estimatedSecondsMedian > 0 ? estimate.auraPackMedian / (estimatedSecondsMedian / 3600) : 0
+  // Each subprocess measures the actual simulated turn count on every floor.
+  // This avoids applying a global average to fights that accelerated at 10/20/40/60 attacks.
+  const actualTimes = results.map(run => run.playbackSeconds)
+    .filter((value): value is number => Number.isFinite(value)).sort((a,b) => a - b)
+  const floorTiming = (depth: number) => estimateDepthClearSeconds(
+    depth, averageTurnsPerBattle, chronoShard, battleSpeedStructureLevel,
+    skillTreeBattleSpeedLevel, chronoShardLevel, floorOverheadSeconds,
+    baseBattleSpeed, blessingMultiplier, attackAnimationScale,
+  )
+  const estimatedSecondsLow = actualTimes.length ? actualTimes[Math.floor((actualTimes.length-1)*.1)] : floorTiming(estimate.low)
+  const estimatedSecondsMedian = actualTimes.length ? actualTimes[Math.floor((actualTimes.length-1)*.5)] : floorTiming(estimate.medianDepth)
+  const estimatedSecondsHigh = actualTimes.length ? actualTimes[Math.ceil((actualTimes.length-1)*.9)] : floorTiming(estimate.high)
+  const totalSimulatedPacks = results.reduce((sum,run)=>sum+auraPacksForClearedRange(startFloor,run.deathFloor,hardMode),0)
+  const totalSimulatedSeconds = results.reduce((sum,run)=>sum+(run.playbackSeconds??0),0)
+  const auraCardsPerHour = actualTimes.length===results.length&&totalSimulatedSeconds>0
+    ? totalSimulatedPacks*3600/totalSimulatedSeconds
+    : estimatedSecondsMedian>0?estimate.auraPackMedian*3600/estimatedSecondsMedian:0
   return {
     runs: results,
     averageFloor: floors.reduce((sum, floor) => sum + floor, 0) / floors.length,
@@ -118,11 +142,17 @@ function summarize(
     estimatedSecondsMedian,
     estimatedSecondsHigh,
     auraCardsPerHour,
+    totalSimulatedPacks,
+    totalSimulatedSeconds,
     floorOverheadSeconds,
+    timingModel: actualTimes.length ? 'per-floor-client-playback' : 'average-turn-fallback',
+    timingCalibrationRequired: true,
     potionRewards,
     hardMode,
     trusted: unsupported.size === 0,
     unsupportedAbilities: [...unsupported].sort(),
+    floorStride: results[0]?.floorStride,
+    sampled: results.some(run => run.sampled),
   }
 }
 
@@ -136,6 +166,9 @@ function simulateOne(request: SingleRunRequest, onProgress?: (floor: number, bat
     bannedCardNames: request.bannedCardNames,
     rebanLegacyDepths: request.rebanLegacyDepths,
     hardMode: request.hardMode,
+    floorStride: request.floorStride,
+    lazyDebug: request.lazyDebug,
+    timing: request.timingSettings,
   }, onProgress)
 }
 
@@ -275,6 +308,18 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
         bannedCardNames: request.bannedCardNames,
         rebanLegacyDepths: request.rebanLegacyDepths,
         hardMode: request.hardMode,
+        floorStride: request.floorStride,
+        lazyDebug: true,
+        timingSettings: {
+          chronoShard: request.chronoShard,
+          chronoShardLevel: request.chronoShardLevel,
+          battleSpeedStructureLevel: request.battleSpeedStructureLevel,
+          skillTreeBattleSpeedLevel: request.skillTreeBattleSpeedLevel,
+          floorOverheadSeconds: request.floorOverheadSeconds,
+          baseBattleSpeed: request.baseBattleSpeed,
+          blessingMultiplier: request.blessingMultiplier,
+          attackAnimationScale: request.attackAnimationScale,
+        },
       } satisfies SingleRunRequest)
     }
 
@@ -309,7 +354,8 @@ self.onmessage = async (event: MessageEvent<SimulationRequest>) => {
       return
     }
     const results = await simulateParallel(request)
-    self.postMessage({ id: request.id, ok: true, elapsedMs: performance.now() - started, result: summarize(results, request.bountifulDepths, request.battleSpeedStructureLevel, request.skillTreeBattleSpeedLevel, request.chronoShard !== false, request.hardMode === true, request.chronoShardLevel, request.bountifulDepthsLevel, request.floorOverheadSeconds ?? 0.8) })
+    self.postMessage({ id: request.id, ok: true, elapsedMs: performance.now() - started, result: summarize(results, request.bountifulDepths, request.battleSpeedStructureLevel, request.skillTreeBattleSpeedLevel, request.chronoShard !== false, request.hardMode === true, request.chronoShardLevel, request.bountifulDepthsLevel, request.floorOverheadSeconds ?? 0.8,
+      request.baseBattleSpeed ?? 3, request.blessingMultiplier ?? 1, request.attackAnimationScale ?? 1, normalizeStartFloor(request.startFloor)) })
   } catch (error) {
     self.postMessage({
       id: request.id,

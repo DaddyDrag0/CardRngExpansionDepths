@@ -50,6 +50,7 @@ export const SOURCE_ALIGNED_ABILITIES = new Set([
   'Jackpot', "Spartan's Rage", 'Black Box', 'Blade of Miquella', 'Life Tap',
   'Frozen Solitude', 'The D8', 'Fortify', 'Divine Arrogance', 'Void Heart',
   'Hidden Blade', 'Glory Kill',
+  'Cursed Orchard', 'Haunted Heirloom', 'King of Horror', 'Never Fall Asleep', 'Stone Vigil',
 ])
 
 export function getDepthsAbilityCoverage() {

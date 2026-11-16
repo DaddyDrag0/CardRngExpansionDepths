@@ -45,16 +45,17 @@ function loadout(names: string[]): TeamLoadout {
   return { cards: names.map((cardName) => ({ cardName, borders: [] })) }
 }
 
-// Hard Mode keeps the actual floor/encounter pool, but enemy stats use floor ×10.
+// Roblox Util.DepthsStage uses floor ×10 for both Hard Depths encounter eligibility and enemy stats.
 // Example: Hard floor 100 must have the same base enemy power as normal floor 1,000.
 {
   const seed = 0x10d1ff
   const normal = generateDepthsTeam(100, seed)
+  const equivalent = generateDepthsTeam(1000, seed)
   const hard = generateDepthsTeam(100, seed, [], false, 10)
   assert(normal.length === 4 && hard.length === 4, 'Hard Mode regression did not generate four enemies')
   assert(
-    JSON.stringify(normal.map((enemy) => enemy.card.name)) === JSON.stringify(hard.map((enemy) => enemy.card.name)),
-    'Hard Mode should not change the floor-100 encounter pool or seeded card lineup',
+    JSON.stringify(equivalent.map((enemy) => enemy.card.name)) === JSON.stringify(hard.map((enemy) => enemy.card.name)),
+    'Hard floor 100 must use the enemy pool of normal floor 1000',
   )
   const expectedPower = depthsPower(1_000)
   for (const enemy of hard) {
@@ -63,9 +64,19 @@ function loadout(names: string[]): TeamLoadout {
     assert(enemy.health === expectedPower * (enemy.card.hpMultiplier || 1), 'Hard Mode health did not use the 10× stat floor')
   }
   assert(hard[0].power > normal[0].power, 'Hard Mode did not increase enemy power')
-  console.log('Depths Hard Mode 10× stat-floor regression passed')
+  console.log('Depths Hard Mode 10× stat-floor and enemy-pool regression passed')
 }
 
+
+// Util.DepthsStage excludes expired Halloween3 cards but not permanent
+// Halloween3 Collection cards (their original Pack field is nil).
+for (const name of ['Pumpkin King','Freddy Krueger','Living Armor','Living Gargoyle','Eerie Tree']) {
+  assert(isDepthsSourceEligible(cardByName(name)), name + ' is permanent and Depths eligible in current game source')
+  assert(getDepthsPool(300_000).some((x) => x.card.name === name), name + ' must appear in high-floor encounter pool')
+}
+for (const name of ['Crow','Trick or Treater','Witch Doctor']) {
+  assert(!isDepthsSourceEligible(cardByName(name)), name + ' expired and must not appear in Depths')
+}
 
 // Player-unlocked Depth bans remove only additional cards from the generated pool.
 // They are optional (0..14), while the game's built-in hard exclusions always stay excluded.
@@ -122,6 +133,30 @@ function namedDummy(name: string, health: number, attack: number, ability: strin
   }
 }
 
+// Night Witch's Hex marks Bigfoot as NoRNG. The old '< dodge' test made a
+// zero roll always succeed instead of fail, so Hex was boosting its evasion.
+{
+  const enemy: DepthsEnemy = {
+    card: cardByName('Bigfoot'), power: 1e18, attack: 0, health: 1e20,
+  }
+  const battle = simulateBattleV2(loadout(['Night Witch']), [enemy], 417217, 6, false, true)
+  const bigfoot = allBattleCards(battle).find(card => card.definition.name === 'Bigfoot')
+  assert(bigfoot, 'Expected Bigfoot to remain in Hex regression')
+  assert(bigfoot.flags.noRng === true, 'Night Witch must apply Hex / NoRNG on entry')
+  assert((bigfoot.counters.heardHits || 0) > 0,
+    'Hex must cause Bigfoot Heard but not Seen dodge to fail (0 roll cannot dodge)')
+  console.log('Night Witch Hex suppresses Bigfoot RNG dodge regression passed')
+}
+
+// The Drowned is a temporary summon from Sunken Kingdom. Its Drowned ability
+// intentionally has no additional proc and should not make the run untrusted.
+{
+  const summoned = simulateBattleV2(loadout(['The Drowned']),
+    [namedDummy('__Drowned Sanity Enemy__', 100, 0)], 1442, 3, false, true)
+  assert(!summoned.unsupportedAbilities.includes('Drowned'),
+    'Summoned The Drowned must not raise unsupported ability warnings')
+}
+
 const representatives = new Map<string, (typeof cards)[number]>()
 for (const card of cards) {
   if (!isDepthsSourceEligible(card) || !card.ability || representatives.has(card.ability)) continue
@@ -130,12 +165,25 @@ for (const card of cards) {
 
 assert(representatives.size >= 176, `Expected at least 176 Depths abilities, found ${representatives.size}`)
 
+// The production 2026 Tower worker models these, but the legacy TypeScript
+// Depths engine still reports them untrusted until full source parity is ported.
+const browserOnly2026 = new Set([
+  'Behind Reality', 'Cracked Crown', 'Crushing Depths', 'Delayed Impact',
+  'Devour the Deep', 'Dimensional Slip', 'Divine Flood', 'Dream Doppelgänger',
+  'Eternal Slumber', 'Forgotten Existence', 'Lucid Dream', 'Perfect Reflection',
+  'Rewrite Existence', 'Sands of Renewal', "Siren's Song", 'Sunken Kingdom',
+  'Terrorize',
+])
 let executed = 0
 for (const [ability, card] of representatives) {
   const representativeLoadout: TeamLoadout = { cards: [{ cardName: card.name, borders: [] }] }
   const battle = simulateBattleV2(representativeLoadout, [dummyEnemy()], 10_000 + executed)
   assert(battle.turns > 0 && battle.turns <= 2_000, `${ability}: invalid turn count ${battle.turns}`)
-  assert(!battle.unsupportedAbilities.includes(ability), `${ability}: marked unsupported at runtime`)
+  if (browserOnly2026.has(ability)) {
+    assert(battle.unsupportedAbilities.includes(ability), `${ability}: legacy TypeScript engine must not claim unported implementation`)
+  } else {
+    assert(!battle.unsupportedAbilities.includes(ability), `${ability}: marked unsupported at runtime`)
+  }
   executed += 1
 }
 

@@ -4,6 +4,7 @@ import { getAttack, getHealth } from './stats'
 import { SeededRng } from './rng'
 
 const HARD_EXCLUSIONS = new Set(['Vampire Lord', 'Parallax', 'Samurai'])
+const MYTHICAL_WEATHERS = new Set(['The Great Deluge', 'Reality Fracture', 'Dreamfall']) // Util.DepthsStage / MythicWeatherConfig
 export const LEGACY_DEPTHS_BANS = ['Samurai', 'Seraphim', 'Loki', 'Fuxi', 'Parallax', 'Nán Fāng Zhū Què', 'Brachiosaurus', 'Jersey Devil'] as const
 const LEGACY_DEPTHS_BAN_SET = new Set<string>(LEGACY_DEPTHS_BANS)
 
@@ -60,11 +61,11 @@ export function isDepthsSourceEligible(card: CardDefinition): boolean {
   return !card.unobtainable
     && !card.expires
     && !card.boss
+    && !(card.weather && MYTHICAL_WEATHERS.has(card.weather))
     && !HARD_EXCLUSIONS.has(card.name)
     && card.pack !== 'Christmas'
     && card.pack !== 'Halloween'
     && card.pack !== 'Halloween2'
-    && card.pack !== 'Halloween3'
 }
 
 function minimumUnlockFloor(card: CardDefinition): number {
@@ -161,9 +162,11 @@ export function generateDepthsTeam(
   rebanLegacyDepths = false,
   statFloorMultiplier = 1,
 ): DepthsEnemy[] {
-  const pool = preparedPool(floor, bannedCardNames, rebanLegacyDepths)
-  const rng = new SeededRng(seed)
+  // Util.DepthsStage uses the multiplied stage budget for BOTH card eligibility
+  // and enemy stats; Hard Depths is not the normal-floor roster at 10x power.
   const statFloor = Math.max(1, floor * Math.max(1, Number(statFloorMultiplier) || 1))
+  const pool = preparedPool(statFloor, bannedCardNames, rebanLegacyDepths)
+  const rng = new SeededRng(seed)
   const power = depthsPower(statFloor)
   const result: DepthsEnemy[] = []
 

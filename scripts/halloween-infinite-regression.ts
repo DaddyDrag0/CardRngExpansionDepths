@@ -50,6 +50,7 @@ const expected={
  Storm:2,Snow:2.1,Aurora:2.3,Shroud:2.5,
  'Meteor Shower':3.5,'Time Storm':4,Eclipse:4.5,Virus:5,
  'Blood Rain':5.5,Armageddon:6,Manga:6.5,'Pumpkin Moon':7.5,
+ 'The Great Deluge':8,'Reality Fracture':8.5,Dreamfall:9,
 }
 assert.deepEqual(WEATHER_MUTATION_STAT_MULTIPLIERS,expected)
 assert.equal(mutationStatMultiplier('Pumpkin Moon'),7.5)

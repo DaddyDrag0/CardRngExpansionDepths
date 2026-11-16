@@ -8,8 +8,10 @@
  * BattleClient also accelerates long fights by multiplying animation speed after
  * the 10th/20th/40th/60th Attack event by 2x/3x/5x/10x respectively.
  *
- * Timing uses a simplified estimate: each attack takes 1 second divided by
- * effective Battle Speed (and by any long-battle acceleration multiplier).
+ * Depths playback timing is estimated per simulated floor from the actual
+ * simulated turn count, using source-derived speed and acceleration rules.
+ * The client exposes event-specific animation durations, but the battle
+ * simulator does not preserve their individual playback traces.
  * The attack phase has a 0.2-second minimum. A separate configurable
  * 0.8-second per-floor transition allowance covers UI/animation delays that
  * were omitted from the too-optimistic attack-only estimate. This allowance
@@ -26,8 +28,8 @@ export function chronoShardRelicBonus(level=0):number {
 }
 export const BATTLE_SPEED_STRUCTURE_MAX_LEVEL = 7
 export const BATTLE_SPEED_STRUCTURE_STEP = 0.25
-export const BATTLE_SPEED_SKILL_TREE_MAX_LEVEL = 4
-export const BATTLE_SPEED_SKILL_TREE_BONUSES = [0, 0.5, 1, 1.5, 2.5] as const
+export const BATTLE_SPEED_SKILL_TREE_MAX_LEVEL = 6
+export const BATTLE_SPEED_SKILL_TREE_BONUSES = [0, 0.5, 1, 1.5, 2.5, 4, 5.5] as const
 export const DEPTHS_FLOOR_SPEED_STEP = 0.25
 export const DEPTHS_FLOOR_SPEED_STEP_FLOORS = 100
 export const DEPTHS_FLOOR_SPEED_BONUS_CAP = 4.5
@@ -63,12 +65,17 @@ export function effectiveDepthsBattleSpeed(
   structureLevel = 0,
   skillTreeLevel = 0,
   chronoShardLevel = 0,
+  baseBattleSpeed = DEPTHS_BASE_BATTLE_SPEED,
+  blessingMultiplier = 1,
 ): number {
-  return DEPTHS_BASE_BATTLE_SPEED
+  const selectedSpeed = Number(baseBattleSpeed)
+  const base = [1, 1.5, 2, 3].includes(selectedSpeed) ? selectedSpeed : DEPTHS_BASE_BATTLE_SPEED
+  const blessing = [1.5, 2].includes(Number(blessingMultiplier)) ? Number(blessingMultiplier) : 1
+  return (base
     + (chronoShard ? chronoShardRelicBonus(chronoShardLevel) : 0)
     + battleSpeedStructureBonus(structureLevel)
     + battleSpeedSkillTreeBonus(skillTreeLevel)
-    + depthsFloorSpeedBonus(floor)
+    + depthsFloorSpeedBonus(floor)) * blessing
 }
 
 export function inBattleAcceleration(attackNumber: number): number {
@@ -80,18 +87,22 @@ export function inBattleAcceleration(attackNumber: number): number {
   return 1
 }
 
-function attackAnimationSecondsForCount(turns: number, effectiveSpeed: number): number {
+/** Event-count playback approximation. Accelerates at 10/20/40/60 Attack events.
+ * Piecewise constant integration makes a 10,000-event fight O(1) rather than
+ * looping 10,000 times and enables floor-specific timing per Depths battle.
+ */
+export function attackAnimationSecondsForCount(turns: number, effectiveSpeed: number, animationScale = 1): number {
   const count = Math.max(0, Number(turns) || 0)
-  const whole = Math.floor(count)
-  const fractional = count - whole
-  let seconds = 0
-  for (let attack = 1; attack <= whole; attack++) {
-    seconds += BASE_ATTACK_ANIMATION_SECONDS / (effectiveSpeed * inBattleAcceleration(attack))
+  const pace = Math.max(0.1, Math.min(5, Number(animationScale) || 1))
+  const segments: readonly [number, number, number][] = [
+    [0, 9, 1], [9, 19, 2], [19, 39, 3], [39, 59, 5], [59, Infinity, 10],
+  ]
+  let units = 0
+  for (const [start, end, multiplier] of segments) {
+    const actions = Math.max(0, Math.min(count, end) - start)
+    if (actions) units += actions / multiplier
   }
-  if (fractional > 0) {
-    seconds += fractional * BASE_ATTACK_ANIMATION_SECONDS / (effectiveSpeed * inBattleAcceleration(whole + 1))
-  }
-  return seconds
+  return units * BASE_ATTACK_ANIMATION_SECONDS * pace / Math.max(0.01, effectiveSpeed)
 }
 
 export function estimateBattleSeconds(
@@ -102,10 +113,13 @@ export function estimateBattleSeconds(
   skillTreeLevel = 0,
   chronoShardLevel = 0,
   floorOverheadSeconds = DEFAULT_DEPTHS_FLOOR_OVERHEAD_SECONDS,
+  baseBattleSpeed = DEPTHS_BASE_BATTLE_SPEED,
+  blessingMultiplier = 1,
+  animationScale = 1,
 ): number {
-  const speed = effectiveDepthsBattleSpeed(floor, chronoShard, structureLevel, skillTreeLevel, chronoShardLevel)
+  const speed = effectiveDepthsBattleSpeed(floor, chronoShard, structureLevel, skillTreeLevel, chronoShardLevel, baseBattleSpeed, blessingMultiplier)
   return normalizeDepthsFloorOverhead(floorOverheadSeconds)
-    + Math.max(MIN_DEPTHS_BATTLE_SECONDS, attackAnimationSecondsForCount(turns, speed))
+    + Math.max(MIN_DEPTHS_BATTLE_SECONDS, attackAnimationSecondsForCount(turns, speed, animationScale))
 }
 
 /** Estimate a full run using the batch's observed average turns per battle. */
@@ -117,12 +131,15 @@ export function estimateDepthClearSeconds(
   skillTreeLevel = 0,
   chronoShardLevel = 0,
   floorOverheadSeconds = DEFAULT_DEPTHS_FLOOR_OVERHEAD_SECONDS,
+  baseBattleSpeed = DEPTHS_BASE_BATTLE_SPEED,
+  blessingMultiplier = 1,
+  animationScale = 1,
 ): number {
   const endFloor = Math.max(0, Math.floor(Number(depth) || 0))
   const avgTurns = Math.max(0, Number(averageTurnsPerBattle) || 0)
   let seconds = 0
   for (let floor = 1; floor <= endFloor; floor++) {
-    seconds += estimateBattleSeconds(floor, avgTurns, chronoShard, structureLevel, skillTreeLevel, chronoShardLevel, floorOverheadSeconds)
+    seconds += estimateBattleSeconds(floor, avgTurns, chronoShard, structureLevel, skillTreeLevel, chronoShardLevel, floorOverheadSeconds, baseBattleSpeed, blessingMultiplier, animationScale)
   }
   return seconds
 }

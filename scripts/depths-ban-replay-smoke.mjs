@@ -84,5 +84,8 @@ opened.close();
 console.log("Depths v30 smoke passed: real replay modal opens at frame zero and advances, Hard Depths worker, and compact controls.");
 
 assert(ui.includes("depth-control-dock")&&ui.includes("data-run-ready"),"Test team/run/interval/mode controls must be in the deck-side dock");
+assert(css.includes(".workspace.depths-workspace>.depth-control-dock{grid-column:2 / 4;grid-row:2"),"Dock must occupy the two right columns, beneath library and settings");
+assert(css.includes(".workspace.depths-workspace>.loadout{grid-column:1;grid-row:1 / span 2"),"Loadout must span both setup rows without pushing dock underneath it");
+assert(css.includes(".workspace.depths-workspace>.simulation{grid-column:3;grid-row:1;"),"Settings should remain above the dock");
 assert(ui.includes("depths-battle-replay-v30.js"),"Replay player must load from unique v30 URL");
 assert(replayCode.includes("version:\'v30\'"),"Replay player must export correct version");

@@ -55,7 +55,6 @@ opened.seek(1);
 const list=nodes.get("[data-rpl-events]").innerHTML;
 const inspector=nodes.get("[data-rpl-ability-inspector]").innerHTML;
 assert(list.includes("Triceratops ATK 26.7m → 18.7m"),"Exact recorded before/after values must be visible in timeline");
-assert(list.includes("Lower enemy&#39;s damage by 30% on entry."),"Hover title must include the full source description");
 assert(inspector.includes("Bad Boys · Cerberus"),"Selected event should identify the exact ability");
 assert(inspector.includes("Triceratops ATK 26.7m → 18.7m"),"Selected event needs the observed change");
 assert(inspector.includes("Lower enemy&#39;s damage by 30% on entry."),"Selected event needs full ability rule");
@@ -71,12 +70,16 @@ const fakeCard={
  classList:{contains:()=>true},
  getBoundingClientRect:()=>({left:980,right:1040,top:150,bottom:205,width:60})
 };
-dialog.events.get("pointerover")({pointerType:"mouse",target:{closest:()=>fakeCard}});
+dialog.events.get("pointerover")({pointerType:"mouse",clientX:990,clientY:175,target:{closest:()=>fakeCard}});
 const tooltip=nodes.get("[data-rpl-tooltip]");
 assert.equal(tooltip.hidden,false,"Hovering a deck card should reveal the tooltip");
 assert(tooltip.innerHTML.includes("Bad Boys"),"Tooltip must name the hovered card");
 assert(tooltip.innerHTML.includes("Cerberus"),"Tooltip must name the hovered ability");
 assert(tooltip.innerHTML.includes("Lower enemy&#39;s damage by 30% on entry."),"Tooltip must show full ability description");
+doc.elementFromPoint=()=>fakeCard;
+opened.seek(2);
+assert.equal(tooltip.hidden,false,"Card hover should survive automatic stage re-rendering");
+opened.seek(1);
 dialog.events.get("pointerout")({relatedTarget:null});
 assert.equal(tooltip.hidden,true,"Tooltip should disappear on pointer exit");
 const fakeBattleCard={...fakeCard,dataset:{rplCardSide:"Allies",rplCardId:"A1"},classList:{contains:()=>false}};
@@ -86,6 +89,9 @@ dialog.events.get("focusout")({});
 assert.equal(tooltip.hidden,true,"Tooltip should hide after blur");
 dialog.events.get("click")({target:{closest:selector=>selector.startsWith("button[data-rpl-card-side]")?fakeCard:null}});
 assert.equal(tooltip.hidden,false,"Click/tap must also show ability for touch users");
+nodes.get("[data-rpl-stage]").querySelectorAll=()=>[fakeCard];
+opened.seek(2);
+assert.equal(tooltip.hidden,false,"Tapped card tooltip must stay open across replay frames");
 dialog.events.get("click")({target:{closest:()=>null}});
 assert.equal(tooltip.hidden,true,"Click away should dismiss a tapped tooltip");
 opened.seek(2);

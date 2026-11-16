@@ -1,0 +1,59 @@
+name: Publish Depths test preview
+
+on:
+  push:
+    branches: [overhaul-test-2026]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+
+jobs:
+  publish-test-folder:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Read development branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: development
+          persist-credentials: false
+      - name: Read public branch without altering its root
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: public
+      - name: Sync static preview into main/test only
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p public/test
+          rm -rf public/test/src public/test/browser
+          cp -R development/src development/browser public/test/
+          cp development/index.html development/index-base.html development/site-version.json public/test/
+          cp development/.nojekyll public/test/.nojekyll
+          git -C public config user.name "github-actions[bot]"
+          git -C public config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C public add -A -- test/
+          if git -C public diff --cached --quiet; then
+            echo "Preview is already current."
+            exit 0
+          fi
+          if git -C public diff --cached --name-only | grep -v '^test/'; then
+            echo "::error::Unexpected non-preview changes"
+            exit 1
+          fi
+          git -C public commit -m "Sync Depths test preview from ${GITHUB_SHA:0:8}"
+          git -C public pull --rebase origin main
+          git -C public push origin HEAD:main
+      - name: Request Pages rebuild after bot update
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api --method POST "repos/$GITHUB_REPOSITORY/pages/builds" || {
+            echo "::warning::Automatic Pages rebuild could not be requested. A manually authored main commit may be needed."
+          }

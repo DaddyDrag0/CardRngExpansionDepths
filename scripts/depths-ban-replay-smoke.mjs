@@ -92,3 +92,9 @@ assert(css.includes('grid-template-rows:auto max-content;'),"Test controls need 
 assert(css.includes('.workspace.depths-workspace>.results-panel{\n grid-row:auto;'),"Results must not be pinned to an oversized implicit grid row");
 assert(ui.includes("depths-battle-replay-v30.js"),"Replay player must load from unique v30 URL");
 assert(replayCode.includes("version:\'v30\'"),"Replay player must export correct version");
+
+assert(css.includes('container:depths-controls / inline-size'),"Control panel must size against its own width");
+assert(css.includes('@container depths-controls (max-width:860px)'),"Narrow panel must reorganize into two columns");
+assert(css.includes('@container depths-controls (max-width:510px)'),"Tiny panel must stack the controls");
+assert(css.includes('grid-template-columns:repeat(6,minmax(0,1fr))'),"All six run options must stay in a single row");
+assert(css.includes('grid-template-columns:repeat(4,minmax(0,1fr))'),"All four floor intervals must stay in a single row");

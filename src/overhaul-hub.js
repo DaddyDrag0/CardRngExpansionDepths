@@ -1,12 +1,10 @@
 (function CardRngDepthsHeader(){
 "use strict";
-const build=String(window.__CRX_SITE_VERSION||'');
-const version=build.match(/(?:^|-)v(\d+)(?=$|[^0-9])/i)?.[1]||'?';
 function ready(){
  const root=document.getElementById('root');if(!root)return;
  // Depths only. The retired cheese makers are saved under archive/cheese.
  const header=document.createElement('header');header.id='crx-mini-header';
- header.innerHTML='<div class="crx-mini-inner"><a class="crx-mini-brand" href="?calc=depths">CardRng <b>Calculators</b></a><span class="crx-testmark">TEST <b class="crx-version">v'+version+'</b></span></div>';
+ header.innerHTML='<div class="crx-mini-inner"><a class="crx-mini-brand" href="?calc=depths">CardRng <b>Calculators</b></a></div>';
  document.body.prepend(header);
  const container=document.createElement('div');container.id='crx-simple-body';
  root.before(container);container.appendChild(root);

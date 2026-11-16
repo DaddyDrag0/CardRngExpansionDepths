@@ -8,7 +8,6 @@
 .crx-mini-inner nav button{border:0;border-bottom:2px solid transparent;background:none;padding:23px 13px 21px;font-size:12px;font-weight:690;color:var(--muted);cursor:pointer;white-space:nowrap;border-radius:0}
 .crx-mini-inner nav button.selected{color:var(--text);border-bottom-color:var(--accent)}
 .crx-mini-inner nav button:hover{color:var(--accent)}
-.crx-testmark{margin-left:auto;color:var(--muted);font-size:9px;font-weight:800;letter-spacing:.09em;margin-right:360px}
 #crx-simple-view{width:min(1540px,calc(100% - 40px));margin:auto;padding:28px 0 70px}
 #crx-simple-view[hidden],#crx-simple-body>#root[hidden]{display:none!important}
 .crx-simple{width:min(100%,1140px)}
@@ -77,8 +76,8 @@
 .crx-drop-cols td,.crx-drop-cols th{padding:5px 4px 5px 0;border-bottom:1px solid var(--line-inner)}
 .crx-drop-cols td:nth-child(n+2),.crx-drop-cols th:nth-child(n+2){text-align:right;font-variant-numeric:tabular-nums}
 .crx-drop-inside>p{font-size:10px;color:var(--muted);margin-top:13px}
-@media(max-width:1000px){.crx-testmark{margin-right:0}.theme-switcher{position:relative!important;top:auto!important;right:auto!important;margin:6px 20px!important}.tc-recommend{grid-template-columns:90px 1fr 90px}.tc-recommend small{grid-column:2}.tc-recommend button{grid-column:3;grid-row:1/3}}
-@media(max-width:700px){.crx-mini-inner{width:calc(100% - 22px);min-height:64px;flex-wrap:wrap;gap:3px;padding:11px 0 0}.crx-mini-brand{font-size:17px}.crx-mini-inner nav{order:3;width:100%;overflow:auto;gap:2px}.crx-mini-inner nav button{padding:13px 10px}.crx-testmark{margin-left:auto}#crx-simple-view{width:calc(100% - 22px);padding-top:22px}.crx-quick-stats{gap:23px}.crx-quick-stats strong{font-size:20px}.tc-enemies{grid-template-columns:repeat(2,minmax(0,1fr))}.tc-member{grid-template-columns:1fr 94px 135px;gap:6px}.tc-extra-grid{grid-template-columns:1fr}.crx-drop-cols{grid-template-columns:1fr}.tc-recommend{grid-template-columns:1fr auto}.tc-recommend strong{grid-column:1}.tc-recommend span,.tc-recommend small{grid-column:1}.tc-recommend button{grid-column:2;grid-row:1/4}}
+@media(max-width:1000px){.theme-switcher{position:relative!important;top:auto!important;right:auto!important;margin:6px 20px!important}.tc-recommend{grid-template-columns:90px 1fr 90px}.tc-recommend small{grid-column:2}.tc-recommend button{grid-column:3;grid-row:1/3}}
+@media(max-width:700px){.crx-mini-inner{width:calc(100% - 22px);min-height:64px;flex-wrap:wrap;gap:3px;padding:11px 0 0}.crx-mini-brand{font-size:17px}.crx-mini-inner nav{order:3;width:100%;overflow:auto;gap:2px}.crx-mini-inner nav button{padding:13px 10px}#crx-simple-view{width:calc(100% - 22px);padding-top:22px}.crx-quick-stats{gap:23px}.crx-quick-stats strong{font-size:20px}.tc-enemies{grid-template-columns:repeat(2,minmax(0,1fr))}.tc-member{grid-template-columns:1fr 94px 135px;gap:6px}.tc-extra-grid{grid-template-columns:1fr}.crx-drop-cols{grid-template-columns:1fr}.tc-recommend{grid-template-columns:1fr auto}.tc-recommend strong{grid-column:1}.tc-recommend span,.tc-recommend small{grid-column:1}.tc-recommend button{grid-column:2;grid-row:1/4}}
 @media(max-width:480px){.tc-member{grid-template-columns:1fr 86px 105px}.tc-member label{font-size:9px}.tc-enemies{grid-template-columns:1fr 1fr}.tc-stats{gap:10px;flex-wrap:wrap}}
 
 /* Original in-page tabs are replaced by the compact top navigation. */
@@ -683,5 +682,4 @@
 #crx-simple-body>#root .crx-load-error p{color:var(--muted);font-size:12px;margin:0 0 18px;line-height:1.6}
 #crx-simple-body>#root .crx-load-error button{border:1px solid var(--accent-line);background:var(--accent-soft);border-radius:7px;padding:10px 16px;color:var(--text);font-size:12px;font-weight:750;cursor:pointer}
 
-/* Build number next to TEST in the calculator header. */
-.crx-testmark .crx-version{display:inline-block;margin-left:6px;font-weight:800;letter-spacing:0;font-size:10px;color:var(--accent-bright,var(--text));font-variant-numeric:tabular-nums}
+

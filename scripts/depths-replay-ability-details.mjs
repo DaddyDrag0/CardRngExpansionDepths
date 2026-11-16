@@ -10,8 +10,8 @@ const rules=Object.assign({},...Array.from({length:4},(_,i)=>
 assert.equal(rules.Cerberus,"Lower enemy's damage by 30% on entry.");
 assert.equal(rules["Horned Attack"],"Attacks on entry. Excess damage from kills carries over to the next card.");
 assert(ui.includes("depths-battle-replay-v42.js"),"Both replay entry points must use the new player");
-assert.equal((ui.match(/abilityDescriptions:state\.abilities/g)||[]).length,2,
- "Both preview and saved-run replay must receive source ability rules");
+assert.equal((ui.match(/abilityDescriptions:state\.abilities/g)||[]).length,1,
+ "Saved-run replay must receive source ability rules after preview removal");
 assert(worker.includes("ability:W(e),actorId:e.id,detail:s"),
  "Combat trace needs source ability name and actor id for accurate tooltip mapping");
 assert(css.includes(".rpl-event-ability .rpl-event-detail{max-height:none"),

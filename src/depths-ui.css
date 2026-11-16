@@ -173,23 +173,6 @@
 }
 
 
-/* Compact, on-demand battle preview near the floor controls. */
-.depth-battle-preview{
- border:1px solid var(--line-strong,var(--line));
- border-radius:11px;
- padding:12px 13px;
- background:var(--surface-1);
- margin:9px 0 15px;
-}
-.depth-battle-preview>div{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
-.depth-battle-preview>div>span{display:flex;flex-direction:column;flex:1 1 160px;gap:3px;min-width:0}
-.depth-battle-preview strong{font-size:11px;font-weight:800;color:var(--text)}
-.depth-battle-preview small{font-size:10px;color:var(--muted);line-height:1.4}
-.depth-battle-preview label{display:flex;gap:6px;align-items:center;color:var(--muted);font-size:10px}
-.depth-battle-preview input{width:86px!important;min-height:33px!important;padding:7px 9px!important;font-size:12px!important;color:var(--text)!important;background:var(--surface-2)!important;border:1px solid var(--line-strong,var(--line))!important;border-radius:7px!important}
-.depth-battle-preview button{white-space:nowrap;color:var(--accent-bright,var(--text));background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:8px;padding:9px 12px;font-size:10px;font-weight:780;cursor:pointer}
-.depth-battle-preview button:hover:not(:disabled){filter:brightness(1.2)}
-.depth-battle-preview button:disabled{opacity:.42;cursor:not-allowed}
 /* Ban Lab is an expandable power-user tool instead of a permanent tall sidebar. */
 details.ban-lab{margin-top:17px;padding:0 0 2px}
 details.ban-lab>summary.ban-lab-head{
@@ -207,7 +190,6 @@ details.ban-lab[open]>summary::after{content:'−'}
 .ban-lab-window{color:var(--accent);font-size:10px!important;line-height:1.5!important;min-height:0!important}
 .ban-lab-note{color:var(--muted);font-size:10px!important;line-height:1.5!important}
 @media(max-width:700px){
- .depth-battle-preview>div>span{flex-basis:100%}
  details.ban-lab>summary.ban-lab-head{flex-direction:row}
  .ban-lab-head>small{display:none}
 }

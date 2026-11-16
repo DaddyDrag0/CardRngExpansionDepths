@@ -1,0 +1,33 @@
+{
+  "weatherTypes": [
+    "Meteor Shower",
+    "Time Storm",
+    "Eclipse",
+    "Virus",
+    "Blood Rain",
+    "Armageddon",
+    "Manga"
+  ],
+  "minSelectedCards": 3,
+  "maxSelectedCards": 8,
+  "baseWeatherTokenCostPerSelectedCard": 1,
+  "eligibleCards": {
+    "requiresWeatherInCatalog": true,
+    "excludeUnobtainable": true,
+    "excludeExpires": true,
+    "excludeSeasonalPackTerms": [
+      "Halloween",
+      "Christmas",
+      "Winter"
+    ]
+  },
+  "effectWeatherTokenCosts": {
+    "Meteor Shower": 3,
+    "Time Storm": 4,
+    "Eclipse": 3,
+    "Virus": 3,
+    "Blood Rain": 3,
+    "Armageddon": 3,
+    "Manga": 5
+  }
+}

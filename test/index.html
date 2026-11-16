@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#080b10" />
+  <title>CardRng Calculators · Expansion</title>
+  <style>html,body{margin:0;background:#080b10;color:#8693a4;font-family:Inter,system-ui,sans-serif}.boot{min-height:100vh;display:grid;place-items:center}</style>
+</head>
+<body>
+  <div class="boot">Loading CardRng Calculators…</div>
+  <script>
+  (async()=>{
+    try{
+      const url=new URL(location.href);
+      if(url.searchParams.has('v')){
+        url.searchParams.delete('v');
+        history.replaceState(history.state,'',url.pathname+url.search+url.hash);
+      }
+      let version='boot-'+Date.now();
+      try{
+        const marker=await fetch('./site-version.json',{cache:'no-store'});
+        if(marker.ok)version=String((await marker.json()).version||version);
+      }catch(_){}
+      window.__CRX_SITE_VERSION=version;
+      const response=await fetch('./index-base.html?v='+encodeURIComponent(version),{cache:'no-store'});
+      if(!response.ok)throw new Error(`HTTP ${response.status}`);
+      let html=await response.text();
+      const assetVersion=encodeURIComponent(version);
+      const versionedAssets=[
+        'theme-controller.js',
+        'styles.css',
+        'feedback.css',
+        'feedback.js',
+        'site-version-watch.js',
+        'depths-ui.css',
+        'depths-ui.js',
+        'overhaul-hub.js',
+        'depths-drops.js',
+        'overhaul-hub.css',
+      ];
+      for(const asset of versionedAssets){
+        html=html.replaceAll(`./src/${asset}`,`./src/${asset}?v=${assetVersion}`);
+      }
+      const ambienceTags=[
+        'tower-win-logs-ui.js',
+        'blood-rain.js',
+        'lava-ambience.js',
+      ].map(asset=>`  <script defer src="./src/${asset}?v=${assetVersion}"></`+'script>').join('\n')+'\n';
+      html=html.replace('</head>',ambienceTags+'</head>');
+      document.open();
+      document.write(html);
+      document.close();
+    }catch(error){
+      document.body.innerHTML='<div class="boot">Failed to load the calculator. Refresh the page.</div>';
+      console.error(error);
+    }
+  })();
+  </script>
+</body>
+</html>

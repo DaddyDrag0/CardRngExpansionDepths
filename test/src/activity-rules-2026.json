@@ -1,0 +1,126 @@
+{
+  "source": "CYBERPUNK Card RNG Expansion.rbxl / ReplicatedStorage/Modules/{ActivityDeckBans,PortalRules,BossConfig,BossDeckRules,HardcoreAbilityBans,TowerConfig,TrialConfig}",
+  "note": "Client-exported rules; authoritative server acceptance still requires in-game verification.",
+  "activityBans": {
+    "The Dreaming Shepherd": {
+      "dungeon": true,
+      "specialTowers": true,
+      "towers": [
+        "Impossible"
+      ],
+      "normalPortalFromRank": "C"
+    },
+    "Serenity the Serene": {
+      "dungeon": true,
+      "specialTowers": true,
+      "towers": [
+        "Impossible"
+      ],
+      "normalPortalFromRank": "C"
+    }
+  },
+  "boss": {
+    "regular": {
+      "bannedCards": [],
+      "bannedCardsByDifficulty": {},
+      "bannedCardsByBoss": {},
+      "maxRaptureCards": 1,
+      "raptureMutationCounts": true
+    },
+    "hardcore": {
+      "bannedCards": [],
+      "maxRaptureCards": null,
+      "disablesPlayerAbilitiesOnly": true
+    }
+  },
+  "trials": {
+    "Daily": {
+      "bannedCards": []
+    },
+    "Weekly": {
+      "bannedCards": []
+    },
+    "Monthly": {
+      "bannedCards": []
+    }
+  },
+  "normalPortal": {
+    "ranksLow": [
+      "F",
+      "E",
+      "D",
+      "C"
+    ],
+    "ranksHigh": [
+      "B",
+      "A",
+      "S"
+    ],
+    "lowRankBans": [
+      "Pandora",
+      "Fate Seamstress",
+      "Uncle Sam"
+    ],
+    "highRankBans": [
+      "Fate Seamstress",
+      "Pandora",
+      "Parallax",
+      "Supreme Ozzy",
+      "Hades",
+      "Legends",
+      "Megalodon",
+      "Fuxi",
+      "Piccolo",
+      "Achlys",
+      "Kuchisake-onna",
+      "Uncle Sam",
+      "Black Plague",
+      "Control Freak"
+    ],
+    "maxRaptureLow": 2,
+    "maxRaptureHigh": 1,
+    "additionalActivityBansFromRankC": [
+      "The Dreaming Shepherd",
+      "Serenity the Serene"
+    ]
+  },
+  "hardcore": {
+    "disabledCardAbilities": [
+      "Veyrath the Unyielding",
+      "Serenity the Serene",
+      "The Dreaming Shepherd",
+      "Judgment Day",
+      "Buddha",
+      "Flying Dutchman",
+      "Nüwa",
+      "Glamour",
+      "Grey Pumpkin",
+      "Robin Hood",
+      "The Shattered Emperor",
+      "Hades",
+      "Abyssal Siren",
+      "Parallax",
+      "Fate Seamstress",
+      "Uncle Sam",
+      "Pumpkin King",
+      "Megalodon",
+      "Bloody Mary",
+      "Fuxi",
+      "Achlys",
+      "Eclipseborn Luminant",
+      "D"
+    ],
+    "disabledAuras": [
+      "Shared Dream",
+      "End Times"
+    ],
+    "towerExceptions": {
+      "DoubleTrouble": [
+        "Fate Seamstress"
+      ]
+    },
+    "entryBansApply": false,
+    "specialTowerMechanicsPersist": true,
+    "mutationTowerStillRequiresMutations": true
+  }
+}

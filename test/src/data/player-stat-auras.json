@@ -1,0 +1,90 @@
+[
+  {
+    "name": "Fortune's Bloom",
+    "imageAssetId": 130710798786095,
+    "rarity": 25000,
+    "type": "PlayerStat",
+    "playerStat": "Luck",
+    "skillName": "Fortune's Bloom",
+    "description": "+STAT% Luck.",
+    "base": 10,
+    "max": 50
+  },
+  {
+    "name": "Verdant Haste",
+    "imageAssetId": 89187967306831,
+    "rarity": 50000,
+    "type": "PlayerStat",
+    "playerStat": "RollSpeed",
+    "skillName": "Verdant Haste",
+    "description": "+STAT% Roll Speed.",
+    "base": 5,
+    "max": 25
+  },
+  {
+    "name": "Unstable Growth",
+    "imageAssetId": 105306417195140,
+    "rarity": 100000,
+    "type": "PlayerStat",
+    "playerStat": "Mutation",
+    "skillName": "Unstable Growth",
+    "description": "+STAT% Mutation Luck.",
+    "base": 10,
+    "max": 50
+  },
+  {
+    "name": "Platinum Clover",
+    "imageAssetId": 118946619157694,
+    "rarity": 250000,
+    "type": "PlayerStat",
+    "playerStat": "Platinum",
+    "skillName": "Platinum Clover",
+    "description": "+STAT% Platinum Luck.",
+    "base": 10,
+    "max": 35
+  },
+  {
+    "name": "Crystal Blossom",
+    "imageAssetId": 122596205778070,
+    "rarity": 500000,
+    "type": "PlayerStat",
+    "playerStat": "Crystal",
+    "skillName": "Crystal Blossom",
+    "description": "+STAT% Crystal Luck.",
+    "base": 10,
+    "max": 35
+  },
+  {
+    "name": "Ruby Thorn",
+    "imageAssetId": 115695913990138,
+    "rarity": 1000000,
+    "type": "PlayerStat",
+    "playerStat": "Ruby",
+    "skillName": "Ruby Thorn",
+    "description": "+STAT% Ruby Luck.",
+    "base": 10,
+    "max": 35
+  },
+  {
+    "name": "Astral Sprout",
+    "imageAssetId": 96543325101770,
+    "rarity": 2500000,
+    "type": "PlayerStat",
+    "playerStat": "Galaxy",
+    "skillName": "Astral Sprout",
+    "description": "+STAT% Galaxy Luck.",
+    "base": 10,
+    "max": 35
+  },
+  {
+    "name": "Worldroot",
+    "imageAssetId": 108460855324974,
+    "rarity": 10000000,
+    "type": "PlayerStat",
+    "playerStat": "AllStat",
+    "skillName": "Worldroot",
+    "description": "+STAT% to all player stats.",
+    "base": 4,
+    "max": 20
+  }
+]

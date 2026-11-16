@@ -1,0 +1,265 @@
+import auras from '../data/auras'
+import type {
+  AuraBorderName,
+  AuraDefinition,
+  AuraSelection,
+  BattleBoosts,
+  CombatCard,
+} from '../types'
+
+export const AURA_RARITY_MULTIPLIERS: Record<AuraBorderName, number> = {
+  Platinum: 10,
+  Crystal: 100,
+  Galaxy: 1_000,
+}
+
+const AURA_TIERS: Record<AuraBorderName, number> = {
+  Platinum: 1,
+  Crystal: 2,
+  Galaxy: 3,
+}
+
+const CUSTOM_SKILL_VALUES: Record<string, readonly number[]> = {
+  Berserker: [5, 10, 15, 20],
+  Spooked: [10, 15, 20, 25],
+  'Flame Wizard': [15, 25, 35, 50],
+  Shielder: [2, 5, 7, 10],
+  'Synth Human': [8, 10, 12, 15],
+  'Storm Spirit': [10, 15, 20, 30],
+  'Guardian Angel': [10, 15, 20, 30],
+  Executioner: [15, 25, 35, 50],
+  'Mirror Knight': [10, 15, 20, 30],
+  // The NEW source contains a fifth 15% entry, but Aura cards only use Base/Platinum/Crystal/Galaxy.
+  'Final Testament': [5, 7.5, 10, 12.5, 15],
+}
+
+const BOOSTED_PACKS: Record<string, string> = {
+  Neko: 'Anime',
+  Shrinemaiden: 'Rising Sun',
+  Shatbi: 'Egypt',
+  Taoist: 'Immortal',
+  Myths: 'Cryptid',
+  Gamer: 'Video Game',
+  'Dinosaur King': 'Prehistoric',
+}
+
+const BOOSTED_WEATHERS: Record<string, string> = {
+  Mangeka: 'Manga',
+  Elohim: 'Rapture',
+  Yggdrasil: 'Armageddon',
+  Satan: 'Blood Rain',
+  'Eclipse Chaser': 'Eclipse',
+  Kala: 'Time Storm',
+  Stormcaller: 'Storm',
+  Iris: 'Aurora',
+  Niflheim: 'Shroud',
+  Khione: 'Snow',
+  Astrologist: 'Meteor Shower',
+  Disease: 'Virus',
+}
+
+
+export const TOY_CARD_NAMES = new Set([
+  'Toy Bear',
+  'Toy Car',
+  'Toy Jack-in-the-Box',
+  'Toy Nutcracker',
+])
+
+export function getAura(name: string | null | undefined): AuraDefinition | undefined {
+  return name ? auras.find((aura) => aura.name === name) : undefined
+}
+
+export function getAuraTier(border?: AuraBorderName | null): number {
+  return border ? AURA_TIERS[border] : 0
+}
+
+export function getAuraRarity(aura: AuraDefinition, border?: AuraBorderName | null): number {
+  return aura.rarity * (border ? AURA_RARITY_MULTIPLIERS[border] : 1)
+}
+
+export function getStatAuraValue(aura: AuraDefinition, border?: AuraBorderName | null): number {
+  const rarity = getAuraRarity(aura, border)
+  return rarity > 0 ? Math.floor(Math.pow(2, Math.log10(rarity)) / 2) : 0
+}
+
+export function getSkillAuraValue(aura: AuraDefinition, border?: AuraBorderName | null): number {
+  const tier = getAuraTier(border)
+  const custom = CUSTOM_SKILL_VALUES[aura.name]
+  if (custom) return custom[tier] ?? custom[0] ?? 0
+  return Number(aura.base || 0) + Number(aura.perLevel || 0) * tier
+}
+
+export function getAuraValue(aura: AuraDefinition, border?: AuraBorderName | null): number {
+  return aura.type === 'Stat'
+    ? getStatAuraValue(aura, border)
+    : getSkillAuraValue(aura, border)
+}
+
+function isStatAuraBoosted(aura: AuraDefinition, card: CombatCard): boolean {
+  if (aura.boostedCards?.includes(card.definition.name)) return true
+  const pack = BOOSTED_PACKS[aura.name]
+  if (pack && card.definition.pack === pack) return true
+  const weather = BOOSTED_WEATHERS[aura.name]
+  if (weather && (card.definition.weather === weather || card.mutationWeather === weather)) return true
+  return false
+}
+
+export function statAuraPercentForCard(
+  aura: AuraDefinition,
+  card: CombatCard,
+  border?: AuraBorderName | null,
+): number {
+  const base = getStatAuraValue(aura, border)
+  if (aura.name === 'General Sun Tzu') return base
+  if (aura.name === 'The One Ring') {
+    return !card.definition.weather && !card.mutationWeather && !card.definition.boss ? base : 0
+  }
+  const value = isStatAuraBoosted(aura, card) ? base * Number(aura.boostMult || 1) : base
+  return ['The Sequel', 'Myths', 'Gamer'].includes(aura.name) ? Math.min(300, value) : value
+}
+
+export function applyStatAura(
+  team: CombatCard[],
+  selection?: AuraSelection | null,
+): { aura?: AuraDefinition; value?: number } {
+  const aura = getAura(selection?.auraName)
+  if (!aura || aura.type !== 'Stat') return {}
+
+  const baseValue = getStatAuraValue(aura, selection?.border)
+  for (const card of team) {
+    const value = statAuraPercentForCard(aura, card, selection?.border)
+    const multiplier = 1 + value / 100
+
+    card.hp *= multiplier
+    card.maxHp *= multiplier
+    if (aura.name !== 'General Sun Tzu') card.damage *= multiplier
+  }
+
+  return { aura, value: baseValue }
+}
+
+/**
+ * Applies skill-aura effects that modify the entire deck before battle begins.
+ * Direct combat-hook auras (Fate, Shielder, etc.) are handled by buildSkillAuraBoosts.
+ */
+export function applySkillAuraTeamEffects(
+  team: CombatCard[],
+  selection?: AuraSelection | null,
+): { aura?: AuraDefinition; value?: number; implemented: boolean } {
+  const aura = getAura(selection?.auraName)
+  if (!aura || aura.type !== 'Skill') return { implemented: true }
+
+  const value = getSkillAuraValue(aura, selection?.border)
+
+  if (DIRECT_SKILL_BOOST_KEYS[aura.name]) {
+    return { aura, value, implemented: true }
+  }
+
+  if (aura.name === 'Capricorn' || aura.name === "Jack-o'-Lantern") {
+    // CardStatTiers.IsLimited / IsHalloween from the CYBERPUNK export.
+    // "Eligible fighting card" counts the actual nonempty deck slots;
+    // the server's finer aura eligibility check is not included in the export.
+    const eventPacks = new Set(['Christmas', 'Valentines', 'Easter', 'Era2', 'Halloween', 'Halloween2'])
+    const halloweenFamilies = new Set(['Halloween', 'Halloween2', 'Halloween3'])
+    const isLimited = (card: CombatCard) => Boolean(
+      card.definition.expires || card.definition.limited || card.definition.collection ||
+      eventPacks.has(card.definition.pack || ''),
+    )
+    const isHalloween = (card: CombatCard) => halloweenFamilies.has(card.definition.pack || '')
+      || halloweenFamilies.has(card.definition.collection || '')
+    // Roblox CardStatTiers.IsEligible: regular non-limited/non-weather fighters
+    // and Halloween fighters count; Weather/Boss/Sin/Virtue are never eligible.
+    const eligibleCount = team.filter((card) => !card.definition.weather
+      && !card.definition.boss && !card.definition.sin && !card.definition.virtue
+      && (isHalloween(card) || !isLimited(card))).length
+    const multiplier = 1 + eligibleCount * value / 100
+    for (const card of team) {
+      const target = aura.name === 'Capricorn' ? isLimited(card) : isHalloween(card)
+      if (!target) continue
+      card.damage *= multiplier
+      card.maxHp *= multiplier
+      card.hp *= multiplier
+    }
+    return { aura, value, implemented: true }
+  }
+
+  if (aura.name === 'Jurassic World') {
+    const prehistoricCount = team.filter((card) => card.definition.pack === 'Prehistoric').length
+    const bonus = prehistoricCount * value
+    const multiplier = 1 + bonus / 100
+    if (prehistoricCount > 0) {
+      for (const card of team) {
+        if (card.definition.pack !== 'Prehistoric') continue
+        card.damage *= multiplier
+        card.maxHp *= multiplier
+        card.hp *= multiplier
+      }
+    }
+    return { aura, value, implemented: true }
+  }
+
+  if (aura.name === 'Magical Elf') {
+    const uniqueToys = new Set(
+      team.filter((card) => TOY_CARD_NAMES.has(card.definition.name)).map((card) => card.definition.name),
+    ).size
+    const awakened = uniqueToys >= value
+    for (const card of team) {
+      if (!TOY_CARD_NAMES.has(card.definition.name)) continue
+      card.counters.toyCount = uniqueToys
+      if (awakened) card.flags.awakened = true
+    }
+    return { aura, value, implemented: true }
+  }
+
+  return { aura, value, implemented: false }
+}
+
+const DIRECT_SKILL_BOOST_KEYS: Record<string, keyof BattleBoosts> = {
+  Fate: 'fate',
+  Shielder: 'shielder',
+  'Flame Wizard': 'flameWizard',
+  Phantom: 'phantom',
+  Berserker: 'berserker',
+  'Synth Human': 'synthHuman',
+  'End Times': 'endTimes',
+  'Vampire Matron': 'vampireMatron',
+  'Storm Spirit': 'stormSpirit',
+  'Guardian Angel': 'guardianAngel',
+  Executioner: 'executioner',
+  'Mirror Knight': 'mirrorKnight',
+  'Final Testament': 'finalTestament',
+}
+
+export function buildSkillAuraBoosts(selection?: AuraSelection | null): {
+  boosts: BattleBoosts
+  aura?: AuraDefinition
+  implemented: boolean
+} {
+  const aura = getAura(selection?.auraName)
+  if (!aura || aura.type !== 'Skill') return { boosts: {}, implemented: true }
+
+  const value = getSkillAuraValue(aura, selection?.border)
+  const boosts: BattleBoosts = {
+    skillAuraName: aura.name,
+    skillAuraValue: value,
+  }
+  const key = DIRECT_SKILL_BOOST_KEYS[aura.name]
+  if (key) {
+    ;(boosts as unknown as Record<string, number>)[key] = value
+    return { boosts, aura, implemented: true }
+  }
+
+  if (aura.name === 'Jurassic World' || aura.name === 'Magical Elf' || aura.name === 'Capricorn' || aura.name === "Jack-o'-Lantern") {
+    return { boosts, aura, implemented: true }
+  }
+
+  return { boosts, aura, implemented: false }
+}
+
+export const auraMechanics = {
+  rarityMultipliers: AURA_RARITY_MULTIPLIERS,
+  customSkillValues: CUSTOM_SKILL_VALUES,
+  boostedPacks: BOOSTED_PACKS,
+  boostedWeathers: BOOSTED_WEATHERS,
+}

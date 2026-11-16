@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#080b10" />
+  <meta name="crx-feedback-endpoint" content="https://cardrngexpansiondepths.dragoidc3.workers.dev/" />
+  <title>CardRng Calculators · Expansion</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <script src="./src/theme-controller.js"></script>
+  <link rel="stylesheet" href="./src/styles.css" />
+  <link rel="stylesheet" href="./src/feedback.css" />
+  <script defer src="./src/feedback.js"></script>
+  <script src="./src/site-version-watch.js"></script>
+  <link rel="stylesheet" href="./src/depths-ui.css" />
+  <link rel="stylesheet" href="./src/overhaul-hub.css" />
+</head>
+<body>
+<div id="themeSwitcher" class="theme-switcher" aria-label="Site theme">
+  <span class="theme-switcher-label">Theme</span>
+  <div class="theme-options" role="group" aria-label="Choose site theme">
+    <button class="theme-choice" type="button" data-theme-choice="default" aria-pressed="true"><i></i>Default</button>
+    <button class="theme-choice" type="button" data-theme-choice="scarlet" aria-pressed="false"><i></i>Scarlet</button>
+    <button class="theme-choice" type="button" data-theme-choice="slate" aria-pressed="false"><i></i>Slate</button>
+    <button class="theme-choice" type="button" data-theme-choice="lava" aria-pressed="false"><i></i>Lava</button>
+  </div>
+</div>
+<div id="root"><div class="loading">Loading CardRng Calculators…</div></div>
+<div id="cardTooltip" class="card-tooltip"></div>
+<script src="./src/depths-drops.js"></script>
+<script src="./src/depths-ui.js"></script>
+<script src="./src/overhaul-hub.js"></script>
+</body>
+</html>

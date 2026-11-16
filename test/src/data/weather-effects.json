@@ -1,0 +1,42 @@
+{
+  "Meteor Shower": {
+    "description": "Platinum Chance Increased by 15%",
+    "platinumMultiplier": 1.15,
+    "weatherTokenEffectPrice": 3
+  },
+  "Time Storm": {
+    "description": "Roll Speed increased by 25%",
+    "cooldownMultiplier": 0.75,
+    "weatherTokenEffectPrice": 4
+  },
+  "Eclipse": {
+    "description": "Galaxy Luck Increased by 15%",
+    "galaxyMultiplier": 1.15,
+    "weatherTokenEffectPrice": 3
+  },
+  "Virus": {
+    "description": "Luck Increased by 25%",
+    "luckMultiplier": 1.25,
+    "weatherTokenEffectPrice": 3
+  },
+  "Blood Rain": {
+    "description": "Ruby Chance Increased by 15%",
+    "rubyMultiplier": 1.15,
+    "weatherTokenEffectPrice": 3
+  },
+  "Armageddon": {
+    "description": "Platinum and Ruby Chance Increased by 10%",
+    "platinumMultiplier": 1.1,
+    "rubyMultiplier": 1.1,
+    "weatherTokenEffectPrice": 3
+  },
+  "Manga": {
+    "description": "Luck Increased by 25% | All Border Chances Increased by 5%",
+    "luckMultiplier": 1.25,
+    "platinumMultiplier": 1.05,
+    "crystalMultiplier": 1.05,
+    "rubyMultiplier": 1.05,
+    "galaxyMultiplier": 1.05,
+    "weatherTokenEffectPrice": 5
+  }
+}

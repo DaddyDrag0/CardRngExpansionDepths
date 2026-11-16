@@ -115,10 +115,7 @@ export function statAuraPercentForCard(
   if (aura.name === 'The One Ring') {
     return !card.definition.weather && !card.mutationWeather && !card.definition.boss ? base : 0
   }
-  // The tooltip and source both specify a universal boost PLUS an extra
-  // eligible-card bonus. Do not replace the universal portion with the bonus.
-  const bonus = isStatAuraBoosted(aura, card) ? base * Number(aura.boostMult || 0) : 0
-  const value = base + bonus
+  const value = isStatAuraBoosted(aura, card) ? base * Number(aura.boostMult || 1) : base
   return ['The Sequel', 'Myths', 'Gamer'].includes(aura.name) ? Math.min(300, value) : value
 }
 

@@ -3,12 +3,12 @@ import { readFileSync } from "node:fs";
 import { performance } from "node:perf_hooks";
 
 const code=readFileSync("browser/depths-worker.js","utf8");
-const replayCode=readFileSync("src/depths-battle-replay.js","utf8");
+const replayCode=readFileSync("src/depths-battle-replay-v30.js","utf8");
 const ui=readFileSync("src/depths-ui.js","utf8");
 const css=readFileSync("src/depths-ui.css","utf8");
 new Function("document","window",replayCode);
 new Function("document","window",ui);
-assert(replayCode.includes("if(!event)return null;"),"Replay must tolerate an absent event on frame zero");
+assert(replayCode.includes("if(!event || typeof event!==\'object\')return null;"),"Replay must tolerate an absent event on frame zero");
 assert(!replayCode.includes("import.meta.url"),"Replay must be classic-script compatible");
 assert(ui.includes("data-preview-battle"),"Replay preview must be accessible");
 assert(ui.includes("data-ban-lab-samples"),"Ban Lab must support 10/15/30 runs");
@@ -49,3 +49,7 @@ assert(targetSource,"Target resolver missing");
 const target=new Function(targetSource+";return targetOf")();
 assert.equal(target({Allies:[],Enemies:[]},null),null,"First replay frame must not crash when no event exists");
 console.log("Depths v29 smoke passed: parallel-ban configuration, Hard 2-floor sim, zero-frame replay target safety, no cheese navigation.");
+
+assert(ui.includes("depth-control-dock")&&ui.includes("data-run-ready"),"Test team/run/interval/mode controls must be in the deck-side dock");
+assert(ui.includes("depths-battle-replay-v30.js"),"Replay player must load from unique v30 URL");
+assert(replayCode.includes("version:\'v30\'"),"Replay player must export correct version");

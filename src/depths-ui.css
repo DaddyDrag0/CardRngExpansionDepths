@@ -336,3 +336,66 @@ details.ban-lab[open]>summary::after{content:'−'}
 
 /* Keep the test action visible inside the capped settings panel. */
 @media(min-width:760px){.workspace.depths-workspace>.simulation>.panel-head{position:sticky;top:0;z-index:4;background:var(--panel-grad-top,var(--surface-2));border-bottom:1px solid var(--line);}}
+
+
+/* v30: Deck-side test controls replace the unused space below team setup. */
+.workspace.depths-workspace>.depth-control-dock{
+ min-width:0;box-sizing:border-box;padding:13px 16px 15px;
+ border:1px solid var(--line-strong,var(--line));border-radius:12px;
+ background:var(--surface-1,#1b2530);align-self:start;
+}
+.depth-control-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:14px}
+.depth-control-head h3{font-size:15px;line-height:1.25;margin:3px 0 0}
+.depth-run-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;min-width:0}
+.depth-run-actions button{
+ min-height:35px;cursor:pointer;border-radius:8px;padding:8px 13px;
+ background:var(--surface-2,#26313e);color:var(--text,#e4edf5);
+ border:1px solid var(--line-strong,#3d4b5c);font-size:11px;font-weight:750;letter-spacing:0;
+}
+.depth-run-actions button:hover:not(:disabled){filter:brightness(1.13)}
+.depth-run-actions button:disabled{opacity:.42;cursor:not-allowed}
+.depth-run-actions .depth-test-primary{background:var(--accent-soft,rgba(30,90,80,.35));border-color:var(--accent-line,#3b8e78);color:var(--accent-bright,#b4e7d7)}
+.depth-run-actions .depth-cancel,.depth-run-actions .depth-cancel:hover{
+ background:rgba(117,40,51,.27)!important;border-color:#944b5c!important;color:#ffd4dc!important;
+ box-shadow:none!important;opacity:1!important;
+}
+.depth-run-progress{font-size:11px;line-height:1.5;color:var(--muted,#9ba8b7);max-width:335px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.depth-control-settings{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.45fr) minmax(0,1.2fr);gap:16px}
+.depth-control-settings>div{min-width:0}
+.depth-control-settings .sim-field{margin:0;padding:0}
+.depth-control-settings .sim-field>span{display:block;font-size:10px;margin-bottom:9px}
+.depth-control-settings .run-options{display:flex;flex-wrap:wrap;gap:5px}
+.depth-control-settings .run-options button{min-width:32px;min-height:32px;font-size:10px;flex:0 0 auto}
+.depth-control-settings .depth-step-note{font-size:9px;line-height:1.45;display:block;margin-top:7px}
+.depth-control-settings .hard-mode-toggle{
+ border:1px solid var(--line-strong,var(--line));border-radius:10px;
+ margin:0;padding:9px 10px;min-height:67px;display:flex;align-items:center;justify-content:space-between;
+ background:var(--surface-2);
+}
+.depth-control-settings .hard-mode-toggle>div{min-width:0}
+.depth-control-settings .hard-mode-toggle small{font-size:9px;line-height:1.45}
+.depth-control-settings .hard-mode-toggle button{flex:none;margin-left:8px}
+@media(min-width:1200px){
+ .workspace.depths-workspace{grid-template-rows:auto auto auto;align-items:start}
+ .workspace.depths-workspace>.loadout{grid-column:1;grid-row:1}
+ .workspace.depths-workspace>.library{grid-column:2;grid-row:1}
+ .workspace.depths-workspace>.depth-control-dock{grid-column:1 / 3;grid-row:2}
+ .workspace.depths-workspace>.simulation{grid-column:3;grid-row:1 / span 2;max-height:720px;overflow-y:auto;align-self:stretch}
+ .workspace.depths-workspace>.results-panel{grid-column:1 / -1;grid-row:3;margin-top:4px}
+}
+@media(min-width:760px) and (max-width:1199px){
+ .workspace.depths-workspace>.loadout{grid-column:1;grid-row:1}
+ .workspace.depths-workspace>.library{grid-column:2;grid-row:1}
+ .workspace.depths-workspace>.depth-control-dock{grid-column:1 / -1;grid-row:2}
+ .workspace.depths-workspace>.simulation{grid-column:1 / -1;grid-row:3}
+ .workspace.depths-workspace>.results-panel{grid-column:1 / -1;grid-row:4}
+}
+@media(max-width:900px){.depth-control-settings{grid-template-columns:1fr 1fr}.depth-control-mode{grid-column:1 / -1}}
+@media(max-width:759px){
+ .workspace.depths-workspace>.depth-control-dock{grid-column:1;grid-row:auto;order:3}
+ .workspace.depths-workspace>.simulation{order:4}
+ .workspace.depths-workspace>.results-panel{order:5}
+ .depth-control-settings{grid-template-columns:1fr}
+ .depth-control-mode{grid-column:auto}
+ .depth-run-actions{justify-content:flex-start}
+}

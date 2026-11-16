@@ -30,7 +30,7 @@ function firstState(debug) {
   return {Allies:copy(debug.initialAllies,'Allies'), Enemies:copy(debug.initialEnemies,'Enemies')};
 }
 function targetOf(state,event) {
-  if(!event)return null;
+  if(!event || typeof event!=='object')return null;
   const side=event.targetTeam || (event.team === 'Allies'?'Enemies':'Allies');
   const list=state[side] || [];
   return list.find(c=>c.id === event.targetId) ||
@@ -38,7 +38,7 @@ function targetOf(state,event) {
     list.find(c=>c.name === event.target) || null;
 }
 function actorOf(state,event) {
-  if(!event)return null;
+  if(!event || typeof event!=='object')return null;
   const list=state[event.team] || [];
   return list.find(c=>c.id === event.actorId) ||
     list.find(c=>c.name === event.card && c.hp > 0) ||
@@ -163,7 +163,7 @@ function openBattleReplay({debug,cardImages={},teamIndex=0,runIndex=0,floor=1,
   }
   function paint(animate=false) {
     if(closed)return;
-    const state=getState(),event=events[pos]||null;
+    const state=getState(),event=pos>=0&&pos<events.length?(events[pos]||null):null;
     const ally=!event?null:event.team==='Allies'?actorOf(state,event):targetOf(state,event);
     const enemy=!event?null:event.team==='Enemies'?actorOf(state,event):targetOf(state,event);
     const a=ally?.team==='Allies'?ally:closestActive(state,'Allies');
@@ -262,5 +262,5 @@ function openBattleReplay({debug,cardImages={},teamIndex=0,runIndex=0,floor=1,
   paint(false);dialog.showModal();return {close:cleanup,pause,seek};
 }
 
-// Load as a classic script: raw.githack.com does not reliably serve ESM imports.
-window.CRXDepthsReplay = {openBattleReplay};
+// Load as a classic script: This player uses a classic script for broad hosting compatibility.
+window.CRXDepthsReplay = {version:'v30',openBattleReplay};

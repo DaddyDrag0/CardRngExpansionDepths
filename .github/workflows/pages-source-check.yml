@@ -1,0 +1,22 @@
+name: Inspect GitHub Pages source
+
+on:
+  push:
+    branches: [overhaul-test-2026]
+    paths:
+      - .github/workflows/pages-source-check.yml
+
+permissions:
+  contents: read
+
+jobs:
+  inspect-pages:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Read Pages publishing source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/pages" --jq '{url: .html_url, build_type: .build_type, source: .source, status: .status}'

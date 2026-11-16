@@ -62,7 +62,11 @@ if (!liveHtml.includes('./src/depths-ui.css')) throw new Error('Extracted Depths
 if (liveHtml.includes("const root=document.getElementById('root')")) throw new Error('Depths application code returned to inline HTML')
 if (!depthsUi.includes('function sortPrefixMatches(')) throw new Error('Shared autocomplete sorter is missing')
 // The v29 site is Depths-only; cheese UI is stored under archive/cheese.
-if (!overhaulHub.includes("CardRngDepthsHeader")) throw new Error("Depths-only header is missing")
+if (!overhaulHub.includes("CardRngDepthsBootstrap")) throw new Error("Depths bootstrap is missing")
+if (overhaulHub.includes('createElement(\'header\')') || overhaulHub.includes('crx-mini-brand') || overhaulHub.includes('crx-mini-header')) throw new Error("Obsolete CardRng Calculators navigation header returned")
+if (!overhaulHub.includes("container.appendChild(root)") || !overhaulHub.includes("crx-load-error")) throw new Error("Depths bootstrap and reload recovery must remain intact")
+const hubCSS = fs.readFileSync('src/overhaul-hub.css','utf8')
+if (hubCSS.includes('#crx-mini-header') || hubCSS.includes('.crx-mini-brand')) throw new Error("Obsolete header style remains")
 if (overhaulHub.includes("Tower Cheese") || overhaulHub.includes("Trial Cheese")) throw new Error("Archived calculators are still in navigation")
 if (!depthsUi.includes('data-ban-lab-samples')) throw new Error("Ban Lab sample count control is missing")
 if (!depthsUi.includes('hardMode:true,floorStride:2')) throw new Error("Ban Lab must simulate Hard Depths using every second floor")

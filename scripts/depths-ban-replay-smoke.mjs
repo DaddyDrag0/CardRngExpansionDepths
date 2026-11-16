@@ -13,7 +13,8 @@ assert.equal(requestedReplayVersion,exportedReplayVersion,"Replay loader filenam
 assert(ui.includes("CRXDepthsReplay?.version==='"+requestedReplayVersion+"'"),"Replay loader checks must match the loaded player version");
 assert.equal((ui.match(/CRXDepthsReplay\?\.version==='v42'/g)||[]).length,2,
   "Replay loader must check v42 both before loading and when script finishes");
-assert(!header.includes('crx-testmark')&&!header.includes('crx-version'),"Public release header must not expose test-version labels");
+assert(!header.includes('crx-testmark')&&!header.includes('crx-version')&&!header.includes('crx-mini-header')&&!header.includes('crx-mini-brand'),"Neither site should render the obsolete navigation header");
+assert(header.includes('container.appendChild(root)'),"Depths bootstrap must still wrap root and preserve its styles");
 new Function("document","window",replayCode);
 new Function("document","window",ui);
 assert(replayCode.includes("if(!event || typeof event!==\'object\')return null;"),"Replay must tolerate an absent event on frame zero");

@@ -629,3 +629,65 @@ details.ban-lab[open]>summary::after{content:'−'}
  }
  .depth-right-shell>.depth-control-dock .depth-control-mode{grid-column:1}
 }
+
+/* v36 — always-visible compact Ban Lab. Keep the same dark palette. */
+.ban-lab{
+ margin-top:12px!important;
+ padding:12px 0 0!important;
+ border-top:1px solid var(--line-strong,var(--line));
+ min-width:0;
+}
+.ban-lab .ban-lab-head{margin:0 0 10px;display:flex;align-items:center}
+.ban-lab .ban-lab-head h4{font-size:14px;line-height:1.2;font-weight:790;letter-spacing:0;margin:0}
+.ban-lab .ban-lab-toolbar{
+ display:flex;align-items:center;flex-wrap:wrap;
+ gap:9px 12px;min-width:0;margin:0;
+}
+.ban-lab .ban-lab-samples{
+ display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
+ font-size:10px;color:var(--muted);
+}
+.ban-lab .ban-lab-samples select{
+ min-width:60px;min-height:32px;padding:6px 7px;
+ color:var(--text);background:var(--surface-2);
+ border:1px solid var(--line-strong,var(--line));border-radius:7px;
+}
+.ban-lab .ban-lab-option{
+ display:inline-flex;align-items:center;gap:7px;
+ min-width:0;font-size:10px;white-space:nowrap;
+}
+.ban-lab .ban-lab-option input{width:14px;height:14px;margin:0}
+.ban-lab .ban-lab-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 0 auto}
+.ban-lab .ban-lab-actions button{padding:7px 11px;min-height:33px;white-space:nowrap}
+.ban-lab .ban-lab-progress{
+ padding:10px 0 4px;margin:0;
+ color:var(--accent-bright,var(--accent));font-size:11px;
+}
+.ban-lab .ban-lab-found{
+ margin:12px 0 0;padding:11px 0 0;
+ border-top:1px solid var(--line);
+}
+.ban-lab .ban-lab-found-title{
+ display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+ color:var(--text);font-size:11px;
+}
+.ban-lab .ban-lab-found-title strong{font-size:12px;font-weight:760}
+.ban-lab .ban-lab-found-title span{color:var(--accent-bright,var(--accent));font-size:10px}
+.ban-lab .ban-lab-chips{display:flex;flex-wrap:wrap;gap:5px;margin:9px 0 11px}
+.ban-lab .ban-lab-chips span{
+ font-size:10px;line-height:1.3;
+ border:1px solid var(--line-strong,var(--line));
+ background:var(--surface-1);
+ border-radius:6px;padding:5px 7px;
+}
+.ban-lab .ban-lab-apply{
+ min-height:33px;padding:7px 12px;
+ border:1px solid var(--accent-line,var(--line));
+ border-radius:7px;background:var(--accent-soft,var(--surface-2));
+ color:var(--accent-bright,var(--text));font-size:11px;font-weight:700;cursor:pointer;
+}
+.ban-lab .ban-lab-apply:disabled{opacity:.4;cursor:not-allowed}
+.ban-lab .ban-lab-note{display:block;margin:5px 0 10px}
+@container depths-controls (max-width:500px){
+ .ban-lab .ban-lab-actions{margin-left:0}
+}

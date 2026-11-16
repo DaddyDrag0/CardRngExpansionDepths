@@ -45,7 +45,7 @@ This is an independent simulator, not the game's server. Some mechanics and anim
 - **Ban Lab:** Danger-window benchmark scores are **not** full-run packs/day predictions.
 - **Random encounters and Hardcore effects:** Some server-side behavior is unavailable and results may be approximate.
 
-See [Depths timing notes](docs/DEPTHS_TIMING_2026.md) on the development branch for the timing model and known limitations.
+See [Depths timing notes](https://github.com/DaddyDrag0/CardRngExpansionDepths/blob/overhaul-test-2026/docs/DEPTHS_TIMING_2026.md) on the development branch for the timing model and known limitations.
 
 ## Repository layout
 

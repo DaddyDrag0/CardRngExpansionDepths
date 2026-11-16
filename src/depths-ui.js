@@ -401,13 +401,13 @@ function decodeTeam(code){
 }
   let replayScriptPromise=null;
   function ensureReplayScript(){
-    if(window.CRXDepthsReplay?.version==='v30')return Promise.resolve();
+    if(window.CRXDepthsReplay?.version==='v41')return Promise.resolve();
     if(!replayScriptPromise){
       replayScriptPromise=new Promise((resolve,reject)=>{
         const script=document.createElement('script');
-        script.src=versioned('./src/depths-battle-replay-v30.js');
+        script.src=versioned('./src/depths-battle-replay-v41.js');
         script.async=true;
-        script.onload=()=>window.CRXDepthsReplay?.version==='v30'?resolve():reject(new Error('Replay v30 did not initialize'));
+        script.onload=()=>window.CRXDepthsReplay?.version==='v41'?resolve():reject(new Error('Replay v41 did not initialize'));
         script.onerror=()=>reject(new Error('Unable to load replay script from this site'));
         document.head.appendChild(script);
       }).catch(error=>{replayScriptPromise=null;throw error});
@@ -440,7 +440,7 @@ function decodeTeam(code){
       const result=response.result;
       if(!result?.debug)throw Error('Battle returned no replay events');
       await ensureReplayScript();
-      window.CRXDepthsReplay.openBattleReplay({debug:result.debug,cardImages:replayImages(),
+      window.CRXDepthsReplay.openBattleReplay({debug:result.debug,cardImages:replayImages(),abilityDescriptions:state.abilities,
         teamIndex:state.activeTeam,runIndex:0,floor,battleSeed:result.battleSeed});
     }catch(error){console.error(error);alert('Preview failed: '+(error.message||String(error)))}
     finally{if(button?.isConnected){button.disabled=false;button.textContent='Watch one battle'}}
@@ -471,7 +471,7 @@ function decodeTeam(code){
         if(!run.debug)throw Error('The battle replay did not contain a debug trace.');
       }
       await ensureReplayScript();
-      window.CRXDepthsReplay.openBattleReplay({debug:run.debug,cardImages:replayImages(),
+      window.CRXDepthsReplay.openBattleReplay({debug:run.debug,cardImages:replayImages(),abilityDescriptions:state.abilities,
         teamIndex,runIndex,floor:Math.min(state.cap,run.deathFloor),
         battleSeed:run.battleSeed,onTextLog:()=>showRunTextDebug(teamIndex,runIndex)});
     }catch(error){console.error('Replay unavailable',error);alert('Unable to open replay: '+(error.message||String(error)))}

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { performance } from "node:perf_hooks";
 
 const code=readFileSync("browser/depths-worker.js","utf8");
-const replayCode=readFileSync("src/depths-battle-replay-v30.js","utf8");
+const replayCode=readFileSync("src/depths-battle-replay-v41.js","utf8");
 const ui=readFileSync("src/depths-ui.js","utf8");
 const css=readFileSync("src/depths-ui.css","utf8");
 new Function("document","window",replayCode);
@@ -65,7 +65,7 @@ const dialog={
  remove(){this.removed=true}
 };
 const pageDocument={
- currentScript:{src:"https://daddydrag0.github.io/CardRngExpansionDepths/test/src/depths-battle-replay-v30.js"},
+ currentScript:{src:"https://daddydrag0.github.io/CardRngExpansionDepths/test/src/depths-battle-replay-v41.js"},
  baseURI:"https://daddydrag0.github.io/CardRngExpansionDepths/test/",
  querySelector(){return null},
  createElement(tag){return tag==="dialog"?dialog:emptyElement()},
@@ -73,7 +73,7 @@ const pageDocument={
 };
 const mockWindow={};
 new Function("document","window",replayCode)(pageDocument,mockWindow);
-assert.equal(mockWindow.CRXDepthsReplay.version,"v30");
+assert.equal(mockWindow.CRXDepthsReplay.version,"v41");
 const opened=mockWindow.CRXDepthsReplay.openBattleReplay({debug:replay.debug,floor:10,teamIndex:0,runIndex:0});
 assert(dialog.shown,"Opening replay should show modal without exceptions");
 assert(nodes.get("[data-rpl-stage]")?.innerHTML?.includes("YOUR DECK"),"First empty-event frame must paint normally");
@@ -81,7 +81,7 @@ opened.seek(0);
 opened.seek(replay.debug.events.findIndex(e=>e.type==="attack"));
 opened.close();
 
-console.log("Depths v30 smoke passed: real replay modal opens at frame zero and advances, Hard Depths worker, and compact controls.");
+console.log("Depths v41 smoke passed: real replay modal opens at frame zero and advances, Hard Depths worker, and compact controls.");
 
 assert(ui.includes("depth-control-dock")&&ui.includes("data-run-ready"),"Test team/run/interval/mode controls must be in the deck-side dock");
 assert(ui.includes('depth-setup-shell')&&ui.includes('depth-right-shell'),"Setup needs independent nested columns instead of a row-spanning loadout");
@@ -90,8 +90,8 @@ assert(css.includes('.workspace.depths-workspace{\n display:flex;'),"Setup and r
 assert(css.includes('.depth-right-shell>.depth-control-dock{'),"Test controls must live beneath the two right-hand panels");
 assert(css.includes('grid-template-rows:auto max-content;'),"Test controls need a natural-height second row");
 assert(css.includes('.workspace.depths-workspace>.results-panel{\n grid-row:auto;'),"Results must not be pinned to an oversized implicit grid row");
-assert(ui.includes("depths-battle-replay-v30.js"),"Replay player must load from unique v30 URL");
-assert(replayCode.includes("version:\'v30\'"),"Replay player must export correct version");
+assert(ui.includes("depths-battle-replay-v41.js"),"Replay player must load from unique v41 URL");
+assert(replayCode.includes("version:\'v41\'"),"Replay player must export correct version");
 
 assert(css.includes('container:depths-controls / inline-size'),"Control panel must size against its own width");
 assert(css.includes('@container depths-controls (max-width:860px)'),"Narrow panel must reorganize into two columns");

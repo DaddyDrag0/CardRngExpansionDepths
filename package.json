@@ -17,7 +17,7 @@
     "test:video-game": "node --import tsx scripts/video-game-update-regression.ts",
     "halloween:labels": "tsx scripts/generate-halloween-labels.ts",
     "build:tower-worker:legacy": "esbuild src/tower-worker.ts --bundle --platform=browser --format=iife --target=es2020 --minify --outfile=browser/tower-worker-legacy.js",
-    "test:overhaul": "node scripts/depths-2026-worker-smoke.mjs && node scripts/depths-ban-replay-smoke.mjs && node scripts/depths-ban-ui-smoke.mjs && node scripts/depths-stat-aura-parity.mjs && node scripts/depths-noveau-persistence-regression.mjs",
+    "test:overhaul": "node scripts/depths-2026-worker-smoke.mjs && node scripts/depths-ban-replay-smoke.mjs && node scripts/depths-ban-ui-smoke.mjs && node scripts/depths-stat-aura-parity.mjs && node scripts/depths-noveau-persistence-regression.mjs && node scripts/depths-replay-ability-details.mjs",
     "build:depths-worker:legacy": "esbuild src/browser-worker.ts --bundle --platform=browser --format=iife --target=es2020 --minify --outfile=browser/depths-worker-legacy.js",
     "test:cards": "node scripts/depths-card-coverage.mjs"
   },

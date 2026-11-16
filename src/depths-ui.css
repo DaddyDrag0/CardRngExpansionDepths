@@ -339,10 +339,15 @@ details.ban-lab[open]>summary::after{content:'−'}
 
 
 /* v30: Deck-side test controls replace the unused space below team setup. */
-.workspace.depths-workspace>.depth-control-dock{
- min-width:0;box-sizing:border-box;padding:13px 16px 15px;
- border:1px solid var(--line-strong,var(--line));border-radius:12px;
- background:var(--surface-1,#1b2530);align-self:start;
+.depth-right-shell>.depth-control-dock{
+ min-width:0;
+ width:100%;
+ box-sizing:border-box;
+ padding:14px 16px 16px;
+ border:1px solid var(--line-strong,var(--line));
+ border-radius:12px;
+ background:var(--surface-1,#1b2530);
+ align-self:start;
 }
 .depth-control-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:14px}
 .depth-control-head h3{font-size:15px;line-height:1.25;margin:3px 0 0}
@@ -525,6 +530,9 @@ details.ban-lab[open]>summary::after{content:'−'}
  grid-template-columns:repeat(4,minmax(0,1fr));
  width:100%;
  gap:4px;
+}
+.workspace.depths-workspace .depth-control-dock .depth-control-interval .run-options:has(>button:nth-child(3):last-child){
+ grid-template-columns:repeat(3,minmax(0,1fr));
 }
 .workspace.depths-workspace .depth-control-dock .run-options button{
  width:100%;

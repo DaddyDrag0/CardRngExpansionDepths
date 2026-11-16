@@ -98,3 +98,26 @@ assert(css.includes('@container depths-controls (max-width:860px)'),"Narrow pane
 assert(css.includes('@container depths-controls (max-width:510px)'),"Tiny panel must stack the controls");
 assert(css.includes('grid-template-columns:repeat(6,minmax(0,1fr))'),"All six run options must stay in a single row");
 assert(css.includes('grid-template-columns:repeat(4,minmax(0,1fr))'),"All four floor intervals must stay in a single row");
+
+
+// v37 regression: The dock is nested INSIDE depth-right-shell. The old
+// workspace > dock selector never matched, causing all controls to touch the
+// panel border. Verify the actual selector carries horizontal padding.
+const dockSelector=".depth-right-shell>.depth-control-dock{";
+const dockAt=css.indexOf(dockSelector);
+assert(dockAt>=0,"Control dock must be targeted at its real nested DOM location");
+const dockStyle=css.slice(dockAt,css.indexOf("}",dockAt)+1);
+const padding=dockStyle.match(/padding:\s*([\d.]+)px\s+([\d.]+)px\s+([\d.]+)px/);
+assert(padding,"The nested control panel must have explicit internal padding");
+assert(Number(padding[2])>=14,"Controls need at least 14px horizontal inset from the border");
+assert(dockStyle.includes("box-sizing:border-box"),"Panel padding must be included in width");
+assert(!css.includes(".workspace.depths-workspace>.depth-control-dock{\n min-width:0;box-sizing:border-box;padding"),
+ "Do not put dock padding on the obsolete direct-child selector again");
+const rightShellAt=ui.indexOf('<div class="depth-right-shell">');
+const controlsAt=ui.indexOf('<section class="panel depth-control-dock"');
+const rightShellEnd=ui.indexOf('</div></div><section class="results-panel"',rightShellAt);
+assert(rightShellAt>=0&&controlsAt>rightShellAt&&rightShellEnd>controlsAt,
+ "Test controls must remain nested under the right-hand panels");
+assert(css.includes(".run-options:has(>button:nth-child(3):last-child)"),
+ "Hard Depths' three floor intervals should evenly fill their row");
+console.log("Depths v37 layout passed: dock padding matches actual nested DOM, inside border, with responsive run/Hard controls.");

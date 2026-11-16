@@ -30,7 +30,7 @@ console.log("Depths card coverage:",JSON.stringify({
 },null,2));
 
 // Test the real bundled hooks in isolation, including genuine seeded RNG.
-const augmented=source.replace(/\}\)\(\);\s*$/,'self.__depthsAudit={Ma,__v26PreHit,__v26AfterHit,__v26AfterTurn,__v26BeforeTurn,__v26Enter,__v34Init,Be,Os,ee,W,f};})();');
+const augmented=source.replace(/\}\)\(\);\s*$/,'self.__depthsAudit={Ma,__v26PreHit,__v26AfterHit,__v26AfterTurn,__v26BeforeTurn,__v26Enter,__v34Init,Be,Os,Ee,ee,W,f};})();');
 assert.notEqual(augmented,source,"Could not export internal hooks from the deployed worker");
 const fake={navigator:{hardwareConcurrency:2},location:{href:"mock"},postMessage(){}};
 new Function("self","performance",augmented)(fake,performance);
@@ -97,3 +97,34 @@ function fight(allies,enemies,rng=.15){
  assert(reincarnation.bonusAbilities?.includes("Dagger"),"Shared Power must inherit allied abilities");
 }
 console.log("Depths ability regression passed: all-card registry, 5 status treatments, Dagger, The End, Three Gifts, Nothing and Shared Power.");
+
+
+/* Execute every card in a real, deterministic, bounded Depths battle. This
+   catches runtime exceptions and unexpected unsupported flags in the actual
+   browser worker. It does NOT establish Roblox-server combat parity. */
+const opponent=x.Be("Wizard");
+assert(opponent,"Controlled test enemy missing");
+const enemyLineup=Array.from({length:4},(_,i)=>({
+ card:opponent,power:100,attack:50,health:200
+}));
+const failures=[],warnings=[];
+for(const [i,card] of cards.entries()){
+ const loadout={cards:[
+  {cardName:card.name,borders:[],mutationWeather:null},
+  {cardName:"Archer",borders:[],mutationWeather:null},
+  {cardName:"Archer",borders:[],mutationWeather:null},
+  {cardName:"Archer",borders:[],mutationWeather:null}
+ ]};
+ try{
+  const result=x.Ee(loadout,enemyLineup,0x32900+i,18,false,false);
+  if(!result||!Array.isArray(result.unsupportedAbilities))throw Error("Invalid combat result");
+  for(const warning of result.unsupportedAbilities){
+   if(warning==="Battle turn cap reached")continue;
+   if(explicitlyUnverifiable.includes(warning))continue;
+   warnings.push({card:card.name,warning});
+  }
+ }catch(error){failures.push({card:card.name,error:String(error)})}
+}
+assert.deepEqual(failures,[],"Cards with runtime crashes: "+JSON.stringify(failures.slice(0,30)));
+assert.deepEqual(warnings,[],"Cards with unexpected unsupported effects: "+JSON.stringify(warnings.slice(0,30)));
+console.log("Depths live-worker roster smoke: "+cards.length+" cards initialized and battled (18-turn safety cap, seeded).");

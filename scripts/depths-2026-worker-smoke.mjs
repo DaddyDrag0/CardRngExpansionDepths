@@ -89,3 +89,31 @@ assert(clearedFromOne.potionRewards.median.rareWeather.expected>clearedFromFour.
   "Start-floor skip must reduce expected Rare Weather drops");
 console.log("Depths playback worker smoke passed: floor-specific timings, source loot eligibility, and throughput-based speed ranking.");
 
+
+
+// Regression: the shipped (customized) browser worker must enforce the trigger guard,
+// preserve long valid chains, and report the exact matchup when it fails.
+assert.ok(source.includes("Ability trigger limit reached (512 nested events)"),
+ "Deployed worker does not have the ability trigger safety guard");
+assert.ok(source.includes("function __depthsBattleError"),
+ "Deployed worker does not have matchup diagnostics");
+const probeSource=source.replace(/\}\)\(\);\s*$/, "self.__depthsGuardProbe=__depthsGuard;self.__depthsBattleErrorProbe=__depthsBattleError;})();");
+assert.notEqual(probeSource,source,"Unable to inspect compiled trigger guard");
+const probeWorker={navigator:{hardwareConcurrency:2},location:{href:"mock"},postMessage(){}};
+new Function("self","performance",probeSource)(probeWorker,performance);
+const triggerRuntime={},triggerCard={definition:{name:"Diagnostic Card"}};
+const deepTriggers=(n)=>probeWorker.__depthsGuardProbe(triggerRuntime,triggerCard,"Diagnostic Ability",
+ ()=>n>0?deepTriggers(n-1):"completed");
+assert.equal(deepTriggers(300),"completed","Valid nested ability chain was blocked");
+assert.equal(triggerRuntime.__depthsTriggerChain.length,0,"A successful ability chain was not cleared");
+assert.throws(()=>deepTriggers(512),error=>
+ error.message.includes("512 nested events") &&
+ error.message.includes("Diagnostic Card") &&
+ error.message.includes("Diagnostic Ability"));
+assert.equal(triggerRuntime.__depthsTriggerChain.length,0,"Failed ability chain was not cleared");
+const detailed=probeWorker.__depthsBattleErrorProbe(
+ new Error("Ability trigger limit reached"),123,456,789,1011,
+ {cards:[{cardName:"Robin Hood"}]},
+ [{card:{name:"Noveau Riche",ability:"Persistent"}}]);
+for(const text of ["Floor: 123","Run seed: 456","Robin Hood","Noveau Riche","Persistent"])
+ assert.ok(detailed.message.includes(text),"Detailed error missing "+text);

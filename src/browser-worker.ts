@@ -270,7 +270,10 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
 
         if (watchdog) clearTimeout(watchdog)
         if (!message?.ok) {
-          fail(new Error(message?.error || 'Parallel simulation worker failed'))
+          fail(new Error(
+            `${message?.error || 'Parallel simulation worker failed'}\n` +
+            `Run: ${runIndex + 1}/${runs} | Batch seed: ${request.seed} | Run seed: ${runSeed(request.seed, runIndex)}`,
+          ))
           return
         }
         results[runIndex] = message.result

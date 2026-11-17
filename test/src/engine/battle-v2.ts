@@ -129,6 +129,8 @@ interface Runtime {
   captureDebug: boolean
   deathEpoch: number
   counterDepth: number
+  /** Nested triggers only; resets naturally as each combat effect returns. */
+  triggerChain: string[]
   halloweenNormalizedPlayers?: boolean
   halloweenMinimumRarity?: number
   halloweenFixedAttack?: number
@@ -164,6 +166,28 @@ function pushAbilityDebug(runtime: Runtime, card: CombatCard, detail: string) {
     maxHp: card.maxHp,
     damage: card.damage,
   })
+}
+
+/** High enough for legitimate chains, but below the browser's JS recursion limit. */
+const MAX_ABILITY_TRIGGER_DEPTH = 512
+
+function withAbilityTriggerLimit<T>(runtime: Runtime, card: CombatCard, trigger: string, execute: () => T): T {
+  const label = `${effectiveCardName(card) || card.definition.name} [${trigger}]`
+  runtime.triggerChain.push(label)
+  if (runtime.triggerChain.length > MAX_ABILITY_TRIGGER_DEPTH) {
+    const recent = runtime.triggerChain.slice(-16).join(' → ')
+    runtime.triggerChain.pop()
+    throw new Error(
+      `Ability trigger limit reached (${MAX_ABILITY_TRIGGER_DEPTH} nested events).\n` +
+      `Triggering card / ability: ${label}\n` +
+      `Recent nested trigger chain (last 16): ${recent}`,
+    )
+  }
+  try {
+    return execute()
+  } finally {
+    runtime.triggerChain.pop()
+  }
 }
 
 type AbilityTraceCardState = {
@@ -311,17 +335,19 @@ function describeAbilityTrace(runtime: Runtime, before: AbilityTraceSnapshot, so
 }
 
 function runAbilityTrace<T>(runtime: Runtime, card: CombatCard, abilityName: string | null, fn: () => T): T {
-  if (!runtime.captureDebug || !abilityName) return fn()
-  const before = captureAbilityTrace(runtime)
-  const eventStart = runtime.debug.events.length
-  const result = fn()
-  const cardName = effectiveCardName(card) || card.definition.name
-  const alreadyLogged = runtime.debug.events.slice(eventStart).some((event) => event.type === 'ability' && event.card === cardName)
-  if (!alreadyLogged) {
-    const changes = describeAbilityTrace(runtime, before, card)
-    if (changes.length) pushAbilityDebug(runtime, card, abilityName + ': ' + changes.join('; ') + '.')
-  }
-  return result
+  return withAbilityTriggerLimit(runtime, card, abilityName || 'Ability', () => {
+    if (!runtime.captureDebug || !abilityName) return fn()
+    const before = captureAbilityTrace(runtime)
+    const eventStart = runtime.debug.events.length
+    const result = fn()
+    const cardName = effectiveCardName(card) || card.definition.name
+    const alreadyLogged = runtime.debug.events.slice(eventStart).some((event) => event.type === 'ability' && event.card === cardName)
+    if (!alreadyLogged) {
+      const changes = describeAbilityTrace(runtime, before, card)
+      if (changes.length) pushAbilityDebug(runtime, card, abilityName + ': ' + changes.join('; ') + '.')
+    }
+    return result
+  })
 }
 
 function definition(name: string) {
@@ -789,6 +815,11 @@ function performEntryAttack(runtime: Runtime, card: CombatCard, mult = 1, allEne
 }
 
 function onEntry(runtime: Runtime, card: CombatCard) {
+  if (card.entered || !alive(card)) return
+  return withAbilityTriggerLimit(runtime, card, `Entry: ${resolvedAbility(runtime, card) || 'None'}`, () => onEntryCore(runtime, card))
+}
+
+function onEntryCore(runtime: Runtime, card: CombatCard) {
   if (card.entered || !alive(card)) return
   card.entered = true
   card.flags.appearedOnField = true
@@ -2371,6 +2402,10 @@ function resolveAuraFarm(runtime: Runtime, target: CombatCard, incoming: number)
 }
 
 function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: CombatCard, mult = 1, bypass = false): number {
+  return withAbilityTriggerLimit(runtime, attacker, `Attack vs ${effectiveCardName(originalTarget) || originalTarget.definition.name} [${resolvedAbility(runtime, originalTarget) || 'None'}]`, () => dealDamageCore(runtime, attacker, originalTarget, mult, bypass))
+}
+
+function dealDamageCore(runtime: Runtime, attacker: CombatCard, originalTarget: CombatCard, mult = 1, bypass = false): number {
   attacker.flags.armageddonLethalThisHit = false
   let target = originalTarget
   const confused = attacker.status.confused > 0 || attacker.flags.eternalConfusion
@@ -2771,6 +2806,15 @@ function applyOnDeath(runtime: Runtime, dead: CombatCard, opponent: CombatCard |
 }
 
 function resolveDeaths(runtime: Runtime) {
+  // Normal top-level death sweeps stay fast; recursive death/entry cascades are guarded.
+  if (!runtime.triggerChain.length) return resolveDeathsCore(runtime)
+  const card = active(runtime, 'Allies') || active(runtime, 'Enemies')
+  return card
+    ? withAbilityTriggerLimit(runtime, card, 'Resolve deaths', () => resolveDeathsCore(runtime))
+    : resolveDeathsCore(runtime)
+}
+
+function resolveDeathsCore(runtime: Runtime) {
   let changed = true
   while (changed) {
     changed = false
@@ -3724,7 +3768,7 @@ export function simulateBattleV2(
     statAura: loadout.statAura ? { name: loadout.statAura.auraName, border: loadout.statAura.border || null, value: state.boosts.Allies.statAuraValue } : undefined,
     abilityAura: loadout.abilityAura ? { name: loadout.abilityAura.auraName, border: loadout.abilityAura.border || null, value: state.boosts.Allies.skillAuraValue } : undefined,
   }
-  const runtime: Runtime = { state, rng: new SeededRng(seed), debug, captureDebug, deathEpoch: 0, counterDepth: 0, halloweenNormalizedPlayers: mode.halloweenNormalizedPlayers,
+  const runtime: Runtime = { state, rng: new SeededRng(seed), debug, captureDebug, deathEpoch: 0, counterDepth: 0, triggerChain: [], halloweenNormalizedPlayers: mode.halloweenNormalizedPlayers,
     halloweenMinimumRarity: mode.halloweenMinimumRarity, halloweenFixedAttack: mode.halloweenFixedAttack, orchardSeeds: new Map() }
   resolveConstellarArts(runtime)
   if (captureDebug) {

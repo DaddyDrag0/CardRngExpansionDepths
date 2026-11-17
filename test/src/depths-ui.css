@@ -704,3 +704,6 @@ details.ban-lab[open]>summary::after{content:'−'}
 :where(html, body, .depths-workspace, .depths-workspace *)::-webkit-scrollbar-thumb:hover {
   background: #58818a;
 }
+
+/* Preserve readable, multiline card/ability diagnostics without additional UI boxes. */
+.team-error{white-space:pre-line;overflow-wrap:anywhere;line-height:1.65}

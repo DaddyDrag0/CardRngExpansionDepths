@@ -378,7 +378,7 @@ function decodeTeam(code){
 }
   function resultCard(team,index){
   const r=team.result;
-  if(!r)return team.lastError?`<section class="result-card"><div class="result-head"><div><span class="kicker">TEAM ${index+1}</span><h4>Simulation failed</h4></div></div><div class="team-error">${esc(team.lastError)}</div></section>`:'';
+  if(!r)return team.lastError?`<section class="result-card"><div class="result-head"><div><span class="kicker">TEAM ${index+1}</span><h4>Simulation stopped · diagnostics</h4></div></div><div class="team-error">${esc(team.lastError)}</div></section>`:'';
   const avgTurns=r.runs.length?r.runs.reduce((s,x)=>s+x.totalTurns,0)/r.runs.length:0;
   const hard=Boolean(r.hardMode??state.hardMode),stride=Number(r.floorStride)||1,sampled=Boolean(r.sampled);
   const drops=hard?null:r.potionRewards;

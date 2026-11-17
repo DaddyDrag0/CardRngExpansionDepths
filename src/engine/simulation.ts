@@ -1,4 +1,5 @@
-import type { BattleDebug, TeamLoadout } from '../types'
+import type { BattleDebug, DepthsEnemy, TeamLoadout } from '../types'
+import cards from '../data/cards'
 import { generateDepthsTeam } from './depths'
 import { SeededRng } from './rng'
 import { simulateBattleV2 } from './battle-v2'
@@ -96,6 +97,27 @@ function mixSeed(runSeed: number, floor: number): number {
   return (x ^ (x >>> 16)) >>> 0
 }
 
+/** Include the exact reproducible matchup on a failed battle, even for unexpected JS errors. */
+function depthBattleError(error: unknown, floor: number, runSeed: number, floorSeed: number, loadout: TeamLoadout, enemies: DepthsEnemy[]): Error {
+  const message = error instanceof Error ? error.message : String(error)
+  const battleSeed = floorSeed ^ 0x51ed270b
+  const playerCards = loadout.cards.map((slot, index) => {
+    const name = slot.cardName || '(empty)'
+    const card = cards.find((candidate) => candidate.name === name)
+    return `${index + 1}. ${name} [${card?.ability || 'No ability'}]`
+  }).join(' | ')
+  const enemyCards = enemies.map((enemy, index) =>
+    `${index + 1}. ${enemy.card.name} [${enemy.card.ability || 'No ability'}]`,
+  ).join(' | ')
+  return new Error(
+    `${message}\n` +
+    `Floor: ${floor.toLocaleString('en-US')} | Run seed: ${runSeed} | Floor seed: ${floorSeed} | Battle seed: ${battleSeed}\n` +
+    `Player cards / abilities: ${playerCards}\n` +
+    `Enemy cards / abilities: ${enemyCards}\n` +
+    'Card/ability involvement is diagnostic context, not proof every listed card caused the failure.',
+  )
+}
+
 /** Every Depth floor starts a new full battle with a fresh copy of the selected team. */
 export function simulateDepthsRun(
   loadout: TeamLoadout,
@@ -126,10 +148,15 @@ export function simulateDepthsRun(
     onProgress?.(floor, undefined, enemyNames)
     const hasTurnCap = Number.isFinite(options.battleTurnCap)
     const maxTurns = hasTurnCap ? Math.max(1, Math.floor(options.battleTurnCap as number)) : Number.POSITIVE_INFINITY
-    const battle = simulateBattleV2(
-      loadout, enemies, floorSeed ^ 0x51ed270b, maxTurns, hasTurnCap, false,
-      (battleTurn) => onProgress?.(floor, battleTurn, enemyNames),
-    )
+    let battle: ReturnType<typeof simulateBattleV2>
+    try {
+      battle = simulateBattleV2(
+        loadout, enemies, floorSeed ^ 0x51ed270b, maxTurns, hasTurnCap, false,
+        (battleTurn) => onProgress?.(floor, battleTurn, enemyNames),
+      )
+    } catch (error) {
+      throw depthBattleError(error, floor, runSeed, floorSeed, loadout, enemies)
+    }
     battles += 1
     totalTurns += battle.turns
     if (options.timing) {
@@ -154,10 +181,17 @@ export function simulateDepthsRun(
     if (battle.winner !== 'Allies') {
       // Re-run only the losing battle with tracing enabled. This keeps thousands of
       // winning floors fast while still making the exact loss fully inspectable.
-      const debugBattle = options.lazyDebug ? null : simulateBattleV2(
-        loadout, enemies, floorSeed ^ 0x51ed270b, maxTurns, hasTurnCap, true,
-        (battleTurn) => onProgress?.(floor, battleTurn, enemyNames),
-      )
+      let debugBattle: ReturnType<typeof simulateBattleV2> | null = null
+      if (!options.lazyDebug) {
+        try {
+          debugBattle = simulateBattleV2(
+            loadout, enemies, floorSeed ^ 0x51ed270b, maxTurns, hasTurnCap, true,
+            (battleTurn) => onProgress?.(floor, battleTurn, enemyNames),
+          )
+        } catch (error) {
+          throw depthBattleError(error, floor, runSeed, floorSeed, loadout, enemies)
+        }
+      }
       onProgress?.(floor, undefined, enemyNames)
       return {
         deathFloor: floor,

@@ -481,9 +481,15 @@ function __v26AdjustDamage(a,e,t,o,special){
   return 0;
  }
  if(__v26Active(a,t,"Unbreakable Balance")){
-  const cap=t.maxHp*.2,prevented=Math.max(0,o-cap);
-  if(prevented>0)e.hp=Math.max(0,e.hp-Math.min(prevented*.5,t.damage*2));
-  o=Math.min(o,cap);
+  // DummyLab key frames: each capped hit removes 20% max HP, while the
+  // counter tracks half of the defender's HP remaining AFTER that hit.
+  // At 2080 max HP: 832, 624, 416, 208 as HP falls 80/60/40/20%.
+  const cap=t.maxHp*.2,prevented=Math.max(0,o-cap),taken=Math.min(o,cap);
+  if(prevented>0){
+   const remaining=Math.max(0,t.hp-taken);
+   e.hp=Math.max(0,e.hp-Math.min(prevented*.5,t.damage*2,remaining*.5));
+  }
+  o=taken;
  }
  if((t.counters.v26Protection||0)>0)o*=.7;
  return o;

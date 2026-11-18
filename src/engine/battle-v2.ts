@@ -2015,10 +2015,10 @@ function tryRevive(runtime: Runtime, attacker: CombatCard, target: CombatCard): 
     pushAbilityDebug(runtime, target, `Frozen Ashes revived at full HP and froze ${effectiveCardName(attacker) || attacker.definition.name}.`)
     return true
   }
-  if (name === "Unpaid 'Interns'" && (target.counters.interns || 0) < 2) {
+  if (name === "Unpaid 'Interns'" && (target.counters.interns || 0) < 3) {
     target.counters.interns = (target.counters.interns || 0) + 1
     target.hp = target.maxHp
-    pushAbilityDebug(runtime, target, `Unpaid Interns activated — extra life ${target.counters.interns}/2 used; returned at full HP.`)
+    pushAbilityDebug(runtime, target, `Unpaid Interns activated — extra life ${target.counters.interns}/3 used; returned at full HP.`)
     return true
   }
   if (name === 'Flames of Rebirth' && !target.flags.revived) {

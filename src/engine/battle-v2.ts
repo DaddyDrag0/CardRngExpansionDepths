@@ -3518,7 +3518,9 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
     } else {
       pushAbilityDebug(runtime, attacker, 'Chaos Destruction triggered. There was no other enemy card to swap in, and the next attack deals 3× damage.')
     }
-    attacker.flags.chaosTriple = true
+    // DummyLab 2026-11-19: against a lone enemy card nothing is swapped and no hit is tripled
+    // (0 of 6 Heavenly Demon hits on a lone Wendigo / The Composer were tripled on video).
+    if (deck.length > 1) attacker.flags.chaosTriple = true
   }
 
   if (canNormalAttack(runtime, attacker)) {

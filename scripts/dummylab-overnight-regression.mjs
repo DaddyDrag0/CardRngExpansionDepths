@@ -59,6 +59,8 @@ const WINNERS = [
   // Healing Miracle: the active Doctor heals to full at the start of its 3rd own turn (b6/001 bar 17% -> 100%)
   ['ovn-b2/017-019 + b6/001-003 Healing Miracle own turns', ['Divine Doctor'], ['Yamato no Orochi'], 'player'],
   ['ovn-b6/004-005 Healing Miracle from the backline then active', ['Titan', 'Divine Doctor'], ['Yamato no Orochi'], 'player'],
+  // Chaos Destruction against a lone enemy swaps nothing and triples nothing (Demon hit Wendigo for 31% twice)
+  ['ovn-b5b/035-036 Chaos Destruction needs a swap', ['Heavenly Demon'], ['Wendigo'], 'dummy'],
 ]
 
 const engine = load('browser/depths-worker.js')
@@ -99,5 +101,12 @@ for (const file of ['browser/depths-worker.js', 'browser/tower-worker.js']) {
 for (const file of ['browser/depths-worker.js', 'browser/tower-worker.js']) {
   const s = readFileSync(file, 'utf8')
   assert.ok(s.includes('__dlMiracle(') && s.includes('healingMiracleOwn'), file + ' Healing Miracle own-turn heal')
+  assert.ok(s.includes('r.length>1&&(e.flags.chaosTriple=!0)'), file + ' Chaos Destruction needs a swap for 3x')
+}
+// Chaos Destruction: no hit on a lone enemy is ever tripled.
+for (let seed = 1; seed <= 20; seed++) {
+  const r = fight(engine, ['Heavenly Demon'], ['Wendigo'], seed)
+  const big = r.debug.events.find(e => e.type === 'attack' && e.card === 'Heavenly Demon' && e.damageDealt > 1000)
+  assert.ok(!big, `seed ${seed}: Heavenly Demon tripled a hit on a lone Wendigo (${big?.damageDealt})`)
 }
 console.log(`dummylab-overnight-regression: ${WINNERS.length} winners x ${SEEDS.length} seeds plus Rewrite, Hack, Frigid Touch, Healing Miracle checks ok`)

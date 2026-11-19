@@ -129,6 +129,8 @@ interface Runtime {
   captureDebug: boolean
   deathEpoch: number
   counterDepth: number
+  /** Turn on which The Fall killed the attacker (decides a same-turn double knockout for the defender). */
+  fallKillTurn?: number
   /** Nested triggers only; resets naturally as each combat effect returns. */
   triggerChain: string[]
   halloweenNormalizedPlayers?: boolean
@@ -2074,6 +2076,7 @@ function targetRetroCore(runtime: Runtime, attacker: CombatCard, target: CombatC
     case 'The Fall': {
       const reflected = attacker.definition.name === 'Marrowclaw' ? Math.min(Math.max(0, attacker.hp - 1), damage) : Math.min(attacker.hp, damage)
       attacker.hp -= reflected
+      if (attacker.hp <= 0) runtime.fallKillTurn = runtime.state.turn
       break
     }
     case 'Self-Destruct':
@@ -3278,6 +3281,7 @@ function attackCount(runtime: Runtime, attacker: CombatCard): { count: number; m
 }
 
 function canNormalAttack(runtime: Runtime, attacker: CombatCard): boolean {
+  if (attacker.definition.noAttack === true) return false
   if (hasAbility(runtime, attacker, 'Ruler of Humans')) return false
   if (hasAbility(runtime, attacker, 'Stone Vigil') && attacker.flags.stoneForm) return false
   if (hasAbility(runtime, attacker, 'Dagger Storm') || hasAbility(runtime, attacker, 'Naughty or Nice?')
@@ -3727,8 +3731,9 @@ function scheduleExtraTurns(runtime: Runtime, attacker: CombatCard): boolean {
       else { count += 2; attacker.flags.worldCooldown = true }
     }
     if (hasAbility(runtime, attacker, 'Accelerate')) {
+      // Accelerate: start with 2 turns, then gain 1 each cycle (one extra turn per cycle, not the running total).
       attacker.counters.turnsPerTurn = (attacker.counters.turnsPerTurn || 0) + 1
-      count += attacker.counters.turnsPerTurn
+      count += 1
     }
     if (count > 0) {
       attacker.counters.extraTurns = count
@@ -3776,6 +3781,7 @@ export function simulateBattleV2(
     debug.initialEnemies = state.teams.Enemies.map(debugCard)
   }
   let turnsWithoutDeaths = 0
+  let stallResolved = false
   let lastDeathEpoch = runtime.deathEpoch
   let turnLimitReached = false
   while (state.teams.Allies.length && state.teams.Enemies.length && state.turn < maxTurns) {
@@ -3803,6 +3809,7 @@ export function simulateBattleV2(
     turnsWithoutDeaths += 1
     if (turnsWithoutDeaths >= 150) {
       debug.forcedStallResolutions += 1
+      stallResolved = true
       if (runtime.captureDebug) pushDebugEvent(runtime, {
         turn: state.turn,
         type: 'stall',
@@ -3881,9 +3888,14 @@ export function simulateBattleV2(
     state.unsupportedAbilities.add('Battle turn cap reached')
   }
 
+  // Both sides wiped in the same turn: the game gives the win to the side whose turn it was (its card struck last),
+  // except when The Fall killed that attacker, which hands it to the defender. A 150-turn stall stays a Draw.
+  const doubleKnockoutWinner: BattleResult['winner'] = stallResolved
+    ? 'Draw'
+    : runtime.fallKillTurn === state.turn ? OTHER_TEAM[state.moving] : state.moving
   const winner: BattleResult['winner'] = state.teams.Allies.length
     ? state.teams.Enemies.length ? 'Draw' : 'Allies'
-    : state.teams.Enemies.length ? 'Enemies' : 'Draw'
+    : state.teams.Enemies.length ? 'Enemies' : doubleKnockoutWinner
   const unsupportedAbilities = [...state.unsupportedAbilities].sort()
   if (captureDebug) {
     debug.finalAllies = state.teams.Allies.map(debugCard)

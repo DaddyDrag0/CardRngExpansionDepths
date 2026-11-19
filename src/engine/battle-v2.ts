@@ -3906,10 +3906,9 @@ export function simulateBattleV2(
   }
 
   // Both sides wiped in the same turn: the game gives the win to the side whose turn it was (its card struck last),
-  // except when The Fall killed that attacker, which hands it to the defender. A 150-turn stall stays a Draw.
-  const doubleKnockoutWinner: BattleResult['winner'] = stallResolved
-    ? 'Draw'
-    : runtime.fallKillTurn === state.turn ? OTHER_TEAM[state.moving] : state.moving
+  // also when The Fall's recoil killed that attacker (Titan stays on the board in all 7 Titan vs Lucifer videos).
+  // A 150-turn stall stays a Draw.
+  const doubleKnockoutWinner: BattleResult['winner'] = stallResolved ? 'Draw' : state.moving
   const winner: BattleResult['winner'] = state.teams.Allies.length
     ? state.teams.Enemies.length ? 'Draw' : 'Allies'
     : state.teams.Enemies.length ? 'Enemies' : doubleKnockoutWinner

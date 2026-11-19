@@ -2058,7 +2058,9 @@ function targetRetroCore(runtime: Runtime, attacker: CombatCard, target: CombatC
     case 'Ruler of Humans':
       for (const ally of runtime.state.teams[target.team]) if (alive(ally)) ally.damage += damage * 1.25
       break
-    case 'Restoration': if (target.hp > 0) target.hp += damage * 0.7; break
+    // DummyLab b9/b10: an Unforgiving hit that empties Shu's bar still lets Restoration heal; Unforgiving then
+    // caps HP at the shrunken max, leaving Shu alive at 1/1 (bar drops to 0 and refills to full in all 6 recordings).
+    case 'Restoration': if (target.hp > 0 || hasAbility(runtime, attacker, 'Unforgiving')) target.hp += damage * 0.7; break
     case 'Rage': if (target.hp > 0) target.damage *= 1.25; break
     case 'Undead': if (target.hp > 0) target.hp = Math.min(target.maxHp, target.hp + target.maxHp * 0.25); break
     case 'Passion':

@@ -41,6 +41,9 @@ const WINNERS = [
   ['ovn-b5b/053-054 + b2/153 Viral Breath costs the Maw', ['Infected Maw'], ['Titan'], 'dummy'],
   ['b3/043 kept', ['Titan'], ['Infected Maw'], 'player'],
   ['b3/088 kept', ['Ultimate Brawler'], ['The Curse'], 'player'],
+  ['ovn-b9/055-056 + b10/001-004 Restoration outlasts Unforgiving', ['Revenant'], ['Shu'], 'dummy'],
+  ['b3/071 kept: Unforgiving still kills Titan', ['Revenant'], ['Titan'], 'player'],
+  ['ovn-b5/041-042 kept: Restoration does not save Shu from a normal lethal hit', ['Hollow'], ['Shu'], 'player'],
 ]
 
 const engine = load('browser/depths-worker.js')
@@ -81,5 +84,6 @@ for (const file of ['browser/depths-worker.js', 'browser/tower-worker.js']) {
   assert.ok(/f\(a,e,"Kitchen"\)&&\(i=Math\.max\(i,2\+Math\.floor\(\w\(a,e\.team\)\*4\)\)\)/.test(s), file + ' Kitchen slashes every turn')
   assert.ok(/f\(a,e,"Viral Breath"\)&&\w\(a,e,"Viral Breath",\(\)=>\{e\.hp-=e\.maxHp\*\.25\}\)/.test(s), file + ' Viral Breath costs its holder')
   assert.ok(s.includes('e.counters.ouroborosTurns=4,e.flags.ouroborosActive=!0'), file + ' Ouroboros 4 attacks')
+  assert.ok(s.includes('case"Restoration":(s.hp>0||f(a,e,"Unforgiving"))&&(s.hp+=i*.7);'), file + ' Restoration heals through a lethal Unforgiving hit')
 }
 console.log(`dummylab-mismatch-regression: ${WINNERS.length} winners x ${SEEDS.length} seeds plus Kitchen, Viral Breath checks ok`)

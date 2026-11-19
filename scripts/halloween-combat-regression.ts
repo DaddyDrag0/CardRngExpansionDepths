@@ -38,15 +38,20 @@ const equalish = (actual: number, expected: number, label: string) => {
 }
 
 // First Stone Vigil turn cannot attack; on the next turn it awakens and
-// hits for double damage. Stone form lasts through the opponent's attack.
+// hits for double damage. DummyLab recordings (2026-11-19) show the 80%
+// reduction is up from entry until the first own turn and after every even
+// own turn: the hit after the skipped turn is full, the hit after the 2x
+// attack is reduced.
 {
   const stone = find('Living Gargoyle')
-  const stopped = simulateBattleV2(deck(stone.name), enemy(10000), 3, 1)
+  const stopped = simulateBattleV2(deck(stone.name), enemy(1000), 3, 1)
   equalish(stopped.state.teams.Enemies[0].hp, 1e12, 'Stone skipped first attack')
-  const defending = simulateBattleV2(deck(stone.name), enemy(10000), 3, 2)
-  equalish(getHealth(stone) - defending.state.teams.Allies[0].hp, 2000, 'Stone first-turn mitigation')
-  const awakened = simulateBattleV2(deck(stone.name), enemy(10000), 3, 3)
+  const defending = simulateBattleV2(deck(stone.name), enemy(1000), 3, 2)
+  equalish(getHealth(stone) - defending.state.teams.Allies[0].hp, 1000, 'Stone full damage after the skipped turn')
+  const awakened = simulateBattleV2(deck(stone.name), enemy(1000), 3, 3)
   equalish(1e12 - awakened.state.teams.Enemies[0].hp, getAttack(stone) * 2, 'Stone awakening')
+  const guarded = simulateBattleV2(deck(stone.name), enemy(1000), 3, 4)
+  equalish(getHealth(stone) - guarded.state.teams.Allies[0].hp, 1200, 'Stone mitigation after the 2x attack')
 }
 
 // Freddy gives fatigue on attacks; the third successful hit deals double

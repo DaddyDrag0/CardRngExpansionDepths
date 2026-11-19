@@ -1772,7 +1772,8 @@ function defensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
 
   switch (name) {
     case 'Divine Arrogance': if (target.hp < attacker.hp) damage *= 0.55; break
-    case 'Stone Vigil': if (target.flags.stoneForm) damage *= 0.2; break
+    // DummyLab 2026-11-19: the 80% reduction is up from entry until the first own turn and after every even own turn
+    case 'Stone Vigil': if (((target.counters.stoneTurns ?? 0) % 2) === 0) damage *= 0.2; break
     case 'Haunted Heirloom': if ((target.counters.hauntedGuardTurns || 0) > 0) damage *= 0.25; break
     case 'The D8': damage *= 1 - (target.counters.d8Reduction || 0); break
     case 'Fortify': {
@@ -2093,7 +2094,7 @@ function targetRetroCore(runtime: Runtime, attacker: CombatCard, target: CombatC
       break
     case 'Guilt': if (target.hp <= 0) attacker.flags.hanged = true; break
     case 'Into The Sun': if (target.hp / target.maxHp < 0.33) { target.hp = 0; attacker.hp = 0 }; break
-    case 'Frigid Touch': if (damage > 0 && rand(runtime, attacker.team) >= 0.5) target.status.stunned = Math.max(1, target.status.stunned); break
+    // Frigid Touch is an attacker ability (attackerAfterHit), not a when-hit effect
     case 'Blinding Flash': if (rand(runtime, attacker.team) > 0.7) attacker.flags.extraTurn = true; break
     case 'Grape Juice': {
       const reflected = attacker.definition.name === 'Marrowclaw' ? Math.min(Math.max(0, attacker.hp - 1), target.damage / 2) : Math.min(attacker.hp, target.damage / 2)
@@ -2608,6 +2609,7 @@ function dealDamageCore(runtime: Runtime, attacker: CombatCard, originalTarget: 
     target.counters.damageTaken = Math.min(target.maxHp, (target.counters.damageTaken || 0) + damage)
   }
 
+  if (hasAbility(runtime, attacker, 'Frigid Touch') && damage > 0 && target !== attacker && rand(runtime, attacker.team) >= 0.5) runAbilityTrace(runtime, attacker, 'Frigid Touch', () => { target.status.stunned = Math.max(1, target.status.stunned) })
   if (hasAbility(runtime, attacker, 'Disarm') && damage > 0) runAbilityTrace(runtime, attacker, 'Disarm', () => { target.damage = Math.max(0, target.damage - damage * 0.4) })
   if (hasAbility(runtime, attacker, 'Shiny Steal') && damage > 0 && target !== attacker) {
     runAbilityTrace(runtime, attacker, 'Shiny Steal', () => {
@@ -3420,6 +3422,19 @@ function processTeamTurnAbilities(runtime: Runtime, movedTeam: BattleTeam, moved
   }
 }
 
+/** DummyLab 2026-11-19: the active Divine Doctor heals to full at the start of every 3rd own turn
+ *  (b2/b6 Doctor vs Orochi: bar 17% -> 100% at its 3rd turn; 8 of 8 recorded winners). */
+function healingMiracleOwnTurn(runtime: Runtime, card: CombatCard) {
+  if (!card || !hasAbility(runtime, card, 'Healing Miracle') || !alive(card)) return
+  card.counters.healingMiracleOwn = (card.counters.healingMiracleOwn || 0) + 1
+  if (card.counters.healingMiracleOwn >= 3) {
+    card.counters.healingMiracleOwn = 0
+    runAbilityTrace(runtime, card, 'Healing Miracle', () => {
+      card.hp = Math.min(card.maxHp, card.hp + card.maxHp)
+    })
+  }
+}
+
 function doDaggerStorm(runtime: Runtime, attacker: CombatCard) {
   const enemyTeam = OTHER_TEAM[attacker.team]
   for (const mult of [0.5, 1, 2]) {
@@ -3460,8 +3475,9 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
   if ((attacker.counters.cyberHackPending || 0) > 0) {
     attacker.counters.cyberHackPending = 0
     const allies = runtime.state.teams[attacker.team].filter((card) => card !== attacker && alive(card))
-    if (allies.length) {
-      const victim = allies[Math.floor(rand(runtime, attacker.team) * allies.length)]
+    // DummyLab 2026-11-19: with no living ally the hacked card hits itself
+    {
+      const victim = allies.length ? allies[Math.floor(rand(runtime, attacker.team) * allies.length)] : attacker
       runAbilityTrace(runtime, attacker, 'Hack', () => {
         pushAbilityDebug(runtime, attacker, 'Hack forced a friendly-fire attack on ' + (effectiveCardName(victim) || victim.definition.name) + '.')
         dealDamage(runtime, attacker, victim)
@@ -3502,7 +3518,9 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
     } else {
       pushAbilityDebug(runtime, attacker, 'Chaos Destruction triggered. There was no other enemy card to swap in, and the next attack deals 3× damage.')
     }
-    attacker.flags.chaosTriple = true
+    // DummyLab 2026-11-19: against a lone enemy card nothing is swapped and no hit is tripled
+    // (0 of 6 Heavenly Demon hits on a lone Wendigo / The Composer were tripled on video).
+    if (deck.length > 1) attacker.flags.chaosTriple = true
   }
 
   if (canNormalAttack(runtime, attacker)) {
@@ -3832,6 +3850,7 @@ export function simulateBattleV2(
       hp: attacker.hp, maxHp: attacker.maxHp, damage: attacker.damage,
     })
 
+    healingMiracleOwnTurn(runtime, attacker)
     doTurn(runtime, attacker)
     processDivination(runtime)
     growHiddenInDepths(runtime, state.moving)
@@ -3889,10 +3908,9 @@ export function simulateBattleV2(
   }
 
   // Both sides wiped in the same turn: the game gives the win to the side whose turn it was (its card struck last),
-  // except when The Fall killed that attacker, which hands it to the defender. A 150-turn stall stays a Draw.
-  const doubleKnockoutWinner: BattleResult['winner'] = stallResolved
-    ? 'Draw'
-    : runtime.fallKillTurn === state.turn ? OTHER_TEAM[state.moving] : state.moving
+  // also when The Fall's recoil killed that attacker (Titan stays on the board in all 7 Titan vs Lucifer videos).
+  // A 150-turn stall stays a Draw.
+  const doubleKnockoutWinner: BattleResult['winner'] = stallResolved ? 'Draw' : state.moving
   const winner: BattleResult['winner'] = state.teams.Allies.length
     ? state.teams.Enemies.length ? 'Draw' : 'Allies'
     : state.teams.Enemies.length ? 'Enemies' : doubleKnockoutWinner

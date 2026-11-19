@@ -12,8 +12,8 @@ import { performance } from 'node:perf_hooks'
  *   P2 newer abilities obey Jealousy / Honor suppression (no End Times roll)
  *   P3 Perfect Reflection returns Eternal Slumber / Eternal Stillness turn skips
  *   P6 Accelerate adds one turn per cycle
- *   P4 both sides knocked out on the same turn: the side taking its turn wins, unless The Fall killed that attacker
- *      (then the defender wins); a 150-turn stall resolution stays a Draw
+ *   P4 both sides knocked out on the same turn: the side taking its turn wins, also when The Fall's recoil killed
+ *      that attacker; a 150-turn stall resolution stays a Draw
  */
 const GEM = 1.05
 const SEEDS = [1, 2, 3] // the seeds the DummyLab verifier compares with
@@ -59,7 +59,9 @@ const CASES = [
   ['b3/056_def0168 fixed', ['Velociraptor'], ['Meteosaurus'], 'dummy'],
   ['b3/114_atk0013 fixed', ['Ankylosaurus'], ['Gorilla'], 'dummy'],
   ['b2/132_atk0066 fixed', ['Demon Hunter'], ['Trainee'], 'dummy'],
-  ['b1/053_def0157 fixed', ['Titan'], ['Lucifer'], 'dummy'],
+  // Revised 2026-11-19: Titan stays on the board in all 7 Titan vs Lucifer videos (b1/053, b3/043-044, b6/010-013);
+  // the earlier 'dummy' label for b1/053 was a verifier misread of the double knockout.
+  ['b1/053_def0157 revised', ['Titan'], ['Lucifer'], 'player'],
 ]
 const KEPT = JSON.parse(readFileSync(new URL('./dummylab-v5-kept-fights.json', import.meta.url), 'utf8'))
 

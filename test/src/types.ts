@@ -19,6 +19,8 @@ export interface CardDefinition {
   boss: boolean
   unobtainable: boolean
   expires: boolean
+  /** Cards that never make a normal attack (The Sandman, Buddha). */
+  noAttack?: boolean
 }
 
 export interface AuraDefinition {

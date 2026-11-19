@@ -3422,6 +3422,19 @@ function processTeamTurnAbilities(runtime: Runtime, movedTeam: BattleTeam, moved
   }
 }
 
+/** DummyLab 2026-11-19: the active Divine Doctor heals to full at the start of every 3rd own turn
+ *  (b2/b6 Doctor vs Orochi: bar 17% -> 100% at its 3rd turn; 8 of 8 recorded winners). */
+function healingMiracleOwnTurn(runtime: Runtime, card: CombatCard) {
+  if (!card || !hasAbility(runtime, card, 'Healing Miracle') || !alive(card)) return
+  card.counters.healingMiracleOwn = (card.counters.healingMiracleOwn || 0) + 1
+  if (card.counters.healingMiracleOwn >= 3) {
+    card.counters.healingMiracleOwn = 0
+    runAbilityTrace(runtime, card, 'Healing Miracle', () => {
+      card.hp = Math.min(card.maxHp, card.hp + card.maxHp)
+    })
+  }
+}
+
 function doDaggerStorm(runtime: Runtime, attacker: CombatCard) {
   const enemyTeam = OTHER_TEAM[attacker.team]
   for (const mult of [0.5, 1, 2]) {
@@ -3835,6 +3848,7 @@ export function simulateBattleV2(
       hp: attacker.hp, maxHp: attacker.maxHp, damage: attacker.damage,
     })
 
+    healingMiracleOwnTurn(runtime, attacker)
     doTurn(runtime, attacker)
     processDivination(runtime)
     growHiddenInDepths(runtime, state.moving)

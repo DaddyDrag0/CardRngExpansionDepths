@@ -56,6 +56,9 @@ const WINNERS = [
   ['ovn-b2/048-051 kept', ['George Washington'], ['Assassin King'], 'player'],
   ['ovn-b2/052-053 kept', ['Assassin King'], ["Heaven's Armor"], 'dummy'],
   ['ovn-b2/061-062 kept', [MB], [LK], 'player'],
+  // Healing Miracle: the active Doctor heals to full at the start of its 3rd own turn (b6/001 bar 17% -> 100%)
+  ['ovn-b2/017-019 + b6/001-003 Healing Miracle own turns', ['Divine Doctor'], ['Yamato no Orochi'], 'player'],
+  ['ovn-b6/004-005 Healing Miracle from the backline then active', ['Titan', 'Divine Doctor'], ['Yamato no Orochi'], 'player'],
 ]
 
 const engine = load('browser/depths-worker.js')
@@ -93,4 +96,8 @@ for (const file of ['browser/depths-worker.js', 'browser/tower-worker.js']) {
   assert.ok(s.includes('a.state.v26LastAllied'), file + ' Lucid Dream ally memory')
   assert.ok(s.includes('case"Frigid Touch":break;'), file + ' Frigid Touch removed from the when-hit switch')
 }
-console.log(`dummylab-overnight-regression: ${WINNERS.length} winners x ${SEEDS.length} seeds plus Rewrite, Hack, Frigid Touch checks ok`)
+for (const file of ['browser/depths-worker.js', 'browser/tower-worker.js']) {
+  const s = readFileSync(file, 'utf8')
+  assert.ok(s.includes('__dlMiracle(') && s.includes('healingMiracleOwn'), file + ' Healing Miracle own-turn heal')
+}
+console.log(`dummylab-overnight-regression: ${WINNERS.length} winners x ${SEEDS.length} seeds plus Rewrite, Hack, Frigid Touch, Healing Miracle checks ok`)

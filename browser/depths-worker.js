@@ -432,7 +432,7 @@ function __v26PreHit(a,e,t){
  let mult=1,extra=0;
  if(e&&t)mult*=__cyberPreHit(a,e,t);
  if(!e||!t)return {mult,extra};
- const ability=W(e);
+ const __jt=S(a,F[e.team]);let ability=W(e);if(ability==="Jealousy"&&!e.flags.sealed&&__jt&&!__jt.dead)ability=W(__jt);else if(__jt&&!__jt.dead&&!__jt.flags.sealed&&W(__jt)==="Jealousy"&&x(e)!=="Amenhotep")ability="";
  if(ee(e).includes("Dagger")&&a.rng.next()<.1){mult*=2;b(a,e,"Dagger critical hit (2x damage).")}
  if(e.counters.v26Charmed){
   e.counters.v26Charmed=0;

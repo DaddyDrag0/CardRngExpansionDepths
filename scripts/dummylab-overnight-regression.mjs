@@ -11,6 +11,8 @@ import { performance } from 'node:perf_hooks'
  *   Hack               - a hacked card with no living ally hits itself (Priest lost 39% = its own ATK).
  *   Lucid Dream        - the bonus is the last hit another ally dealt to that enemy (remembered across turns), and
  *                        Perfect Reflection negates and reflects it (Mirrorborn took 35%, Lucid #2 died to one hit).
+ *   Jealousy           - attack-time abilities (Crushing Depths) move to Sable too (her first hit took 72% =
+ *                        47% ATK + 25% of Tidal Executioner's max HP).
  *   Frigid Touch       - freezes the card it hits; it never freezes its own holder when the holder is hit.
  */
 const GEM = 1.05
@@ -40,6 +42,8 @@ const WINNERS = [
   ['ovn-b2/004-006 + b2/255', [RW], [FC], 'player'],
   ['ovn-b2/041-043 + b2/130', ['D'], ['Priest'], 'player'],
   ['ovn-b2/058-060 + b3/234', [MB], [LK, LK], 'player'],
+  ['ovn-b3/015-016 Jealousy takes Crushing Depths', ['Sable The Envious'], ['Tidal Executioner'], 'player'],
+  ['ovn-b3/017-018 kept', ['Tidal Executioner'], ['Sable The Envious'], 'player'],
   // kept: recorded twice or more with the same winner, already matching
   ['ovn-b2/007-008 kept', [FC], [LK], 'player'],
   ['ovn-b2/009-010 kept', [LK], [FC], 'dummy'],

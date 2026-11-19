@@ -134,7 +134,7 @@ function __v26BeforeTurn(a,e){
 function __v26PreHit(a,e,t){
  let mult=1,extra=0;
  if(!e||!t)return {mult,extra};
- const ability=Y(e);
+ const __jt=C(a,V[e.team]);let ability=Y(e);if(ability==="Jealousy"&&!e.flags.sealed&&__jt&&!__jt.dead)ability=Y(__jt);else if(__jt&&!__jt.dead&&!__jt.flags.sealed&&Y(__jt)==="Jealousy"&&S(e)!=="Amenhotep")ability="";
  if(e.counters.v26Charmed){
   e.counters.v26Charmed=0;
   const list=a.state.teams[e.team].filter(c=>c!==e&&c.hp>0);

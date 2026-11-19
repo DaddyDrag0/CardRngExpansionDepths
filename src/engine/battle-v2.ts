@@ -2094,7 +2094,7 @@ function targetRetroCore(runtime: Runtime, attacker: CombatCard, target: CombatC
       break
     case 'Guilt': if (target.hp <= 0) attacker.flags.hanged = true; break
     case 'Into The Sun': if (target.hp / target.maxHp < 0.33) { target.hp = 0; attacker.hp = 0 }; break
-    case 'Frigid Touch': if (damage > 0 && rand(runtime, attacker.team) >= 0.5) target.status.stunned = Math.max(1, target.status.stunned); break
+    // Frigid Touch is an attacker ability (attackerAfterHit), not a when-hit effect
     case 'Blinding Flash': if (rand(runtime, attacker.team) > 0.7) attacker.flags.extraTurn = true; break
     case 'Grape Juice': {
       const reflected = attacker.definition.name === 'Marrowclaw' ? Math.min(Math.max(0, attacker.hp - 1), target.damage / 2) : Math.min(attacker.hp, target.damage / 2)
@@ -2609,6 +2609,7 @@ function dealDamageCore(runtime: Runtime, attacker: CombatCard, originalTarget: 
     target.counters.damageTaken = Math.min(target.maxHp, (target.counters.damageTaken || 0) + damage)
   }
 
+  if (hasAbility(runtime, attacker, 'Frigid Touch') && damage > 0 && target !== attacker && rand(runtime, attacker.team) >= 0.5) runAbilityTrace(runtime, attacker, 'Frigid Touch', () => { target.status.stunned = Math.max(1, target.status.stunned) })
   if (hasAbility(runtime, attacker, 'Disarm') && damage > 0) runAbilityTrace(runtime, attacker, 'Disarm', () => { target.damage = Math.max(0, target.damage - damage * 0.4) })
   if (hasAbility(runtime, attacker, 'Shiny Steal') && damage > 0 && target !== attacker) {
     runAbilityTrace(runtime, attacker, 'Shiny Steal', () => {
@@ -3461,8 +3462,9 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
   if ((attacker.counters.cyberHackPending || 0) > 0) {
     attacker.counters.cyberHackPending = 0
     const allies = runtime.state.teams[attacker.team].filter((card) => card !== attacker && alive(card))
-    if (allies.length) {
-      const victim = allies[Math.floor(rand(runtime, attacker.team) * allies.length)]
+    // DummyLab 2026-11-19: with no living ally the hacked card hits itself
+    {
+      const victim = allies.length ? allies[Math.floor(rand(runtime, attacker.team) * allies.length)] : attacker
       runAbilityTrace(runtime, attacker, 'Hack', () => {
         pushAbilityDebug(runtime, attacker, 'Hack forced a friendly-fire attack on ' + (effectiveCardName(victim) || victim.definition.name) + '.')
         dealDamage(runtime, attacker, victim)

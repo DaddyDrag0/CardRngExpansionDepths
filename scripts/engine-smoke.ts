@@ -90,8 +90,8 @@ const timeoutBattle = simulateBattleV2(
   true,
 )
 assert(!timeoutBattle.unsupportedAbilities.includes('Battle turn cap reached'), 'Stable active-pair timeout failed before emergency cap')
-assert(timeoutBattle.turns >= 145 && timeoutBattle.turns <= 155, `Expansion timeout should resolve at about 150 no-progress turns, got ${timeoutBattle.turns}`)
-console.log('Expansion 150-turn no-progress regression passed:', timeoutBattle.turns, 'turns')
+assert(timeoutBattle.turns >= 95 && timeoutBattle.turns <= 105, `Expansion timeout should resolve at about 100 no-progress turns, got ${timeoutBattle.turns}`)
+console.log('Expansion 100-turn no-progress regression passed:', timeoutBattle.turns, 'turns')
 
 // Regression for the floor-388 failure: Serket must not make Zombie Dragon's
 // Unholy Creature lifespan permanent, and Decapitate must not chain fake kills

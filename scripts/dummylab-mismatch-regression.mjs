@@ -44,6 +44,9 @@ const WINNERS = [
   ['ovn-b9/055-056 + b10/001-004 Restoration outlasts Unforgiving', ['Revenant'], ['Shu'], 'dummy'],
   ['b3/071 kept: Unforgiving still kills Titan', ['Revenant'], ['Titan'], 'player'],
   ['ovn-b5/041-042 kept: Restoration does not save Shu from a normal lethal hit', ['Hollow'], ['Shu'], 'player'],
+  ['b2/014 + b10/018-019 100-turn stall: Buddha (less HP) falls', ['The Sandman'], ['Buddha'], 'player'],
+  ['b12/008-009 100-turn stall: Shu falls at 100% (Sandman at ~36% still has more HP)', ['The Sandman'], ['Shu'], 'player'],
+  ['b3/272 kept: 100 Men (3.2M HP) outlasts Gunslinger at the stall', ['Gunslinger', 'Sphinx', 'Stegosaurus'], ['100 Men', 'Triceratops', 'Gunslinger'], 'dummy'],
 ]
 
 const engine = load('browser/depths-worker.js')
@@ -85,5 +88,6 @@ for (const file of ['browser/depths-worker.js', 'browser/tower-worker.js']) {
   assert.ok(/f\(a,e,"Viral Breath"\)&&\w\(a,e,"Viral Breath",\(\)=>\{e\.hp-=e\.maxHp\*\.25\}\)/.test(s), file + ' Viral Breath costs its holder')
   assert.ok(s.includes('e.counters.ouroborosTurns=4,e.flags.ouroborosActive=!0'), file + ' Ouroboros 4 attacks')
   assert.ok(s.includes('case"Restoration":(s.hp>0||f(a,e,"Unforgiving"))&&(s.hp+=i*.7);'), file + ' Restoration heals through a lethal Unforgiving hit')
+  assert.ok(s.includes('d+=1,d>=100){') && /\((\w)\.hp<(\w)\.hp\?\1:\2\)\.hp=0/.test(s), file + ' 100-turn stall defeats the card with less HP')
 }
 console.log(`dummylab-mismatch-regression: ${WINNERS.length} winners x ${SEEDS.length} seeds plus Kitchen, Viral Breath checks ok`)

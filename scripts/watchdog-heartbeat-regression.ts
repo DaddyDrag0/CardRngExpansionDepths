@@ -16,10 +16,10 @@ const beats: number[] = []
 const battle = simulateBattleV2(loadout, enemies, 424242, 10_000, true, false, (turn) => beats.push(turn))
 
 assert(!battle.unsupportedAbilities.includes('Battle turn cap reached'), 'Heartbeat test hit emergency battle cap')
-assert(battle.turns >= 145 && battle.turns <= 155, 'Expected Expansion 150-turn no-progress resolution, got ' + battle.turns)
-assert(beats.length >= 20, 'Too few watchdog heartbeats: ' + beats.length)
+assert(battle.turns >= 95 && battle.turns <= 105, 'Expected Expansion 100-turn no-progress resolution, got ' + battle.turns)
+assert(beats.length >= 19, 'Too few watchdog heartbeats: ' + beats.length)
 assert(beats[0] === 5, 'First heartbeat should be turn 5, got ' + beats[0])
-assert(beats.some((turn) => turn >= 145), 'Heartbeat did not continue through the long battle')
+assert(beats.some((turn) => turn >= 95), 'Heartbeat did not continue through the long battle')
 for (let index = 1; index < beats.length; index++) {
   assert(beats[index] > beats[index - 1], 'Heartbeat turns did not increase monotonically')
 }

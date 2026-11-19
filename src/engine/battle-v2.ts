@@ -3826,7 +3826,9 @@ export function simulateBattleV2(
       lastDeathEpoch = runtime.deathEpoch
     }
     turnsWithoutDeaths += 1
-    if (turnsWithoutDeaths >= 150) {
+    // DummyLab b10/b12 (Sandman vs Buddha/Shu, 4 fights) + b3/272: after 100 turns without a death the active card with
+    // less HP is defeated (Sandman at 36% but far more HP beat Shu at 100%; 100 Men at 3.2M HP beat Gunslinger).
+    if (turnsWithoutDeaths >= 100) {
       debug.forcedStallResolutions += 1
       stallResolved = true
       if (runtime.captureDebug) pushDebugEvent(runtime, {
@@ -3834,11 +3836,10 @@ export function simulateBattleV2(
         type: 'stall',
         team: state.moving,
         card: effectiveCardName(attacker) || attacker.definition.name,
-        detail: `Expansion 150-turn no-progress resolution vs ${effectiveCardName(defender) || defender.definition.name}: both active cards defeated`,
+        detail: `Expansion 100-turn no-progress resolution vs ${effectiveCardName(defender) || defender.definition.name}: the card with less HP is defeated`,
         hp: attacker.hp, maxHp: attacker.maxHp, damage: attacker.damage,
       })
-      attacker.hp = 0
-      defender.hp = 0
+      ;(attacker.hp < defender.hp ? attacker : defender).hp = 0
       resolveDeaths(runtime)
       continue
     }
@@ -3910,7 +3911,7 @@ export function simulateBattleV2(
 
   // Both sides wiped in the same turn: the game gives the win to the side whose turn it was (its card struck last),
   // also when The Fall's recoil killed that attacker (Titan stays on the board in all 7 Titan vs Lucifer videos).
-  // A 150-turn stall stays a Draw.
+  // A double knockout during a stall resolution stays a Draw.
   const doubleKnockoutWinner: BattleResult['winner'] = stallResolved ? 'Draw' : state.moving
   const winner: BattleResult['winner'] = state.teams.Allies.length
     ? state.teams.Enemies.length ? 'Draw' : 'Allies'

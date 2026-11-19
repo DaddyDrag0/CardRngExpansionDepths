@@ -1772,7 +1772,8 @@ function defensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
 
   switch (name) {
     case 'Divine Arrogance': if (target.hp < attacker.hp) damage *= 0.55; break
-    case 'Stone Vigil': if (target.flags.stoneForm) damage *= 0.2; break
+    // DummyLab 2026-11-19: the 80% reduction is up from entry until the first own turn and after every even own turn
+    case 'Stone Vigil': if (((target.counters.stoneTurns ?? 0) % 2) === 0) damage *= 0.2; break
     case 'Haunted Heirloom': if ((target.counters.hauntedGuardTurns || 0) > 0) damage *= 0.25; break
     case 'The D8': damage *= 1 - (target.counters.d8Reduction || 0); break
     case 'Fortify': {

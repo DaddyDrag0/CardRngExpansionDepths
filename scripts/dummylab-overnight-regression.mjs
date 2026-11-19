@@ -9,7 +9,7 @@ import { performance } from 'node:perf_hooks'
  *                        Behind Reality never fires after The False Creator entered first); Rewrite keeps the False
  *                        Creator's HP fraction instead of refilling it (bar 29% before and after REWRITTEN).
  *   Hack               - a hacked card with no living ally hits itself (Priest lost 39% = its own ATK).
- *   Lucid Dream        - the bonus is the last hit another ally dealt to that enemy (remembered across turns), and
+ *   Lucid Dream        - the bonus is the last allied hit on that enemy, its own included (remembered across turns), and
  *                        Perfect Reflection negates and reflects it (Mirrorborn took 35%, Lucid #2 died to one hit).
  *   Jealousy           - attack-time abilities (Crushing Depths) move to Sable too (her first hit took 72% =
  *                        47% ATK + 25% of Tidal Executioner's max HP).
@@ -61,6 +61,9 @@ const WINNERS = [
   ['ovn-b6/004-005 Healing Miracle from the backline then active', ['Titan', 'Divine Doctor'], ['Yamato no Orochi'], 'player'],
   // Chaos Destruction against a lone enemy swaps nothing and triples nothing (Demon hit Wendigo for 31% twice)
   ['ovn-b5b/035-036 Chaos Destruction needs a swap', ['Heavenly Demon'], ['Wendigo'], 'dummy'],
+  // Lucid Dream also adds its own previous hit (second hit took The Drowned Monarch from 52% to 0 with 47% ATK),
+  // but not once Rewrite Existence disabled it (b2/009-010: second hit on The False Creator stayed at 40%)
+  ['ovn-b5a/117-118 Lucid Dream counts its own hits', [LK], ['The Drowned Monarch'], 'player'],
 ]
 
 const engine = load('browser/depths-worker.js')
@@ -102,6 +105,7 @@ for (const file of ['browser/depths-worker.js', 'browser/tower-worker.js']) {
   const s = readFileSync(file, 'utf8')
   assert.ok(s.includes('__dlMiracle(') && s.includes('healingMiracleOwn'), file + ' Healing Miracle own-turn heal')
   assert.ok(s.includes('r.length>1&&(e.flags.chaosTriple=!0)'), file + ' Chaos Destruction needs a swap for 3x')
+  assert.ok(s.includes('if(lh&&lh.damage>0&&!e.flags.sealed)'), file + ' Lucid Dream counts its own hits unless disabled')
 }
 // Chaos Destruction: no hit on a lone enemy is ever tripled.
 for (let seed = 1; seed <= 20; seed++) {

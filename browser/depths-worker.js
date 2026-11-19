@@ -452,7 +452,7 @@ function __v26PreHit(a,e,t){
   if(e.counters.v26Attacks%2===0){t.counters.v26Skip=(t.counters.v26Skip||0)+1;t.counters.v26Feared=true}
   if(t.counters.v26Feared)mult*=1.5;
  }
- if(ability==="Lucid Dream"){const lh=(a.state.v26LastAllied||{})[e.team+">"+t.id];if(lh&&lh.by!==e.id&&lh.damage>0){if(__v26Active(a,t,"Perfect Reflection"))e.hp=Math.max(0,e.hp-lh.damage);else extra+=lh.damage}}
+ if(ability==="Lucid Dream"){const lh=(a.state.v26LastAllied||{})[e.team+">"+t.id];if(lh&&lh.damage>0&&!e.flags.sealed){if(__v26Active(a,t,"Perfect Reflection"))e.hp=Math.max(0,e.hp-lh.damage);else extra+=lh.damage}}
  if(ability==="Crushing Depths")extra+=t.maxHp*.25;
  if(ability==="Heavenly Dragon Strike"&&!e.flags.v26DragonHit){
   e.flags.v26DragonHit=true;mult*=2;if(t.hp/t.maxHp<.5)t.status.stunned=Math.max(1,t.status.stunned);

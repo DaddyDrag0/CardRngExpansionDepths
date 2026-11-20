@@ -3871,7 +3871,9 @@ export function simulateBattleV2(
     // Tick after the turn resolves so the second turn still happens while the
     // Zombie Dragon is alive; expiring at the start of that turn let the next
     // enemy enter one action too early.
-    tickGlobalUnholyCreature(runtime)
+    // DummyLab cmp-02/016: the battle ends as soon as one side is wiped, so a Zombie Dragon
+    // whose survival would expire on the turn it kills the last enemy still wins.
+    if (state.teams.Allies.length && state.teams.Enemies.length) tickGlobalUnholyCreature(runtime)
     resolveDeaths(runtime)
     if (!state.teams.Allies.length || !state.teams.Enemies.length) break
 

@@ -13,11 +13,11 @@ const GEM = 1.05
 function load(file) {
   const source = readFileSync(file, 'utf8')
   const exposed = source.replace('var __redGemMultiplier=1;', `var __redGemMultiplier=${GEM};`)
-    .replace(/\}\)\(\);\s*$/, 'self.__dlLC={Ee,Be};})();')
+    .replace(/\}\)\(\);\s*$/, 'self.__dlCR={Ee,Be};})();')
   assert.notEqual(source, exposed, 'Unable to expose ' + file)
   const fake = { navigator: { hardwareConcurrency: 1 }, location: { href: 'mock' }, postMessage() {} }
   new Function('self', 'performance', exposed)(fake, performance)
-  return fake.__dlLC
+  return fake.__dlCR
 }
 function fight({ Ee, Be }, attackers, dummies, seed) {
   const power = card => Math.pow(2, Math.log10(card.rarity)) * 10 * (card.statMultiplier || 1)
@@ -41,4 +41,12 @@ for (let seed = 1; seed <= 60; seed++) {
 }
 assert.ok(lokiSpawned >= 55, `Loki should almost always create a card after copying Nüwa, got ${lokiSpawned}/60`)
 assert.ok(tally.Allies >= 10 && tally.Enemies >= 10, `Nüwa vs Loki should be a real coin flip, got ${JSON.stringify(tally)}`)
-console.log(`dummylab-loki-copy-regression: Nüwa vs Loki ${JSON.stringify(tally)} ok`)
+// Zombie Dragon vs Three-Legged Golden Crow+The Sandman+Tornado (cmp-02/016): Zombie Dragon kills Tornado
+// on the turn its Unholy Creature survival runs out; the game ends the battle first and gives the player the win.
+for (const file of ['browser/depths-worker.js', 'browser/tower-worker.js']) {
+  const s = readFileSync(file, 'utf8')
+  assert.ok(/\.teams\.Allies\.length&&\w\.teams\.Enemies\.length&&\w+\(\w\),\w\(\w\),/.test(s), file + ' Unholy Creature expiry waits for a live battle')
+}
+for (const seed of [1, 2, 3])
+  assert.equal(fight(engine, ['Zombie Dragon'], ['Three-Legged Golden Crow', 'The Sandman', 'Tornado'], seed).winner, 'Allies', `Zombie Dragon should win after killing Tornado, seed ${seed}`)
+console.log(`dummylab-campaign-regression: Nüwa vs Loki ${JSON.stringify(tally)}, Zombie Dragon Unholy finish ok`)

@@ -70,4 +70,10 @@ for (const seed of [1, 2, 3])
 // Vicious+Immortal Cultivator+Hard Claws: dummy 3/3; Michael's hits stay at half ATK in the clips).
 for (const seed of [1, 2, 3])
   assert.equal(fight(engine, ['Michael M.'], ['Vicious', 'Immortal Cultivator', 'Hard Claws'], seed).winner, 'Enemies', `Michael M. vs Vicious team should go to the dummy, seed ${seed}`)
+// Pandemic poisons "at 50% effectiveness": half of Black Plague's ATK each turn. The Shattered Emperor dies to the
+// tick at about a third HP before its second attack (fast6-01 q0297: player).
+for (const file of ['browser/depths-worker.js', 'browser/tower-worker.js'])
+  assert.ok(readFileSync(file, 'utf8').includes('r.counters.poisonFlat=Math.max(r.counters.poisonFlat||0,e.damage*.5)'), file + ' Pandemic poison is half ATK')
+for (const seed of [1, 2, 3])
+  assert.equal(fight(engine, ['Black Plague'], ['Anubis', 'Soft Paw', 'The Shattered Emperor'], seed).winner, 'Allies', `Black Plague vs Anubis team should go to the player, seed ${seed}`)
 console.log(`dummylab-campaign-regression: Nüwa vs Loki ${JSON.stringify(tally)}, Zombie Dragon Unholy finish ok`)

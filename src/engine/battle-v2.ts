@@ -1249,7 +1249,8 @@ function onEntryCore(runtime: Runtime, card: CombatCard) {
     case 'Pandemic':
       for (const target of runtime.state.teams[enemyTeam]) {
         if (statusProtected(runtime, target.team)) continue
-        target.counters.poisonPercent = Math.min(target.counters.poisonPercent || 0, -0.075)
+        // Poison at 50% effectiveness: half of Black Plague's ATK each turn (DummyLab clip: The Shattered Emperor dies to the tick)
+        target.counters.poisonFlat = Math.max(target.counters.poisonFlat || 0, card.damage * 0.5)
         target.counters.poisonTurns = Math.max(target.counters.poisonTurns || 0, 2)
       }
       break

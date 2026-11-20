@@ -66,4 +66,8 @@ for (const file of ['browser/depths-worker.js', 'browser/tower-worker.js'])
   assert.ok(readFileSync(file, 'utf8').includes('if(e.counters.v26CometTurns===2&&caster){'), file + ' comet strikes after the caster dies')
 for (const seed of [1, 2, 3])
   assert.equal(fight(engine, ['War'], ['The Waking Comet', 'Phoenix', 'Kitsune'], seed).winner, 'Enemies', `War vs Waking Comet team should go to the dummy, seed ${seed}`)
+// Infectious also lowers the card's normal ATK, so Persistent does not reset it (Michael M. vs
+// Vicious+Immortal Cultivator+Hard Claws: dummy 3/3; Michael's hits stay at half ATK in the clips).
+for (const seed of [1, 2, 3])
+  assert.equal(fight(engine, ['Michael M.'], ['Vicious', 'Immortal Cultivator', 'Hard Claws'], seed).winner, 'Enemies', `Michael M. vs Vicious team should go to the dummy, seed ${seed}`)
 console.log(`dummylab-campaign-regression: Nüwa vs Loki ${JSON.stringify(tally)}, Zombie Dragon Unholy finish ok`)

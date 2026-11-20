@@ -1283,6 +1283,9 @@ function onEntryCore(runtime: Runtime, card: CombatCard) {
     case 'Infectious':
       enemy.damage *= enemy.boss ? 0.85 : 0.5
       enemy.hp *= enemy.boss ? 0.85 : 0.5
+      // DummyLab 2026-11-20 (Michael M. vs Vicious, dummy 3/3): Infectious lowers the card's normal ATK too,
+      // so Persistent does not undo it.
+      enemy.counters.normalDamage = (enemy.counters.normalDamage || enemy.damage / (enemy.boss ? 0.85 : 0.5)) * (enemy.boss ? 0.85 : 0.5)
       break
     case 'Dragon Slayer':
       card.damage *= 1.75

@@ -6,11 +6,10 @@ import { performance } from 'node:perf_hooks'
  * DummyLab Shiny Steal pass 2026-11-19 (unbordered, 1x, no auras, 5% PvE bonus on player cards).
  * Read from the HP bars and ATK labels of 29 Jamiy fights (b2, b5, b10, b12, b14):
  *  - the hit uses Jamiy's ATK before the steal (Wind Spirit is left at ~1%, b14/018-019);
- *  - the steal drains 10% of the target's max HP from its current HP, max HP unchanged
- *    (Titan drops to 43% after Jamiy's first hit, not 59%; Inari's bar loses 10% per turn);
+ *  - the steal drains 10% of the target's max HP from its current HP and its max HP
+ *    (Titan drops below 50% after Jamiy's first hit, not 59%; Jamiy vs Shu b14/012-013 + b15/001-006 goes to Shu 8/8);
  *  - it lands after the target's own on-hit heals, so Skeleton King survives the third hit (b14/001-003);
  *  - it fires even when the hit is fully blocked (Inari's Final Tail, b14/008-009).
- * Open: Jamiy vs Shu (b14/012-013, game dummy 2/2) still goes to Jamiy.
  */
 const GEM = 1.05
 const SEEDS = [1, 2, 3]
@@ -43,17 +42,19 @@ const WINNERS = [
   ['b14/006-007', [J], ['Count Muscula'], 'player'],
   ['b14/008-009 kept: steal through Final Tail', [J], ['Inari'], 'player'],
   ['b14/010-011', [J], ['Poison Witch'], 'player'],
+  ['b14/012-013 + b15/001-006 Shu outlasts Jamiy', [J], ['Shu'], 'dummy'],
+  ['b15/053 kept', ['Divine Doctor'], [J, 'Living Gargoyle', 'Shuten-dōji'], 'dummy'],
 ]
 for (const file of ['browser/depths-worker.js', 'browser/tower-worker.js']) {
   const s = readFileSync(file, 'utf8')
   assert.equal(s.split('"Shiny Steal",()=>').length, 2, file + ' Shiny Steal fires from one place')
-  assert.ok(/\w\(a,e,"Shiny Steal"\)&&t!==e&&\w\(a,e,"Shiny Steal",\(\)=>\{let (\w)=t\.damage\*\.1,(\w)=t\.maxHp\*\.1;t\.damage=Math\.max\(0,t\.damage-\1\),t\.hp-=\2,/.test(s), file + ' Shiny Steal drains current HP after the target heals')
+  assert.ok(/\w\(a,e,"Shiny Steal"\)&&t!==e&&\w\(a,e,"Shiny Steal",\(\)=>\{let (\w)=t\.damage\*\.1,(\w)=t\.maxHp\*\.1;t\.damage=Math\.max\(0,t\.damage-\1\),t\.maxHp=Math\.max\(1,t\.maxHp-\2\),t\.hp-=\2,/.test(s), file + ' Shiny Steal drains current HP after the target heals')
 }
 const engine = load('browser/depths-worker.js')
 for (const [id, attackers, dummies, want] of WINNERS)
   for (const seed of SEEDS)
     assert.equal(fight(engine, attackers, dummies, seed).winner, SIDE[want], `${id} seed ${seed}: ${attackers.join('+')} vs ${dummies.join('+')} should go to the ${want}`)
-// Titan after Jamiy's first hit: 682 - 320 - 68 = 294 of 682 (43%, as in the video).
+// Titan after Jamiy's first hit: 682 - 320 - 68 = 294 of 614 (48%; the video shows ~43%, the old rule 59%).
 {
   const r = fight(engine, ['Titan'], [J], 1)
   const hit = r.debug.events.find(e => e.type === 'attack' && e.card === J)

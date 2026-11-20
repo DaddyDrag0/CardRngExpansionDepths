@@ -2618,12 +2618,13 @@ function dealDamageCore(runtime: Runtime, attacker: CombatCard, originalTarget: 
   targetRetro(runtime, attacker, target, damage)
   // DummyLab b10/b12/b14 (Jamiy, 29 fights): Shiny Steal lands after the hit and after the target's own on-hit heals
   // (Undead, Restoration), even when the hit was blocked (Inari). It drains 10% of the target's max HP from its
-  // current HP (max HP unchanged) and 10% ATK; Jamiy gains both, max HP included.
+  // current HP and from its max HP, plus 10% ATK; Jamiy gains both, max HP included (Jamiy vs Shu 8/8 needs the max-HP loss).
   if (hasAbility(runtime, attacker, 'Shiny Steal') && target !== attacker) {
     runAbilityTrace(runtime, attacker, 'Shiny Steal', () => {
       const stolenDamage = target.damage * 0.1
       const stolenHp = target.maxHp * 0.1
       target.damage = Math.max(0, target.damage - stolenDamage)
+      target.maxHp = Math.max(1, target.maxHp - stolenHp)
       target.hp -= stolenHp
       attacker.damage += stolenDamage
       attacker.maxHp += stolenHp

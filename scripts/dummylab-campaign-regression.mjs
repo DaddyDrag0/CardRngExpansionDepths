@@ -49,4 +49,15 @@ for (const file of ['browser/depths-worker.js', 'browser/tower-worker.js']) {
 }
 for (const seed of [1, 2, 3])
   assert.equal(fight(engine, ['Zombie Dragon'], ['Three-Legged Golden Crow', 'The Sandman', 'Tornado'], seed).winner, 'Allies', `Zombie Dragon should win after killing Tornado, seed ${seed}`)
+// Eternal Slumber is a field effect from when The Dreaming Shepherd ENTERS: T-rex already used its first turn on
+// Arcane Avian, then still skips a turn once the Shepherd arrives (fast6-00 s-tyrannosaurus-rex: dummy 3/3).
+for (const file of ['browser/depths-worker.js', 'browser/tower-worker.js']) {
+  const s = readFileSync(file, 'utf8')
+  assert.ok(s.includes('if(ability==="Eternal Slumber"&&!e.counters.slumberCast)'), file + ' Eternal Slumber applies on entry')
+}
+{
+  let dummy = 0
+  for (let seed = 1; seed <= 60; seed++) if (fight(engine, ['Tyrannosaurus rex'], ['Arcane Avian', 'The Dreaming Shepherd', 'NO.2'], seed).winner === 'Enemies') dummy++
+  assert.ok(dummy >= 36, `T-rex vs Arcane Avian+Shepherd+NO.2 should mostly go to the dummy, got ${dummy}/60`)
+}
 console.log(`dummylab-campaign-regression: Nüwa vs Loki ${JSON.stringify(tally)}, Zombie Dragon Unholy finish ok`)

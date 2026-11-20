@@ -302,7 +302,7 @@ function __cyberAfterTurn(a,e){
 }
 function __v26Init(state){if(state.boosts.Allies?.noAbilities||state.boosts.Enemies?.noAbilities)return;__cyberInit(state);
  for(const team of ["Allies","Enemies"]){
-  if(state.teams[team].some(c=>c.definition.ability==="Eternal Slumber")){
+  if(false&&state.teams[team].some(c=>c.definition.ability==="Eternal Slumber")){ /* DummyLab 2026-11-20: moved to __v26Enter */
    for(const enemy of state.teams[F[team]]){const src=state.teams[team].find(c=>c.definition.ability==="Eternal Slumber");const tgt=enemy.definition.ability==="Perfect Reflection"&&src?src:enemy;tgt.counters.v26Skip=(tgt.counters.v26Skip||0)+1;}
   }
  }
@@ -312,6 +312,7 @@ function __v26Enter(a,e){
  if(__v34Disabled(a,e)||e.flags.sealed)return;
  __cyberEnter(a,e);
  const ability=W(e),allies=a.state.teams[e.team],enemies=a.state.teams[F[e.team]];
+ if(ability==="Eternal Slumber"&&!e.counters.slumberCast){e.counters.slumberCast=1;for(const enemy of enemies){if(enemy.hp<=0)continue;const tgt=enemy.definition.ability==="Perfect Reflection"?e:enemy;tgt.counters.v26Skip=(tgt.counters.v26Skip||0)+1;}}
  if(ability==="Shared Power"){
   e.bonusAbilities=[...new Set(allies.filter(c=>c!==e&&!c.dead).flatMap(c=>ee(c)))].filter(x=>Ma.has(x)&&x!=="Shared Power");
   b(a,e,"Shared Power copied allied abilities: "+(e.bonusAbilities.join(", ")||"none"));

@@ -14,7 +14,7 @@ for(const ability of __v26Abilities)Oa.add(ability);
 function __v26Active(a,e,name){if(!e||e.dead||e.flags.sealed||(a.state.boosts[e.team]?.noAbilities||0)>0)return false;const t=C(a,V[e.team]);let o=Y(e)===name;if(!o&&Y(e)==="Jealousy"&&t&&S(t)!=="Amenhotep")o=Y(t)===name;if(!o)return false;if(t&&Y(t)==="Jealousy"&&S(e)!=="Amenhotep")return false;if(name!=="Honor"&&[C(a,"Allies"),C(a,"Enemies")].some(d=>d&&!d.dead&&!d.flags.sealed&&ce(d).includes("Honor")))return false;return true}
 function __v26Init(state){
  for(const team of ["Allies","Enemies"]){
-  if(state.teams[team].some(c=>c.definition.ability==="Eternal Slumber")){
+  if(false&&state.teams[team].some(c=>c.definition.ability==="Eternal Slumber")){ /* DummyLab 2026-11-20: moved to __v26Enter */
    for(const enemy of state.teams[V[team]]){const src=state.teams[team].find(c=>c.definition.ability==="Eternal Slumber");const tgt=enemy.definition.ability==="Perfect Reflection"&&src?src:enemy;tgt.counters.v26Skip=(tgt.counters.v26Skip||0)+1;}
   }
  }
@@ -23,6 +23,7 @@ function __dlMiracle(a,y){if(!y||!f(a,y,"Healing Miracle")||!b(y))return;y.count
 function __v26Enter(a,e){
  if(e.flags.sealed)return;
  const ability=Y(e),allies=a.state.teams[e.team],enemies=a.state.teams[V[e.team]];
+ if(ability==="Eternal Slumber"&&!e.counters.slumberCast){e.counters.slumberCast=1;for(const enemy of enemies){if(enemy.hp<=0)continue;const tgt=enemy.definition.ability==="Perfect Reflection"?e:enemy;tgt.counters.v26Skip=(tgt.counters.v26Skip||0)+1;}}
  if(e.flags.v26Entered)return;
  e.flags.v26Entered=true;
  const addBuff=(c,damage,hp)=>{if(c.flags.v26NoBuffTurns>0)return;c.damage+=damage;c.maxHp+=hp;c.hp+=hp};

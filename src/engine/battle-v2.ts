@@ -2609,18 +2609,6 @@ function dealDamageCore(runtime: Runtime, attacker: CombatCard, originalTarget: 
 
   if (hasAbility(runtime, attacker, 'Frigid Touch') && damage > 0 && target !== attacker && rand(runtime, attacker.team) >= 0.5) runAbilityTrace(runtime, attacker, 'Frigid Touch', () => { target.status.stunned = Math.max(1, target.status.stunned) })
   if (hasAbility(runtime, attacker, 'Disarm') && damage > 0) runAbilityTrace(runtime, attacker, 'Disarm', () => { target.damage = Math.max(0, target.damage - damage * 0.4) })
-  if (hasAbility(runtime, attacker, 'Shiny Steal') && damage > 0 && target !== attacker) {
-    runAbilityTrace(runtime, attacker, 'Shiny Steal', () => {
-      const stolenDamage = target.damage * 0.1
-      const stolenHp = target.maxHp * 0.1
-      target.damage = Math.max(0, target.damage - stolenDamage)
-      target.maxHp = Math.max(1, target.maxHp - stolenHp)
-      target.hp = Math.min(target.hp, target.maxHp)
-      attacker.damage += stolenDamage
-      attacker.maxHp += stolenHp
-      attacker.hp += stolenHp
-    })
-  }
 
   const flame = runtime.state.boosts[attacker.team].flameWizard
   if (!statusProtected(runtime, target.team) && flame && damage > 0 && runtime.rng.next() * 100 < flame) target.status.burn = 2
@@ -2628,6 +2616,21 @@ function dealDamageCore(runtime: Runtime, attacker: CombatCard, originalTarget: 
   if (!statusProtected(runtime, target.team) && phantom && damage > 0 && runtime.rng.next() * 100 < phantom) target.status.stunned = Math.max(1, target.status.stunned)
 
   targetRetro(runtime, attacker, target, damage)
+  // DummyLab b10/b12/b14 (Jamiy, 29 fights): Shiny Steal lands after the hit and after the target's own on-hit heals
+  // (Undead, Restoration), even when the hit was blocked (Inari). It drains 10% of the target's max HP from its
+  // current HP and from its max HP, plus 10% ATK; Jamiy gains both, max HP included (Jamiy vs Shu 8/8 needs the max-HP loss).
+  if (hasAbility(runtime, attacker, 'Shiny Steal') && target !== attacker) {
+    runAbilityTrace(runtime, attacker, 'Shiny Steal', () => {
+      const stolenDamage = target.damage * 0.1
+      const stolenHp = target.maxHp * 0.1
+      target.damage = Math.max(0, target.damage - stolenDamage)
+      target.maxHp = Math.max(1, target.maxHp - stolenHp)
+      target.hp -= stolenHp
+      attacker.damage += stolenDamage
+      attacker.maxHp += stolenHp
+      attacker.hp += stolenHp
+    })
+  }
   const didRegen = attackerRetro(runtime, attacker, target, damage)
 
   if (hasAbility(runtime, target, 'Reveal') && !target.flags.revealed && target.hp > 0 && target.hp / target.maxHp < 0.65) {

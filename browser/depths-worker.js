@@ -566,7 +566,7 @@ function __v26AfterTurn(a,e){
  if(e.counters.v26CometCaster&&e.hp>0){
   e.counters.v26CometTurns=(e.counters.v26CometTurns||0)+1;
   const caster=e.counters.v26CometCaster;
-  if(e.counters.v26CometTurns===2&&caster&&!caster.dead&&caster.hp>0){
+  if(e.counters.v26CometTurns===2&&caster){ /* DummyLab 2026-11-20: the comet still lands after The Waking Comet dies */
    P(a,caster,e,1,false);I(a);
   }
  }

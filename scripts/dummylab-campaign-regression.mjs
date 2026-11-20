@@ -60,4 +60,10 @@ for (const file of ['browser/depths-worker.js', 'browser/tower-worker.js']) {
   for (let seed = 1; seed <= 60; seed++) if (fight(engine, ['Tyrannosaurus rex'], ['Arcane Avian', 'The Dreaming Shepherd', 'NO.2'], seed).winner === 'Enemies') dummy++
   assert.ok(dummy >= 36, `T-rex vs Arcane Avian+Shepherd+NO.2 should mostly go to the dummy, got ${dummy}/60`)
 }
+// Delayed Impact: the comet still strikes after The Waking Comet is dead. War kills the Comet, then the comet lands
+// after War's second turn and kills it (fast6-00 s-war: dummy 3/3, cmpx-01 q0077).
+for (const file of ['browser/depths-worker.js', 'browser/tower-worker.js'])
+  assert.ok(readFileSync(file, 'utf8').includes('if(e.counters.v26CometTurns===2&&caster){'), file + ' comet strikes after the caster dies')
+for (const seed of [1, 2, 3])
+  assert.equal(fight(engine, ['War'], ['The Waking Comet', 'Phoenix', 'Kitsune'], seed).winner, 'Enemies', `War vs Waking Comet team should go to the dummy, seed ${seed}`)
 console.log(`dummylab-campaign-regression: Nüwa vs Loki ${JSON.stringify(tally)}, Zombie Dragon Unholy finish ok`)

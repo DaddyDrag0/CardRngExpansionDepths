@@ -1182,6 +1182,12 @@ function onEntryCore(runtime: Runtime, card: CombatCard) {
       enemy.abilityOverride = undefined
       card.identityOverride = enemy.definition.name
       card.abilityOverride = undefined
+      // DummyLab (Nüwa vs Loki): when Loki copies Nüwa, the copied Creation and Restoration
+      // runs right away and Loki's side gets its own created card.
+      if (enemy.definition.ability === 'Creation and Restoration') {
+        card.entered = false
+        onEntry(runtime, card)
+      }
       break
     }
     case 'Fire World':

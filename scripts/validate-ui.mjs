@@ -110,7 +110,7 @@ for (const required of [
   'let turnsWithoutDeaths = 0',
   'runtime.deathEpoch !== lastDeathEpoch',
   'runtime.deathEpoch += 1',
-  'turnsWithoutDeaths >= 150',
+  'turnsWithoutDeaths >= 100',
   'beyondGraveRevived',
 ]) {
   if (!battle.includes(required)) throw new Error(`Battle safety hook missing: ${required}`)

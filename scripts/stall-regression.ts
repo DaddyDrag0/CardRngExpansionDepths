@@ -48,7 +48,8 @@ console.log(`Duplicate-Anubis stall regression passed: ${battle.turns} turns.`)
 
 // Regression for the 2026-08-14 high-floor browser loop. Eternal Voyage can
 // continuously rotate active cards without anyone dying. Position changes are
-// not deaths and therefore must NOT reset Expansion's 150-turn no-death timer.
+// not deaths and therefore must NOT reset Expansion's 100-turn no-death timer (each resolution defeats the card with less HP;
+// both Voyage cards fall in turn, so the battle ends at ~200).
 const voyageCard = cards.find((card) => card.ability === 'Eternal Voyage')
 const inertBase = cards.find((card) => card.name === 'Mastermind') || cards[0]
 assert(voyageCard, 'Eternal Voyage regression card missing')
@@ -68,5 +69,5 @@ const inertEnemy: DepthsEnemy = {
 }
 const rotatingBattle = simulateBattleV2(rotatingLoadout, [inertEnemy], 424242, 5_000, true)
 assert(!rotatingBattle.unsupportedAbilities.includes('Battle turn cap reached'), 'Rotating-card regression hit emergency turn cap')
-assert(rotatingBattle.turns >= 145 && rotatingBattle.turns <= 155, `Rotating-card no-death timeout should resolve at ~150 turns, got ${rotatingBattle.turns}`)
+assert(rotatingBattle.turns >= 195 && rotatingBattle.turns <= 205, `Rotating-card no-death timeout should resolve at ~2 x 100 turns, got ${rotatingBattle.turns}`)
 console.log(`Rotating-card stall regression passed: ${rotatingBattle.turns} turns.`)

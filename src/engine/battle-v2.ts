@@ -1045,7 +1045,8 @@ function onEntryCore(runtime: Runtime, card: CombatCard) {
         card.counters.ouroborosBonusDamage = stolenDamage
         card.counters.ouroborosBonusMaxHp = stolenMaxHp
         card.counters.ouroborosBonusHp = stolenHp
-        card.counters.ouroborosTurns = 3
+        // DummyLab 2026-11-19 (b4/037-038): the stolen stats last through Eonus' 4th attack.
+      card.counters.ouroborosTurns = 4
         card.flags.ouroborosActive = true
       }
       break
@@ -1446,14 +1447,9 @@ function onEntryCore(runtime: Runtime, card: CombatCard) {
       performEntryAttack(runtime, card, 3)
       break
     case 'Kitchen': {
+      // DummyLab 2026-11-19: entry only opens the Domain. The 2-5 slashes at 35% are The Curse's attack on every
+      // one of its turns (b5b/135-136 and b3/088: no hit before the enemy's first attack, ~10% chunks each turn).
       card.flags.kitchenDomain = true
-      const hits = 2 + Math.floor(runtime.rng.next() * 4)
-      for (let hit = 0; hit < hits; hit++) {
-        const target = active(runtime, enemyTeam)
-        if (!target || !alive(card)) break
-        dealDamage(runtime, card, target, 0.35, true)
-        resolveDeaths(runtime)
-      }
       break
     }
     case 'War Scythe': {
@@ -1617,7 +1613,7 @@ function offensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
       bypass = true
       if (!statusProtected(runtime, target.team) && rand(runtime, attacker.team) < 0.25) target.status.stunned = Math.max(1, target.status.stunned)
       break
-    case 'Kitchen': bypass = true; break
+    case 'Kitchen': damage *= 0.35; bypass = true; break
     case 'Stone Vigil': if (attacker.flags.stoneAwakened) damage *= 2; break
     case 'War Scythe': if (attacker.flags.warScytheEntry) bypass = true; break
     case 'True Strike': if (rand(runtime, attacker.team) > 0.5) damage *= 2; break
@@ -2062,7 +2058,9 @@ function targetRetroCore(runtime: Runtime, attacker: CombatCard, target: CombatC
     case 'Ruler of Humans':
       for (const ally of runtime.state.teams[target.team]) if (alive(ally)) ally.damage += damage * 1.25
       break
-    case 'Restoration': if (target.hp > 0) target.hp += damage * 0.7; break
+    // DummyLab b9/b10: an Unforgiving hit that empties Shu's bar still lets Restoration heal; Unforgiving then
+    // caps HP at the shrunken max, leaving Shu alive at 1/1 (bar drops to 0 and refills to full in all 6 recordings).
+    case 'Restoration': if (target.hp > 0 || hasAbility(runtime, attacker, 'Unforgiving')) target.hp += damage * 0.7; break
     case 'Rage': if (target.hp > 0) target.damage *= 1.25; break
     case 'Undead': if (target.hp > 0) target.hp = Math.min(target.maxHp, target.hp + target.maxHp * 0.25); break
     case 'Passion':
@@ -3262,7 +3260,9 @@ function beforeAttack(runtime: Runtime, attacker: CombatCard) {
   if (hasAbility(runtime, attacker, 'Rejuvenate')) runAbilityTrace(runtime, attacker, 'Rejuvenate', () => { attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.35) })
   if (hasAbility(runtime, attacker, 'First Progenitor')) runAbilityTrace(runtime, attacker, 'First Progenitor', () => { attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.1) })
   if (hasAbility(runtime, attacker, 'Twilight Sparkle') && rand(runtime, attacker.team) > 0.6) runAbilityTrace(runtime, attacker, 'Twilight Sparkle', () => { attacker.hp = attacker.maxHp })
-  if (target && hasAbility(runtime, attacker, 'Viral Breath')) runAbilityTrace(runtime, attacker, 'Viral Breath', () => { target.hp -= target.maxHp * 0.25 })
+  // DummyLab 2026-11-19: in all 4 Infected Maw recordings the Maw itself loses 25% of its max HP at the start of
+  // each of its turns; the opponent's bar does not move (b5b/053-054, b2/153, b3/043).
+  if (hasAbility(runtime, attacker, 'Viral Breath')) runAbilityTrace(runtime, attacker, 'Viral Breath', () => { attacker.hp -= attacker.maxHp * 0.25 })
   if (hasAbility(runtime, attacker, 'Herbal Alchemy')) {
     runAbilityTrace(runtime, attacker, 'Herbal Alchemy', () => {
       attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.2)
@@ -3279,6 +3279,7 @@ function attackCount(runtime: Runtime, attacker: CombatCard): { count: number; m
   if (hasAbility(runtime, attacker, 'Chainsaw')) base = Math.max(base, 8)
   if (hasAbility(runtime, attacker, 'Firepower')) base = Math.max(base, 5)
   if (hasAbility(runtime, attacker, 'Behavioral Therapy')) base = Math.max(base, 2)
+  if (hasAbility(runtime, attacker, 'Kitchen')) base = Math.max(base, 2 + Math.floor(rand(runtime, attacker.team) * 4))
   return { count: base + bonus, mult: 1 }
 }
 
@@ -3825,7 +3826,9 @@ export function simulateBattleV2(
       lastDeathEpoch = runtime.deathEpoch
     }
     turnsWithoutDeaths += 1
-    if (turnsWithoutDeaths >= 150) {
+    // DummyLab b10/b12 (Sandman vs Buddha/Shu, 4 fights) + b3/272: after 100 turns without a death the active card with
+    // less HP is defeated (Sandman at 36% but far more HP beat Shu at 100%; 100 Men at 3.2M HP beat Gunslinger).
+    if (turnsWithoutDeaths >= 100) {
       debug.forcedStallResolutions += 1
       stallResolved = true
       if (runtime.captureDebug) pushDebugEvent(runtime, {
@@ -3833,11 +3836,10 @@ export function simulateBattleV2(
         type: 'stall',
         team: state.moving,
         card: effectiveCardName(attacker) || attacker.definition.name,
-        detail: `Expansion 150-turn no-progress resolution vs ${effectiveCardName(defender) || defender.definition.name}: both active cards defeated`,
+        detail: `Expansion 100-turn no-progress resolution vs ${effectiveCardName(defender) || defender.definition.name}: the card with less HP is defeated`,
         hp: attacker.hp, maxHp: attacker.maxHp, damage: attacker.damage,
       })
-      attacker.hp = 0
-      defender.hp = 0
+      ;(attacker.hp < defender.hp ? attacker : defender).hp = 0
       resolveDeaths(runtime)
       continue
     }
@@ -3909,7 +3911,7 @@ export function simulateBattleV2(
 
   // Both sides wiped in the same turn: the game gives the win to the side whose turn it was (its card struck last),
   // also when The Fall's recoil killed that attacker (Titan stays on the board in all 7 Titan vs Lucifer videos).
-  // A 150-turn stall stays a Draw.
+  // A double knockout during a stall resolution stays a Draw.
   const doubleKnockoutWinner: BattleResult['winner'] = stallResolved ? 'Draw' : state.moving
   const winner: BattleResult['winner'] = state.teams.Allies.length
     ? state.teams.Enemies.length ? 'Draw' : 'Allies'

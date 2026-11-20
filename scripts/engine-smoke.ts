@@ -90,8 +90,8 @@ const timeoutBattle = simulateBattleV2(
   true,
 )
 assert(!timeoutBattle.unsupportedAbilities.includes('Battle turn cap reached'), 'Stable active-pair timeout failed before emergency cap')
-assert(timeoutBattle.turns >= 145 && timeoutBattle.turns <= 155, `Expansion timeout should resolve at about 150 no-progress turns, got ${timeoutBattle.turns}`)
-console.log('Expansion 150-turn no-progress regression passed:', timeoutBattle.turns, 'turns')
+assert(timeoutBattle.turns >= 95 && timeoutBattle.turns <= 105, `Expansion timeout should resolve at about 100 no-progress turns, got ${timeoutBattle.turns}`)
+console.log('Expansion 100-turn no-progress regression passed:', timeoutBattle.turns, 'turns')
 
 // Regression for the floor-388 failure: Serket must not make Zombie Dragon's
 // Unholy Creature lifespan permanent, and Decapitate must not chain fake kills
@@ -135,7 +135,7 @@ const bindLossB = 1e9 - bindB.hp
 assert(bindLossA > 0 && Math.abs(bindLossA - bindLossB) < 1e-6, `Bind Fate did not share damage equally: ${bindLossA} vs ${bindLossB}`)
 
 // Ouroboros steals 5% from all other living cards on entry, then its stolen bonus
-// decays after three turns taken by the holder.
+// decays after four turns taken by the holder (DummyLab b4/037-038).
 const ouroEnemy: DepthsEnemy[] = [{ card: { ...dummy, name: '__Ouroboros Enemy__' }, power: 1e12, attack: 0, health: 1e12 }]
 const ouroEntry = simulateBattleV2({ cards: [{ cardName: 'Eonus', borders: [] }, { cardName: 'Mastermind', borders: [] }] }, ouroEnemy, 9922, 1)
 const ouroEntryCard = ouroEntry.state.teams.Allies.find((card) => card.definition.name === 'Eonus')
@@ -143,10 +143,13 @@ const ouroAlly = ouroEntry.state.teams.Allies.find((card) => card.definition.nam
 assert(ouroEntryCard && ouroAlly, 'Ouroboros entry test cards missing')
 assert((ouroEntryCard.counters.ouroborosBonusDamage || 0) > 0, 'Ouroboros did not gain stolen ATK')
 assert(ouroAlly.damage < (ouroAlly.counters.normalDamage || ouroAlly.damage), 'Ouroboros did not steal allied ATK')
-const ouroDecay = simulateBattleV2({ cards: [{ cardName: 'Eonus', borders: [] }, { cardName: 'Mastermind', borders: [] }] }, ouroEnemy, 9922, 5)
+const ouroDecay = simulateBattleV2({ cards: [{ cardName: 'Eonus', borders: [] }, { cardName: 'Mastermind', borders: [] }] }, ouroEnemy, 9922, 7)
 const ouroDecayCard = ouroDecay.state.teams.Allies.find((card) => card.definition.name === 'Eonus')
 assert(ouroDecayCard, 'Ouroboros decay holder missing')
-assert(!ouroDecayCard.flags.ouroborosActive, 'Ouroboros stolen stats did not decay after three holder turns')
+assert(!ouroDecayCard.flags.ouroborosActive, 'Ouroboros stolen stats did not decay after four holder turns')
+const ouroStill = simulateBattleV2({ cards: [{ cardName: 'Eonus', borders: [] }, { cardName: 'Mastermind', borders: [] }] }, ouroEnemy, 9922, 5)
+const ouroStillCard = ouroStill.state.teams.Allies.find((card) => card.definition.name === 'Eonus')
+assert(ouroStillCard?.flags.ouroborosActive, 'Ouroboros stolen stats should still be up after three holder turns')
 close(ouroDecayCard.damage, ouroDecayCard.counters.normalDamage || ouroDecayCard.damage, 1e-6)
 
 // Luminescent Veil must be able to evade an incoming hit and feed 10% of the

@@ -233,7 +233,7 @@ function compactDebugNumber(value: number): string {
   if (!Number.isFinite(value)) return 'lethal'
   const sign = value < 0 ? '-' : ''
   const abs = Math.abs(value)
-  const trim = (n: number) => n.toFixed(n >= 100 ? 0 : n >= 10 ? 1 : 2).replace(/\.?0+$/, '')
+  const trim = (n: number) => String(Number(n.toFixed(n >= 100 ? 0 : n >= 10 ? 1 : 2)))
   if (abs >= 1e12) return sign + trim(abs / 1e12) + 't'
   if (abs >= 1e9) return sign + trim(abs / 1e9) + 'b'
   if (abs >= 1e6) return sign + trim(abs / 1e6) + 'm'
@@ -2374,7 +2374,7 @@ function attackerRetroCore(runtime: Runtime, attacker: CombatCard, target: Comba
     case 'Unforgiving': target.maxHp = Math.max(1, target.maxHp - damage); target.hp = Math.min(target.hp, target.maxHp); break
     case 'Eat The Moon': if (!hasAbility(runtime, target, 'Erosion') && target.hp / target.maxHp < 0.33) target.hp = 0; break
     case 'Death Embrace': if (!hasAbility(runtime, target, 'Erosion') && target.hp > 0 && rand(runtime, attacker.team) > 1 - damage / target.hp) target.hp = 0; break
-    case 'Prehistoric Wrath': if (target.hp <= 0) attacker.damage *= 2; break
+    // Prehistoric Wrath's +100% ATK per kill is applied once, by the on-death handler (2x per kill, compounding).
   }
   return didRegen
 }
@@ -3726,8 +3726,7 @@ function processDivination(runtime: Runtime) {
 }
 
 function growHiddenInDepths(runtime: Runtime, moving: BattleTeam) {
-  if (moving !== 'Allies') return
-  const deck = runtime.state.teams.Allies
+  const deck = runtime.state.teams[moving]
   for (let index = 1; index < deck.length; index++) {
     const card = deck[index]
     if (hasAbility(runtime, card, 'Hidden in the Depths')) {

@@ -1182,6 +1182,12 @@ function onEntryCore(runtime: Runtime, card: CombatCard) {
       enemy.abilityOverride = undefined
       card.identityOverride = enemy.definition.name
       card.abilityOverride = undefined
+      // DummyLab (Nüwa vs Loki): when Loki copies Nüwa, the copied Creation and Restoration
+      // runs right away and Loki's side gets its own created card.
+      if (enemy.definition.ability === 'Creation and Restoration') {
+        card.entered = false
+        onEntry(runtime, card)
+      }
       break
     }
     case 'Fire World':
@@ -1243,7 +1249,8 @@ function onEntryCore(runtime: Runtime, card: CombatCard) {
     case 'Pandemic':
       for (const target of runtime.state.teams[enemyTeam]) {
         if (statusProtected(runtime, target.team)) continue
-        target.counters.poisonPercent = Math.min(target.counters.poisonPercent || 0, -0.075)
+        // Poison at 50% effectiveness: half of Black Plague's ATK each turn (DummyLab clip: The Shattered Emperor dies to the tick)
+        target.counters.poisonFlat = Math.max(target.counters.poisonFlat || 0, card.damage * 0.5)
         target.counters.poisonTurns = Math.max(target.counters.poisonTurns || 0, 2)
       }
       break
@@ -1277,6 +1284,9 @@ function onEntryCore(runtime: Runtime, card: CombatCard) {
     case 'Infectious':
       enemy.damage *= enemy.boss ? 0.85 : 0.5
       enemy.hp *= enemy.boss ? 0.85 : 0.5
+      // DummyLab 2026-11-20 (Michael M. vs Vicious, dummy 3/3): Infectious lowers the card's normal ATK too,
+      // so Persistent does not undo it.
+      enemy.counters.normalDamage = (enemy.counters.normalDamage || enemy.damage / (enemy.boss ? 0.85 : 0.5)) * (enemy.boss ? 0.85 : 0.5)
       break
     case 'Dragon Slayer':
       card.damage *= 1.75
@@ -3865,7 +3875,9 @@ export function simulateBattleV2(
     // Tick after the turn resolves so the second turn still happens while the
     // Zombie Dragon is alive; expiring at the start of that turn let the next
     // enemy enter one action too early.
-    tickGlobalUnholyCreature(runtime)
+    // DummyLab cmp-02/016: the battle ends as soon as one side is wiped, so a Zombie Dragon
+    // whose survival would expire on the turn it kills the last enemy still wins.
+    if (state.teams.Allies.length && state.teams.Enemies.length) tickGlobalUnholyCreature(runtime)
     resolveDeaths(runtime)
     if (!state.teams.Allies.length || !state.teams.Enemies.length) break
 

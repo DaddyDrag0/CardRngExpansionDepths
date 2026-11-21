@@ -2239,6 +2239,8 @@ function attackerRetroCore(runtime: Runtime, attacker: CombatCard, target: Comba
         if (stolen && stolen !== "Witch's Curse") {
           attacker.flags.witchCurseStolen = true
           attacker.abilityOverride = stolen
+          // "Steals": the victim loses it (DummyLab: Hecate vs Megalodon+Assassin King and Thor+Tornado+Sphinx, player 2/2)
+          target.abilityOverride = 'Lucky'
         }
       }
       break

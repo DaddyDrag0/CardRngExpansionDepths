@@ -76,4 +76,20 @@ for (const file of ['browser/depths-worker.js', 'browser/tower-worker.js'])
   assert.ok(readFileSync(file, 'utf8').includes('r.counters.poisonFlat=Math.max(r.counters.poisonFlat||0,e.damage*.5)'), file + ' Pandemic poison is half ATK')
 for (const seed of [1, 2, 3])
   assert.equal(fight(engine, ['Black Plague'], ['Anubis', 'Soft Paw', 'The Shattered Emperor'], seed).winner, 'Allies', `Black Plague vs Anubis team should go to the player, seed ${seed}`)
+// Witch's Curse steals the ability: the victim loses it (fast7-11/12: Hecate wins both in the game).
+for (const file of ['browser/depths-worker.js', 'browser/tower-worker.js'])
+  assert.ok(readFileSync(file, 'utf8').includes('e.flags.witchCurseStolen=!0,e.abilityOverride='), file + ' Witch\'s Curse present')
+for (const [dum, label] of [[['Megalodon', 'Assassin King'], 'Megalodon'], [['Thor', 'Tornado', 'Sphinx'], 'Thor']])
+  for (const seed of [1, 2, 3])
+    assert.equal(fight(engine, ['Hecate'], dum, seed).winner, 'Allies', `Hecate vs ${label} team should go to the player, seed ${seed}`)
+// Terrorize's +50% applies to the next attack after a Fear, not for the rest of the battle (Nán Fāng Zhū Què
+// vs Siegfried+Nightmare Stag+Marrowclaw: player 5/5). Ice Age's slow ends when Admiral Ice dies (Eonus vs Admiral
+// Ice+Sekhmet+Immortal Witch: player 3/3). Frozen Solitude also freezes an enemy that moves before Ice King's
+// first turn (Eonus vs Ice King+Immortal Cultivator+Hell killer: dummy 5/5).
+for (const [att, dum, want] of [
+  [['Nán Fāng Zhū Què'], ['Siegfried', 'Nightmare Stag', 'Marrowclaw'], 'Allies'],
+  [['Eonus'], ['Admiral Ice', 'Sekhmet', 'Immortal Witch'], 'Allies'],
+  [['Eonus'], ['Ice King', 'Immortal Cultivator', 'Hell killer'], 'Enemies'],
+]) for (const seed of [1, 2, 3])
+  assert.equal(fight(engine, att, dum, seed).winner, want, `${att[0]} vs ${dum.join('+')} should go to ${want}, seed ${seed}`)
 console.log(`dummylab-campaign-regression: Nüwa vs Loki ${JSON.stringify(tally)}, Zombie Dragon Unholy finish ok`)

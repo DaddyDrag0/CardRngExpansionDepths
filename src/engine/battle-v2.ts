@@ -1382,9 +1382,18 @@ function onEntryCore(runtime: Runtime, card: CombatCard) {
       card.counters.attacks = (card.counters.attacks || 0) + 1
       enemy.status.stunned = Math.max(1, enemy.status.stunned)
       break
+    case 'Frozen Solitude':
+      // The enemy is about to move first: its very first turn is frozen too
+      // (DummyLab: Eonus vs Ice King+Immortal Cultivator+Hell killer, dummy 5/5).
+      if (enemy && runtime.state.moving === enemy.team && !enemy.flags.frozenSolitudeFirstTurnUsed && !statusProtected(runtime, enemy.team)) {
+        enemy.flags.frozenSolitudeFirstTurnUsed = true
+        enemy.counters.fsEntryFrozen = 1
+      }
+      break
     case 'Ice Age':
       enemy.flags.slowed = true
       enemy.counters.slowed = 0
+      enemy.counters.iceAgeSlow = 1
       break
     case "Hell's Curse":
       enemy.flags.sealed = true
@@ -2700,6 +2709,13 @@ function applyOnDeathCore(runtime: Runtime, dead: CombatCard, opponent: CombatCa
     }
   }
 
+  // Ice Age's slow ends when the card that cast it dies (DummyLab: Eonus vs Admiral Ice+Sekhmet+Immortal Witch, player 3/3)
+  if (name === 'Ice Age') {
+    for (const foe of runtime.state.teams[team === 'Allies' ? 'Enemies' : 'Allies'] || []) {
+      if (foe.counters.iceAgeSlow) { foe.flags.slowed = false; foe.counters.iceAgeSlow = 0 }
+    }
+  }
+
   if (dead.flags.suppressOnDeath) return
 
   // Order of the Cosmos suppresses the defeated card's death ability too.
@@ -3834,6 +3850,12 @@ export function simulateBattleV2(
     attacker = active(runtime, state.moving)
     defender = active(runtime, OTHER_TEAM[state.moving])
     if (!attacker || !defender) break
+    if ((attacker.counters.fsEntryFrozen || 0) > 0) {
+      attacker.counters.fsEntryFrozen = 0
+      attacker.counters.videoFrozen = 1
+      state.moving = OTHER_TEAM[state.moving]
+      continue
+    }
 
     if (runtime.deathEpoch !== lastDeathEpoch) {
       turnsWithoutDeaths = 0

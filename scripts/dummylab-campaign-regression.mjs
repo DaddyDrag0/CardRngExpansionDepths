@@ -92,4 +92,13 @@ for (const [att, dum, want] of [
   [['Eonus'], ['Ice King', 'Immortal Cultivator', 'Hell killer'], 'Enemies'],
 ]) for (const seed of [1, 2, 3])
   assert.equal(fight(engine, att, dum, seed).winner, want, `${att[0]} vs ${dum.join('+')} should go to ${want}, seed ${seed}`)
+// fast8 (v62): a normal-attack kill by The Smasher also shortens Night City Massacre's interval (both Smasher team
+// fights went to the player in the game), and All Father boosts Odin's teammates but not Odin (Odin vs Vizier+Yeti: dummy).
+assert.ok(readFileSync('browser/depths-worker.js', 'utf8').includes('W(e)==="Night City Massacre"&&e.team!==t.team&&t.hp<=0'), 'Massacre kill rule present')
+for (const [att, dum, want] of [
+  [['The Smasher'], ['Lucifer', 'Běi Fāng Xuán Wǔ', 'River Dragon'], 'Allies'],
+  [['The Smasher'], ['Tsukuyomi', 'Baby Skeleton', 'Cosmic Pop Star'], 'Allies'],
+  [['Odin'], ['Vizier', 'Yeti'], 'Enemies'],
+]) for (const seed of [1, 2, 3])
+  assert.equal(fight(engine, att, dum, seed).winner, want, `${att[0]} vs ${dum.join('+')} should go to ${want}, seed ${seed}`)
 console.log(`dummylab-campaign-regression: Nüwa vs Loki ${JSON.stringify(tally)}, Zombie Dragon Unholy finish ok`)

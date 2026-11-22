@@ -37,7 +37,7 @@ function Fa(a,e,s,i=0){let l=Math.max(0,Math.floor(Number(a)||0));if(l<=0)return
 /* November BattleClient playback model for Depths ONLY.
    Each simulated floor's ACTUAL turn count is used (not one global average).
    Server battlecd/network delay and ability-specific VFX remain calibratable. */
-function __depthsRealPlaybackTime(floor,turns,settings){
+function __depthsRealPlaybackTime(floor,turns,settings,deaths=0){
  const chosen=Number(settings.baseBattleSpeed);const base=[1,1.5,2,3].includes(chosen)?chosen:3;
  const blessing=[1.5,2].includes(Number(settings.blessingMultiplier))?Number(settings.blessingMultiplier):1;
  const pace=Math.max(.1,Math.min(5,Number(settings.attackAnimationScale)||1));
@@ -47,7 +47,10 @@ function __depthsRealPlaybackTime(floor,turns,settings){
  let attackUnits=0;
  for(const [start,end,accel] of stages)attackUnits+=Math.max(0,Math.min(n,end)-start)/accel;
  const floorDelay=wi(settings.floorOverheadSeconds??.8);
- return floorDelay+Math.max(Si,attackUnits*pace/speed);
+ // DummyLab calibration (3,334 recorded fights at in-game 1x): 0.37 s battle start + 0.405 s per accelerated
+ // attack unit + 0.536 s per card death. Revives and shields add no time beyond the turns they cause.
+ const k=Math.max(0,Number(deaths)||0);
+ return floorDelay+Math.max(Si,(.37+.405*attackUnits+.536*k)*pace/speed);
 }
 // Match DepthsLootConfig reward semantics: the defeat floor is not a clear.
 function __depthsPotionRange(firstFloor,lastFloor,odds,bountiful,level){
@@ -142,7 +145,7 @@ function Na(loadout,opts={},progress){
   try{battle=Ee(loadout,enemies,battleSeed,maxTurns,limited,false,t=>progress?.(floor,t,enemyNames));}
   catch(error){throw __depthsBattleError(error,floor,seed,floorSeed,battleSeed,loadout,enemies);}
   battles++;turns+=battle.turns;
-  if(opts.timingSettings)playback+=__depthsRealPlaybackTime(floor,battle.turns,opts.timingSettings)*span;
+  if(opts.timingSettings)playback+=__depthsRealPlaybackTime(floor,battle.turns,opts.timingSettings,(battle.state.fallen?.Allies?.length||0)+(battle.state.fallen?.Enemies?.length||0))*span;
   for(const effect of battle.unsupportedAbilities)unsupported.add(effect);
   if(opts.throwOnBattleTurnCap&&battle.unsupportedAbilities.includes("Battle turn cap reached"))
    throw Error("Long battle diagnostic: floor "+floor+" turn cap vs "+enemyNames.join(" / "));

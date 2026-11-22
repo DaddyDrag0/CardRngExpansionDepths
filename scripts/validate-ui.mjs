@@ -57,6 +57,7 @@ if (!depthsUi.includes('state.cap=300000;')) throw new Error('Depths restore pat
 if (depthsUi.includes('cap:state.cap')) throw new Error('Depths floor cap is still being persisted as a user setting')
 if (depthsUi.includes("root.querySelector('#capInput')?.addEventListener('change'")) throw new Error('Depths floor cap is still user-editable')
 
+if (!depthsUi.includes('class="result-disclaimer"') || !depthsUi.includes('off-field ability')) throw new Error('Depths duplicate off-field card disclaimer is missing')
 if (!liveHtml.includes('./src/depths-ui.js')) throw new Error('Extracted Depths UI script is not loaded')
 if (!liveHtml.includes('./src/depths-ui.css')) throw new Error('Extracted Depths UI styles are not loaded')
 if (liveHtml.includes("const root=document.getElementById('root')")) throw new Error('Depths application code returned to inline HTML')

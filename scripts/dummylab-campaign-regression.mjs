@@ -101,4 +101,14 @@ for (const [att, dum, want] of [
   [['Odin'], ['Vizier', 'Yeti'], 'Enemies'],
 ]) for (const seed of [1, 2, 3])
   assert.equal(fight(engine, att, dum, seed).winner, want, `${att[0]} vs ${dum.join('+')} should go to ${want}, seed ${seed}`)
+// fast9 (v63 -> v64): Chainsaw hits for 25% ATK, Gathering is +25% per card, Odin pays for each multi-hit,
+// Frozen Solitude's first-turn freeze counts per Ice King, and Lightning Strike hits back after the hit only if Zeus lives.
+for (const [att, dum, want] of [
+  [['Jason'], ['The Dreaming Shepherd'], 'Enemies'],
+  [['Community'], ['God-Slayer'], 'Enemies'],
+  [['Odin'], ['Siegfried', 'Pegasus', 'Engineer'], 'Enemies'],
+  [['Dracula'], ['Buddhist Monk', 'Mothman', 'Ice King'], 'Enemies'],
+  [['Veyrath the Unyielding'], ['Mummy', 'Hathor', 'Zeus'], 'Allies'],
+]) for (const seed of [1, 2, 3])
+  assert.equal(fight(engine, att, dum, seed).winner, want, `${att[0]} vs ${dum.join('+')} should go to ${want}, seed ${seed}`)
 console.log(`dummylab-campaign-regression: Nüwa vs Loki ${JSON.stringify(tally)}, Zombie Dragon Unholy finish ok`)

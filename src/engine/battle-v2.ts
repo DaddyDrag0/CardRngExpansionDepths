@@ -1070,7 +1070,8 @@ function onEntryCore(runtime: Runtime, card: CombatCard) {
       break
     case 'Gathering': {
       const count = runtime.state.teams[card.team].length + runtime.state.fallen[card.team].length
-      card.damage *= Math.pow(1.5, count)
+      // +25% per card in the party (DummyLab: a lone Community hits for 1.25x ATK, 4/4 vs God-Slayer).
+      card.damage *= 1 + 0.25 * count
       break
     }
     case 'Remembrance': {
@@ -1742,7 +1743,7 @@ function offensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
       break
     case 'Undead Practitioner': target.counters.bleed = 100; break
     case 'Heart Hunter': if ((target.counters.bleed || 0) > 0) damage *= 3; break
-    case 'Chainsaw': damage *= 0.5; break
+    case 'Chainsaw': damage *= 0.25; break // DummyLab HP bars: each of the 8 hits takes 25% of Jason's ATK
     case 'Firepower': damage *= 0.25; break
     case 'Rapid Blows': damage *= 0.5; break
     case 'Speedy Progression': damage /= 3; break
@@ -2472,7 +2473,9 @@ function dealDamageCore(runtime: Runtime, attacker: CombatCard, originalTarget: 
   }
   if (attacker.status.blind && rand(runtime, attacker.team) > 0.4) { damage = 0; pushAbilityDebug(runtime, attacker, 'Blind caused the attack to miss.') }
 
-  if (!bypass && !off.special && hasAbility(runtime, target, 'All Father') && damage > 0) {
+  // Odin also dodges (and pays for) each hit of a multi-hit attack (Odin vs Siegfried+Pegasus+Engineer: dummy).
+  const multiHit = ['Firepower', 'Chainsaw', 'Rapid Blows', 'Kitchen', 'Behavioral Therapy'].some(name => hasAbility(runtime, attacker, name))
+  if (!bypass && (!off.special || multiHit) && hasAbility(runtime, target, 'All Father') && damage > 0) {
     const cost = target.maxHp / 5
     damage = 0
     target.hp -= cost
@@ -3012,11 +3015,21 @@ function resolveDeathsCore(runtime: Runtime) {
   }
 }
 
+const zeusRecoil = new WeakMap<CombatCard, CombatCard>()
+function applyZeusRecoil(runtime: Runtime, attacker: CombatCard, target: CombatCard) {
+  const zeus = zeusRecoil.get(attacker)
+  if (!zeus) return
+  zeusRecoil.delete(attacker)
+  if (zeus === target && alive(zeus) && alive(attacker))
+    runAbilityTrace(runtime, zeus, 'Lightning Strike', () => dealDamage(runtime, zeus, attacker, 0.75))
+}
+
 function statusStart(runtime: Runtime, attacker: CombatCard, target: CombatCard) {
   if (statusProtected(runtime, attacker.team)) clearStatuses(attacker)
-  if (hasAbility(runtime, target, 'Lightning Strike') && alive(target) && alive(attacker)) {
-    runAbilityTrace(runtime, target, 'Lightning Strike', () => dealDamage(runtime, target, attacker, 0.75))
-  }
+  // Lightning Strike hits back after the attacker's hit, and only if Zeus survives it
+  // (Veyrath vs Mummy+Hathor+Zeus: Veyrath kills Zeus at 3% HP and wins, 4/4).
+  if (hasAbility(runtime, target, 'Lightning Strike') && alive(target) && alive(attacker)) zeusRecoil.set(attacker, target)
+  else zeusRecoil.delete(attacker)
   const poisonPercent = attacker.counters.poisonPercent || 0
   const poisonFlat = attacker.counters.poisonFlat || 0
   if (poisonPercent) attacker.hp = Math.max(0, attacker.hp + poisonPercent * attacker.maxHp)
@@ -3597,6 +3610,7 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
       const critical = hasAbility(runtime, attacker, 'Jackpot') && rand(runtime, attacker.team) < 0.3
       const dealt = dealDamage(runtime, attacker, target, dance ? 0.5 : critical ? 1.5 : 1)
       recordCaughtOnTape(runtime, attacker, target)
+      applyZeusRecoil(runtime, attacker, target)
       // Any kill by The Smasher's normal attack also shortens Night City Massacre's interval (fast8: 3 Smasher fights
       // the game gave the player; the massacre came one attack sooner after each normal-attack kill).
       if (hasAbility(runtime, attacker, 'Night City Massacre') && target.team !== attacker.team && target.hp <= 0)
@@ -3925,7 +3939,9 @@ export function simulateBattleV2(
         && !next.flags.frozenSolitudeFirstTurnUsed
         && frozenSource
         && hasAbility(runtime, frozenSource, 'Frozen Solitude')
-      if (next && !next.flags.frozenSolitudeFirstTurnUsed) next.flags.frozenSolitudeFirstTurnUsed = true
+      // The first turn is counted per Ice King: a card that already acted earlier is still frozen
+      // on its first turn against Ice King (Dracula vs Buddhist Monk+Mothman+Ice King: dummy).
+      if (canFirstTurnFreeze) next.flags.frozenSolitudeFirstTurnUsed = true
 
       if (canFirstTurnFreeze && !statusProtected(runtime, nextTeam)) {
         next.counters.videoFrozen = 1

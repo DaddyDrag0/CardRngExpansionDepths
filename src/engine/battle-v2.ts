@@ -2704,7 +2704,8 @@ function applyOnDeathCore(runtime: Runtime, dead: CombatCard, opponent: CombatCa
       pushAbilityDebug(runtime, opponent, 'Prehistoric Wrath: enemy defeated; ATK doubled to ' + compactDebugNumber(opponent.damage) + '.')
     }
     if (opponent && alive(opponent) && hasAbility(runtime, opponent, 'All Father')) {
-      for (const card of runtime.state.teams[opponent.team]) boostStats(card, 1.25)
+      // "Boost allies' stats": Odin himself does not grow (DummyLab: Odin vs Vizier+Yeti, dummy)
+      for (const card of runtime.state.teams[opponent.team]) if (card !== opponent) boostStats(card, 1.25)
       pushAbilityDebug(runtime, opponent, 'All Father: enemy defeated; all living allies gained 25% stats.')
     }
   }
@@ -3596,7 +3597,11 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
       const critical = hasAbility(runtime, attacker, 'Jackpot') && rand(runtime, attacker.team) < 0.3
       const dealt = dealDamage(runtime, attacker, target, dance ? 0.5 : critical ? 1.5 : 1)
       recordCaughtOnTape(runtime, attacker, target)
-      const armageddonLethal = Boolean(attacker.flags.armageddonLethalThisHit)
+      // Any kill by The Smasher's normal attack also shortens Night City Massacre's interval (fast8: 3 Smasher fights
+      // the game gave the player; the massacre came one attack sooner after each normal-attack kill).
+      if (hasAbility(runtime, attacker, 'Night City Massacre') && target.team !== attacker.team && target.hp <= 0)
+        attacker.counters.cyberMassacreInterval = Math.max(1, (attacker.counters.cyberMassacreInterval || 3) - 1)
+      const armageddonLethal =Boolean(attacker.flags.armageddonLethalThisHit)
       if (hasAbility(runtime, attacker, 'Fortify') && alive(attacker)) {
         const block = attacker.maxHp * 0.4
         const remaining = attacker.counters.blockHp || 0

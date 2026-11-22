@@ -28,15 +28,7 @@ assert.equal(Object.keys(abilities).length, 392, 'Uploaded game contains 392 abi
 assert.equal(sourceNameHash(Object.keys(abilities)), '0d2666b4',
   'Ability description keys differ from uploaded Roblox source')
 const thumbs = JSON.parse(readFileSync('src/data/thumbnails.json', 'utf8')) as Record<string, unknown>
-// Nov 22 images are not in the thumbnail cache yet (the Roblox thumbnail API was unreachable
-// from the build machine); the UI resolves missing IDs live. Re-run scripts/resolve-thumbnails.mjs.
-const liveResolvedImages = new Set([
-  119567142769447, 74178438557315, 85112568686358, 106465185815272, 106455075581101, 89015847633497,
-  99657247299246, 109756729981389, 101795247406116, 119690603792605, 85332230764026,
-  107171205592372, 128794596721378,
-])
 for (const entity of [...cards, ...auras]) {
-  if (entity.imageAssetId && liveResolvedImages.has(entity.imageAssetId) && !thumbs[String(entity.imageAssetId)]) continue
   assert(entity.imageAssetId && thumbs[String(entity.imageAssetId)],
     'Missing thumbnail entry for ' + entity.name)
 }
@@ -65,4 +57,4 @@ for (const [name, ability] of Object.entries({
   assert(card && card.ability === ability, 'Missing or incorrect card ' + name)
   assert(abilities[ability], 'Missing ability description ' + ability)
 }
-console.log('Nov 22 import complete: 361 source cards + 2 Legacy, 392 abilities, 74 auras; image IDs covered (13 new ones resolved live).')
+console.log('Nov 22 import complete: 361 source cards + 2 Legacy, 392 abilities, 74 auras; all image IDs covered.')

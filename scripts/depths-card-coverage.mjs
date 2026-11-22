@@ -10,15 +10,16 @@ const descriptions=Object.assign({},...Array.from({length:4},(_,i)=>JSON.parse(r
 const base=source.match(/Ma=new Set\((\[[\s\S]*?\])\),Cs=new Set/);
 const v26=source.match(/const __v26Abilities=(\[[\s\S]*?\]);/);
 const v34=source.match(/const __v34Modeled=new Set\((\[[\s\S]*?\])\)/);
-assert(base&&v26&&v34,"Cannot identify actual deployed worker ability registry and extensions");
-const registered=new Set([...JSON.parse(base[1]),...JSON.parse(v26[1]),...JSON.parse(v34[1]),"Drowned","Lucky 🤡"]);
+const nov22=source.match(/const __nov22Abilities=(\[[\s\S]*?\]);/);
+assert(base&&v26&&v34&&nov22,"Cannot identify actual deployed worker ability registry and extensions");
+const registered=new Set([...JSON.parse(base[1]),...JSON.parse(v26[1]),...JSON.parse(v34[1]),...JSON.parse(nov22[1]),"Drowned","Lucky 🤡"]);
 const unique=new Set(cards.map(c=>c.ability).filter(Boolean));
 const unavailable=cards.filter(c=>c.unobtainable);
 const available=cards.filter(c=>!c.unobtainable);
 const uncovered=available.filter(c=>c.ability&&!registered.has(c.ability)).map(c=>({card:c.name,ability:c.ability,description:descriptions[c.ability]||""}));
 const legacyUnregistered=unavailable.filter(c=>c.ability&&!registered.has(c.ability)).map(c=>({card:c.name,ability:c.ability}));
 const explicitlyUnverifiable=["Goon Detector","Reversal Rite","Nil","Cooked 🎪"];
-assert.equal(cards.length,352,"Game card data changed; reassess the entire roster");
+assert.equal(cards.length,363,"Game card data changed; reassess the entire roster (Nov 22 2026: 361 + 2 Legacy)");
 assert.deepEqual(uncovered,[],"Obtainable cards must not have unrecognized ability registrations");
 assert.deepEqual(legacyUnregistered.map(c=>c.ability).sort(),[...explicitlyUnverifiable].sort(),
  "Archived, unobtainable card data must not be presented as currently available");

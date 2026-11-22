@@ -91,6 +91,10 @@ const FULLY_SUPPORTED = new Set([
   'Trick or Treat!', 'Get Off My Lawn!', 'Venomous Web', 'Intangible',
   'Murder of Crows', 'Withering Curse', 'The Eight Pages',
   'Caught On Tape', 'Night City Massacre', 'Hack', 'Sandevistan',
+  // Nov 22 2026 update (text-based models; see NOV22 block below).
+  'Supreme Eye', 'Arise', 'Black Meteor', 'Judgment Divide', 'Noxious Arrival',
+  "Pharaoh's Judgment", 'Relentless Assault', 'Sacred Intervention',
+  'Celestial Protection', 'Vault of Blades',
 ])
 
 const BENCH_AFFECTING_UNSUPPORTED = new Set<string>()
@@ -138,6 +142,14 @@ interface Runtime {
   halloweenFixedAttack?: number
   // Independent seeds retain their own delay and strength, even across deaths.
   orchardSeeds: Map<CombatCard, Array<{ turns: number; damage: number }>>
+  /** Nov 22 abilities: the card whose normal attack is resolving right now. */
+  nov22Normal?: CombatCard
+  /** Supreme Eye counter waiting for the evaded normal attack to finish. */
+  nov22Counter?: { from: CombatCard; to: CombatCard } | null
+  /** Card whose hit left this card at 0 HP (Arise kill credit). */
+  nov22Killer?: WeakMap<CombatCard, CombatCard>
+  /** Zen-kai's last normal-attack target and stack count. */
+  nov22Relentless?: WeakMap<CombatCard, { target: CombatCard; stacks: number }>
 }
 
 function debugCard(card: CombatCard) {
@@ -233,7 +245,7 @@ function compactDebugNumber(value: number): string {
   if (!Number.isFinite(value)) return 'lethal'
   const sign = value < 0 ? '-' : ''
   const abs = Math.abs(value)
-  const trim = (n: number) => n.toFixed(n >= 100 ? 0 : n >= 10 ? 1 : 2).replace(/\.?0+$/, '')
+  const trim = (n: number) => String(Number(n.toFixed(n >= 100 ? 0 : n >= 10 ? 1 : 2)))
   if (abs >= 1e12) return sign + trim(abs / 1e12) + 't'
   if (abs >= 1e9) return sign + trim(abs / 1e9) + 'b'
   if (abs >= 1e6) return sign + trim(abs / 1e6) + 'm'
@@ -479,6 +491,253 @@ function applyCaughtOnTapeKill(runtime: Runtime, dead: CombatCard) {
     ally.damage += base * 0.15
   }
   pushAbilityDebug(runtime, holder, 'Caught On Tape defeated an exposed enemy, granting allies +15% ATK (stack ' + (stacks + 1) + '/4).')
+}
+
+// ---------------------------------------------------------------------------
+// NOV22: the 11 cards added in the Nov 22 2026 update. The Roblox export has their text
+// but no server combat code, so these follow the text plus the engine's conventions.
+// None of them is DummyLab-verified yet. The browser worker carries the same rules (__nov22*).
+// ---------------------------------------------------------------------------
+const NOV22_ENTRY_ABILITIES = new Set([
+  'Black Meteor', 'Noxious Arrival', "Pharaoh's Judgment", 'Apex Predator', 'Celestial Protection', 'Vault of Blades',
+])
+
+function nov22Name(card: CombatCard): string {
+  return effectiveCardName(card) || card.definition.name
+}
+
+function nov22Entry(runtime: Runtime, card: CombatCard, name: string) {
+  if (card.flags.nov22Entered) return
+  card.flags.nov22Entered = true
+  const enemies = runtime.state.teams[OTHER_TEAM[card.team]].filter(alive)
+  const allies = runtime.state.teams[card.team]
+  runAbilityTrace(runtime, card, name, () => {
+    if (name === 'Black Meteor' && !card.flags.nov22MeteorUsed) {
+      card.counters.nov22MeteorCharge = 3
+      pushAbilityDebug(runtime, card, 'Black Meteor is charging: 3 allied normal attacks to go.')
+    }
+    if (name === 'Noxious Arrival') {
+      for (const enemy of enemies) {
+        enemy.counters.nov22MistTurns = 3
+        enemy.counters.nov22MistHeal = 1
+        enemy.counters.nov22MistDamage = card.damage
+      }
+      pushAbilityDebug(runtime, card, 'Noxious Arrival covered ' + enemies.length + ' enemies in toxic mist for 3 turns.')
+    }
+    if (name === "Pharaoh's Judgment") {
+      let mark: CombatCard | undefined
+      for (const enemy of enemies) if (!mark || enemy.hp > mark.hp) mark = enemy
+      if (mark) {
+        mark.counters['nov22Pharaoh' + card.team] = 3
+        pushAbilityDebug(runtime, card, "Pharaoh's Judgment marked " + nov22Name(mark) + ' for 3 boosted allied normal attacks.')
+      }
+    }
+    if (name === 'Apex Predator') {
+      const fossils = runtime.state.boosts[card.team].fossils || 0
+      if (fossils > 0) {
+        boostStats(card, Math.pow(1.2, fossils))
+        pushAbilityDebug(runtime, card, 'Apex Predator: x' + compactDebugNumber(Math.pow(1.2, fossils)) + ' stats for ' + fossils + ' Fossils.')
+      }
+    }
+    if (name === 'Celestial Protection') {
+      const amount = card.maxHp * 0.25
+      for (const ally of allies) {
+        if (!alive(ally) || !canReceiveExternalProtection(ally)) continue
+        ally.counters.nov22Shield = Math.max(ally.counters.nov22Shield || 0, amount)
+        ally.counters.nov22ShieldFull = ally.counters.nov22Shield
+      }
+      pushAbilityDebug(runtime, card, 'Celestial Protection shielded every ally for ' + compactDebugNumber(amount) + '.')
+    }
+    if (name === 'Vault of Blades') {
+      for (const enemy of enemies) {
+        const weapons = 5 + Math.floor(rand(runtime, card.team) * 16)
+        let hits = 0
+        for (let i = 0; i < weapons && alive(enemy) && alive(card); i++) {
+          dealDamage(runtime, card, enemy, 0.05)
+          hits += 1
+        }
+        resolveDeaths(runtime)
+        pushAbilityDebug(runtime, card, 'Vault of Blades fired ' + hits + ' weapons at ' + nov22Name(enemy) + '.')
+      }
+    }
+  })
+}
+
+/** Offensive multiplier: toxic-mist misses, Pharaoh's mark, Black Meteor's debuff, Relentless Assault. */
+function nov22Multiplier(runtime: Runtime, attacker: CombatCard, target: CombatCard): number {
+  if (attacker.team === target.team) return 1
+  if ((attacker.counters.nov22MistTurns || 0) > 0 && rand(runtime, attacker.team) < 0.2) {
+    pushAbilityDebug(runtime, attacker, 'Toxic mist made the attack miss.')
+    return 0
+  }
+  if (runtime.nov22Normal !== attacker) return 1
+  let mult = 1
+  const markKey = 'nov22Pharaoh' + attacker.team
+  if ((target.counters[markKey] || 0) > 0) {
+    target.counters[markKey] -= 1
+    mult *= 1.5
+    pushAbilityDebug(runtime, attacker, "Pharaoh's Judgment mark: +50% damage (" + target.counters[markKey] + ' left).')
+  }
+  if ((target.counters.nov22MeteorTurns || 0) > 0) mult *= 1.15
+  if (hasAbility(runtime, attacker, 'Relentless Assault')) {
+    const memory = runtime.nov22Relentless || (runtime.nov22Relentless = new WeakMap())
+    const last = memory.get(attacker)
+    const stacks = last && last.target === target ? Math.min(4, last.stacks + 1) : 0
+    memory.set(attacker, { target, stacks })
+    if (stacks) mult *= 1 + 0.25 * stacks
+  }
+  return mult
+}
+
+/** Supreme Eye: evade the first normal attack from each enemy card, then counter (after the hit). */
+function nov22Dodge(runtime: Runtime, attacker: CombatCard, target: CombatCard, damage: number, bypass: boolean): number {
+  if (bypass || damage <= 0 || runtime.nov22Normal !== attacker || attacker.team === target.team) return damage
+  if (!hasAbility(runtime, target, 'Supreme Eye')) return damage
+  const key = 'nov22Eye' + attacker.id
+  if (target.counters[key]) return damage
+  target.counters[key] = 1
+  runtime.nov22Counter = { from: target, to: attacker }
+  pushAbilityDebug(runtime, target, 'Supreme Eye evaded the first normal attack from ' + nov22Name(attacker) + '.')
+  return 0
+}
+
+/** Last step before HP loss: Celestial shields absorb (and punish the breaker); Sacred Intervention. */
+function nov22FinalDamage(runtime: Runtime, attacker: CombatCard, target: CombatCard, damage: number): number {
+  if (damage <= 0) return damage
+  if ((target.counters.nov22Shield || 0) > 0 && canReceiveExternalProtection(target)) {
+    const absorbed = Math.min(target.counters.nov22Shield, damage)
+    target.counters.nov22Shield -= absorbed
+    damage -= absorbed
+    pushAbilityDebug(runtime, target, 'Celestial shield absorbed ' + compactDebugNumber(absorbed) + ' damage.')
+    if (target.counters.nov22Shield <= 0 && attacker.team !== target.team && alive(attacker)) {
+      const backlash = target.counters.nov22ShieldFull || absorbed
+      target.counters.nov22ShieldFull = 0
+      attacker.hp -= Math.min(attacker.hp, backlash)
+      pushAbilityDebug(runtime, target, 'Breaking the shield cost ' + nov22Name(attacker) + ' ' + compactDebugNumber(backlash) + ' HP.')
+    }
+  }
+  if (damage >= target.hp && runtime.nov22Normal === attacker && attacker.team !== target.team) {
+    const saint = runtime.state.teams[target.team].find((ally) =>
+      alive(ally) && !ally.flags.nov22SaintUsed && hasAbility(runtime, ally, 'Sacred Intervention'))
+    if (saint) {
+      saint.flags.nov22SaintUsed = true
+      damage = Math.ceil(damage * 0.7)
+      pushAbilityDebug(runtime, saint, 'Sacred Intervention cut a lethal normal attack on ' + nov22Name(target) + ' by 30%.')
+    }
+  }
+  return damage
+}
+
+/** Toxic mist: -30% healing received; the first heal fails and deals the Phantom's damage instead. */
+function nov22HealGuard<T>(runtime: Runtime, fn: () => T): T {
+  const watched: Array<[CombatCard, number, number]> = []
+  for (const side of ['Allies', 'Enemies'] as BattleTeam[]) {
+    for (const card of runtime.state.teams[side]) {
+      if ((card.counters.nov22MistTurns || 0) > 0) watched.push([card, card.hp, card.maxHp])
+    }
+  }
+  const result = fn()
+  for (const [card, hpBefore, maxBefore] of watched) {
+    if (hpBefore <= 0) continue
+    const healed = card.hp - hpBefore - Math.max(0, card.maxHp - maxBefore)
+    if (healed <= 0) continue
+    if (card.counters.nov22MistHeal) {
+      card.counters.nov22MistHeal = 0
+      const sting = card.counters.nov22MistDamage || 0
+      card.hp -= healed
+      card.hp -= Math.min(Math.max(0, card.hp), sting)
+      pushAbilityDebug(runtime, card, 'Toxic mist made the heal fail and dealt ' + compactDebugNumber(sting) + ' damage instead.')
+    } else {
+      card.hp -= healed * 0.3
+    }
+  }
+  return result
+}
+
+/** A normal attack (the hits counted by Judgment Divide, Black Meteor, Relentless Assault and friends). */
+function nov22NormalAttack(runtime: Runtime, attacker: CombatCard, target: CombatCard, mult: number): number {
+  const previous = runtime.nov22Normal
+  runtime.nov22Normal = attacker
+  runtime.nov22Counter = null
+  let dealt: number
+  try {
+    dealt = dealDamage(runtime, attacker, target, mult)
+  } finally {
+    runtime.nov22Normal = previous
+  }
+  nov22AfterNormal(runtime, attacker)
+  return dealt
+}
+
+function nov22AfterNormal(runtime: Runtime, attacker: CombatCard) {
+  const counter = runtime.nov22Counter
+  runtime.nov22Counter = null
+  if (counter && alive(counter.from) && alive(counter.to)) {
+    runAbilityTrace(runtime, counter.from, 'Supreme Eye', () => {
+      dealDamage(runtime, counter.from, counter.to, 0.6)
+      resolveDeaths(runtime)
+    })
+  }
+  const enemyTeam = OTHER_TEAM[attacker.team]
+  for (const ally of runtime.state.teams[attacker.team]) {
+    if ((ally.counters.nov22MeteorCharge || 0) <= 0 || !alive(ally) || ally.flags.nov22MeteorUsed) continue
+    ally.counters.nov22MeteorCharge -= 1
+    if (ally.counters.nov22MeteorCharge > 0) continue
+    ally.flags.nov22MeteorUsed = true
+    runAbilityTrace(runtime, ally, 'Black Meteor', () => {
+      const base = ally.counters.normalDamage || ally.damage
+      const mult = ally.damage > 0 ? 1.5 * base / ally.damage : 1.5
+      for (const enemy of [...runtime.state.teams[enemyTeam]]) {
+        if (!alive(enemy)) continue
+        dealDamage(runtime, ally, enemy, mult)
+        enemy.counters.nov22MeteorTurns = 2
+      }
+      pushAbilityDebug(runtime, ally, 'Black Meteor struck every enemy for 150% base damage; they take +15% normal-attack damage for 2 turns.')
+      resolveDeaths(runtime)
+    })
+  }
+  if (!alive(attacker)) return
+  if (hasAbility(runtime, attacker, 'Judgment Divide')) {
+    attacker.counters.nov22Divide = (attacker.counters.nov22Divide || 0) + 1
+    if (attacker.counters.nov22Divide % 3 === 0) {
+      runAbilityTrace(runtime, attacker, 'Judgment Divide', () => {
+        for (let strike = 0; strike < 3; strike++) {
+          for (const enemy of [...runtime.state.teams[enemyTeam]]) {
+            if (!alive(enemy) || !alive(attacker)) continue
+            dealDamage(runtime, attacker, enemy, 0.5)
+          }
+          resolveDeaths(runtime)
+        }
+      })
+    }
+  }
+  const shadows = attacker.counters.nov22Shadows || 0
+  if (shadows > 0 && hasAbility(runtime, attacker, 'Arise')) {
+    runAbilityTrace(runtime, attacker, 'Arise', () => {
+      for (let shadow = 0; shadow < shadows; shadow++) {
+        const next = active(runtime, enemyTeam)
+        if (!next || !alive(attacker)) break
+        dealDamage(runtime, attacker, next, 0.35)
+        resolveDeaths(runtime)
+      }
+    })
+  }
+}
+
+function nov22OnDeath(runtime: Runtime, dead: CombatCard) {
+  const killer = runtime.nov22Killer?.get(dead)
+  runtime.nov22Killer?.delete(dead)
+  if (!killer || killer.team === dead.team || !alive(killer) || !hasAbility(runtime, killer, 'Arise')) return
+  if ((killer.counters.nov22Shadows || 0) >= 3) return
+  killer.counters.nov22Shadows = (killer.counters.nov22Shadows || 0) + 1
+  pushAbilityDebug(runtime, killer, nov22Name(dead) + ' became a Shadow (' + killer.counters.nov22Shadows + '/3).')
+}
+
+function nov22AfterTurn(runtime: Runtime, mover: CombatCard) {
+  for (const card of runtime.state.teams[mover.team]) {
+    if ((card.counters.nov22MistTurns || 0) > 0) card.counters.nov22MistTurns -= 1
+    if ((card.counters.nov22MeteorTurns || 0) > 0) card.counters.nov22MeteorTurns -= 1
+  }
 }
 
 function stealStats(from: CombatCard, to: CombatCard, fraction: number) {
@@ -844,6 +1103,7 @@ function onEntryCore(runtime: Runtime, card: CombatCard) {
 
   let name = resolvedAbility(runtime, card)
   if (!name || !hasAbility(runtime, card, name)) return
+  if (NOV22_ENTRY_ABILITIES.has(name)) nov22Entry(runtime, card, name)
 
   // Video Game combat models are implemented from the current card definitions and
   // are covered by the dedicated regression suite below.
@@ -1045,7 +1305,8 @@ function onEntryCore(runtime: Runtime, card: CombatCard) {
         card.counters.ouroborosBonusDamage = stolenDamage
         card.counters.ouroborosBonusMaxHp = stolenMaxHp
         card.counters.ouroborosBonusHp = stolenHp
-        card.counters.ouroborosTurns = 3
+        // DummyLab 2026-11-19 (b4/037-038): the stolen stats last through Eonus' 4th attack.
+      card.counters.ouroborosTurns = 4
         card.flags.ouroborosActive = true
       }
       break
@@ -1069,7 +1330,8 @@ function onEntryCore(runtime: Runtime, card: CombatCard) {
       break
     case 'Gathering': {
       const count = runtime.state.teams[card.team].length + runtime.state.fallen[card.team].length
-      card.damage *= Math.pow(1.5, count)
+      // +25% per card in the party (DummyLab: a lone Community hits for 1.25x ATK, 4/4 vs God-Slayer).
+      card.damage *= 1 + 0.25 * count
       break
     }
     case 'Remembrance': {
@@ -1181,6 +1443,12 @@ function onEntryCore(runtime: Runtime, card: CombatCard) {
       enemy.abilityOverride = undefined
       card.identityOverride = enemy.definition.name
       card.abilityOverride = undefined
+      // DummyLab (Nüwa vs Loki): when Loki copies Nüwa, the copied Creation and Restoration
+      // runs right away and Loki's side gets its own created card.
+      if (enemy.definition.ability === 'Creation and Restoration') {
+        card.entered = false
+        onEntry(runtime, card)
+      }
       break
     }
     case 'Fire World':
@@ -1242,7 +1510,8 @@ function onEntryCore(runtime: Runtime, card: CombatCard) {
     case 'Pandemic':
       for (const target of runtime.state.teams[enemyTeam]) {
         if (statusProtected(runtime, target.team)) continue
-        target.counters.poisonPercent = Math.min(target.counters.poisonPercent || 0, -0.075)
+        // Poison at 50% effectiveness: half of Black Plague's ATK each turn (DummyLab clip: The Shattered Emperor dies to the tick)
+        target.counters.poisonFlat = Math.max(target.counters.poisonFlat || 0, card.damage * 0.5)
         target.counters.poisonTurns = Math.max(target.counters.poisonTurns || 0, 2)
       }
       break
@@ -1276,6 +1545,9 @@ function onEntryCore(runtime: Runtime, card: CombatCard) {
     case 'Infectious':
       enemy.damage *= enemy.boss ? 0.85 : 0.5
       enemy.hp *= enemy.boss ? 0.85 : 0.5
+      // DummyLab 2026-11-20 (Michael M. vs Vicious, dummy 3/3): Infectious lowers the card's normal ATK too,
+      // so Persistent does not undo it.
+      enemy.counters.normalDamage = (enemy.counters.normalDamage || enemy.damage / (enemy.boss ? 0.85 : 0.5)) * (enemy.boss ? 0.85 : 0.5)
       break
     case 'Dragon Slayer':
       card.damage *= 1.75
@@ -1371,9 +1643,18 @@ function onEntryCore(runtime: Runtime, card: CombatCard) {
       card.counters.attacks = (card.counters.attacks || 0) + 1
       enemy.status.stunned = Math.max(1, enemy.status.stunned)
       break
+    case 'Frozen Solitude':
+      // The enemy is about to move first: its very first turn is frozen too
+      // (DummyLab: Eonus vs Ice King+Immortal Cultivator+Hell killer, dummy 5/5).
+      if (enemy && runtime.state.moving === enemy.team && !enemy.flags.frozenSolitudeFirstTurnUsed && !statusProtected(runtime, enemy.team)) {
+        enemy.flags.frozenSolitudeFirstTurnUsed = true
+        enemy.counters.fsEntryFrozen = 1
+      }
+      break
     case 'Ice Age':
       enemy.flags.slowed = true
       enemy.counters.slowed = 0
+      enemy.counters.iceAgeSlow = 1
       break
     case "Hell's Curse":
       enemy.flags.sealed = true
@@ -1409,9 +1690,10 @@ function onEntryCore(runtime: Runtime, card: CombatCard) {
       const deck = runtime.state.teams[card.team]
       const behind = deck[1]
       if (behind && behind !== card) {
-        card.damage += behind.damage * 0.75
-        card.maxHp += behind.maxHp * 0.75
-        card.hp += Math.max(0, behind.hp) * 0.75
+        // Nov 22 update text: the steal is at most 250% of the Pop Star's own stats.
+        card.damage += Math.min(behind.damage * 0.75, card.damage * 2.5)
+        card.hp += Math.min(Math.max(0, behind.hp) * 0.75, card.maxHp * 2.5)
+        card.maxHp += Math.min(behind.maxHp * 0.75, card.maxHp * 2.5)
         deck.splice(1, 1)
         behind.dead = true
       }
@@ -1446,14 +1728,9 @@ function onEntryCore(runtime: Runtime, card: CombatCard) {
       performEntryAttack(runtime, card, 3)
       break
     case 'Kitchen': {
+      // DummyLab 2026-11-19: entry only opens the Domain. The 2-5 slashes at 35% are The Curse's attack on every
+      // one of its turns (b5b/135-136 and b3/088: no hit before the enemy's first attack, ~10% chunks each turn).
       card.flags.kitchenDomain = true
-      const hits = 2 + Math.floor(runtime.rng.next() * 4)
-      for (let hit = 0; hit < hits; hit++) {
-        const target = active(runtime, enemyTeam)
-        if (!target || !alive(card)) break
-        dealDamage(runtime, card, target, 0.35, true)
-        resolveDeaths(runtime)
-      }
       break
     }
     case 'War Scythe': {
@@ -1582,7 +1859,7 @@ function offensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
     'True Strike','Maelstrom','Judgment','Armageddon','Draconic Heart','Explosion','Telekinesis',
     'Favorable Odds','Vainglory','Modesty','Decapitate','Martial Will','Dominate','Decimate',
     'Prehistoric Wrath','Big and Large','Blade','Defraud','Assassinate','Sky Drop','Shadow Predator',
-    'Apex Predator','Infinite Dagger Works','Extinction','God of Thunder','Fire World','Moonlight Beam',
+    'Infinite Dagger Works','Extinction','God of Thunder','Fire World','Moonlight Beam',
     'Dirty Claw','Heart Hunter','Chainsaw','Firepower','Rapid Blows','Behavioral Therapy',
     'Holy Wrath','Unlucky','Dragon Slayer','Frozen Wrath','Absolute Apex',
     'Dark Qi Manipulation','Chaos Destruction','ConstellarTaurus','ConstellarSagittarius','Whooping',
@@ -1617,7 +1894,7 @@ function offensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
       bypass = true
       if (!statusProtected(runtime, target.team) && rand(runtime, attacker.team) < 0.25) target.status.stunned = Math.max(1, target.status.stunned)
       break
-    case 'Kitchen': bypass = true; break
+    case 'Kitchen': damage *= 0.35; bypass = true; break
     case 'Stone Vigil': if (attacker.flags.stoneAwakened) damage *= 2; break
     case 'War Scythe': if (attacker.flags.warScytheEntry) bypass = true; break
     case 'True Strike': if (rand(runtime, attacker.team) > 0.5) damage *= 2; break
@@ -1705,7 +1982,6 @@ function offensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
     case 'Shadow Predator':
       if (attacker.flags.double) { damage *= 2; attacker.flags.double = false }
       break
-    case 'Apex Predator': damage *= 1.5; break
     case 'Infinite Dagger Works': damage *= 2; break
     case 'Extinction': damage *= 10; attacker.hp = 0; break
     case 'God of Thunder':
@@ -1727,7 +2003,7 @@ function offensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
       break
     case 'Undead Practitioner': target.counters.bleed = 100; break
     case 'Heart Hunter': if ((target.counters.bleed || 0) > 0) damage *= 3; break
-    case 'Chainsaw': damage *= 0.5; break
+    case 'Chainsaw': damage *= 0.25; break // DummyLab HP bars: each of the 8 hits takes 25% of Jason's ATK
     case 'Firepower': damage *= 0.25; break
     case 'Rapid Blows': damage *= 0.5; break
     case 'Speedy Progression': damage /= 3; break
@@ -1772,7 +2048,8 @@ function defensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
 
   switch (name) {
     case 'Divine Arrogance': if (target.hp < attacker.hp) damage *= 0.55; break
-    case 'Stone Vigil': if (target.flags.stoneForm) damage *= 0.2; break
+    // DummyLab 2026-11-19: the 80% reduction is up from entry until the first own turn and after every even own turn
+    case 'Stone Vigil': if (((target.counters.stoneTurns ?? 0) % 2) === 0) damage *= 0.2; break
     case 'Haunted Heirloom': if ((target.counters.hauntedGuardTurns || 0) > 0) damage *= 0.25; break
     case 'The D8': damage *= 1 - (target.counters.d8Reduction || 0); break
     case 'Fortify': {
@@ -1920,7 +2197,6 @@ function defensive(runtime: Runtime, attacker: CombatCard, target: CombatCard, i
       defensiveChanceDetail = `roll ${(roll * 100).toFixed(1)}% · ${dodged ? 'DODGE' : 'HIT'} · 40% evade chance`
       break
     }
-    case 'Apex Predator': damage *= 0.5; break
     case 'Absolute Apex': damage *= 0.5; break
     case 'Immortal Ascension': if (target.flags.awakened) damage *= 0.5; break
     case 'Final Tail': damage = 0; break
@@ -2061,7 +2337,9 @@ function targetRetroCore(runtime: Runtime, attacker: CombatCard, target: CombatC
     case 'Ruler of Humans':
       for (const ally of runtime.state.teams[target.team]) if (alive(ally)) ally.damage += damage * 1.25
       break
-    case 'Restoration': if (target.hp > 0) target.hp += damage * 0.7; break
+    // DummyLab b9/b10: an Unforgiving hit that empties Shu's bar still lets Restoration heal; Unforgiving then
+    // caps HP at the shrunken max, leaving Shu alive at 1/1 (bar drops to 0 and refills to full in all 6 recordings).
+    case 'Restoration': if (target.hp > 0 || hasAbility(runtime, attacker, 'Unforgiving')) target.hp += damage * 0.7; break
     case 'Rage': if (target.hp > 0) target.damage *= 1.25; break
     case 'Undead': if (target.hp > 0) target.hp = Math.min(target.maxHp, target.hp + target.maxHp * 0.25); break
     case 'Passion':
@@ -2093,7 +2371,7 @@ function targetRetroCore(runtime: Runtime, attacker: CombatCard, target: CombatC
       break
     case 'Guilt': if (target.hp <= 0) attacker.flags.hanged = true; break
     case 'Into The Sun': if (target.hp / target.maxHp < 0.33) { target.hp = 0; attacker.hp = 0 }; break
-    case 'Frigid Touch': if (damage > 0 && rand(runtime, attacker.team) >= 0.5) target.status.stunned = Math.max(1, target.status.stunned); break
+    // Frigid Touch is an attacker ability (attackerAfterHit), not a when-hit effect
     case 'Blinding Flash': if (rand(runtime, attacker.team) > 0.7) attacker.flags.extraTurn = true; break
     case 'Grape Juice': {
       const reflected = attacker.definition.name === 'Marrowclaw' ? Math.min(Math.max(0, attacker.hp - 1), target.damage / 2) : Math.min(attacker.hp, target.damage / 2)
@@ -2230,6 +2508,8 @@ function attackerRetroCore(runtime: Runtime, attacker: CombatCard, target: Comba
         if (stolen && stolen !== "Witch's Curse") {
           attacker.flags.witchCurseStolen = true
           attacker.abilityOverride = stolen
+          // "Steals": the victim loses it (DummyLab: Hecate vs Megalodon+Assassin King and Thor+Tornado+Sphinx, player 2/2)
+          target.abilityOverride = 'Lucky'
         }
       }
       break
@@ -2365,7 +2645,7 @@ function attackerRetroCore(runtime: Runtime, attacker: CombatCard, target: Comba
     case 'Unforgiving': target.maxHp = Math.max(1, target.maxHp - damage); target.hp = Math.min(target.hp, target.maxHp); break
     case 'Eat The Moon': if (!hasAbility(runtime, target, 'Erosion') && target.hp / target.maxHp < 0.33) target.hp = 0; break
     case 'Death Embrace': if (!hasAbility(runtime, target, 'Erosion') && target.hp > 0 && rand(runtime, attacker.team) > 1 - damage / target.hp) target.hp = 0; break
-    case 'Prehistoric Wrath': if (target.hp <= 0) attacker.damage *= 2; break
+    // Prehistoric Wrath's +100% ATK per kill is applied once, by the on-death handler (2x per kill, compounding).
   }
   return didRegen
 }
@@ -2424,7 +2704,7 @@ function dealDamageCore(runtime: Runtime, attacker: CombatCard, originalTarget: 
 
   const frostbiteActiveOnAttack = (target.counters.frostbite || 0) > 0 && !statusProtected(runtime, target.team)
 
-  let damage = attacker.damage * mult
+  let damage = attacker.damage * mult * nov22Multiplier(runtime, attacker, target)
   if (hasAbility(runtime, attacker, 'Jaws')) damage += target.damage
   if (attacker.status.burn > 0) damage *= 0.85
   const off = offensive(runtime, attacker, target, damage)
@@ -2452,12 +2732,16 @@ function dealDamageCore(runtime: Runtime, attacker: CombatCard, originalTarget: 
   }
   if (attacker.status.blind && rand(runtime, attacker.team) > 0.4) { damage = 0; pushAbilityDebug(runtime, attacker, 'Blind caused the attack to miss.') }
 
-  if (!bypass && !off.special && hasAbility(runtime, target, 'All Father') && damage > 0) {
+  // Odin also dodges (and pays for) each hit of a multi-hit attack (Odin vs Siegfried+Pegasus+Engineer: dummy).
+  const multiHit = ['Firepower', 'Chainsaw', 'Rapid Blows', 'Kitchen', 'Behavioral Therapy'].some(name => hasAbility(runtime, attacker, name))
+  if (!bypass && (!off.special || multiHit) && hasAbility(runtime, target, 'All Father') && damage > 0) {
     const cost = target.maxHp / 5
     damage = 0
     target.hp -= cost
     pushAbilityDebug(runtime, target, 'All Father dodged ' + (effectiveCardName(attacker) || attacker.definition.name) + "'s normal attack and paid 20% Max HP (" + compactDebugNumber(cost) + ').')
   }
+
+  damage = nov22Dodge(runtime, attacker, target, damage, bypass)
 
   if (statusProtected(runtime, target.team)) clearStatuses(target)
   // Erosion blocks explicit/direct kill effects (Doom, Eat The Moon, Death Embrace,
@@ -2557,6 +2841,7 @@ function dealDamageCore(runtime: Runtime, attacker: CombatCard, originalTarget: 
     // separate 25% Max HP self-cost after every attack.
     damage = Math.min(damage, hpTarget.hp * 0.5)
   }
+  damage = nov22FinalDamage(runtime, attacker, hpTarget, damage)
   const appliedHpDamage = Math.min(hpTarget.hp, damage)
   hpTarget.hp -= appliedHpDamage
   if (appliedHpDamage > 0 && hpTarget.flags.freddySleeping) hpTarget.flags.freddySleeping = false
@@ -2608,27 +2893,31 @@ function dealDamageCore(runtime: Runtime, attacker: CombatCard, originalTarget: 
     target.counters.damageTaken = Math.min(target.maxHp, (target.counters.damageTaken || 0) + damage)
   }
 
+  if (hasAbility(runtime, attacker, 'Frigid Touch') && damage > 0 && target !== attacker && rand(runtime, attacker.team) >= 0.5) runAbilityTrace(runtime, attacker, 'Frigid Touch', () => { target.status.stunned = Math.max(1, target.status.stunned) })
   if (hasAbility(runtime, attacker, 'Disarm') && damage > 0) runAbilityTrace(runtime, attacker, 'Disarm', () => { target.damage = Math.max(0, target.damage - damage * 0.4) })
-  if (hasAbility(runtime, attacker, 'Shiny Steal') && damage > 0 && target !== attacker) {
-    runAbilityTrace(runtime, attacker, 'Shiny Steal', () => {
-      const stolenDamage = target.damage * 0.1
-      const stolenHp = target.maxHp * 0.1
-      target.damage = Math.max(0, target.damage - stolenDamage)
-      target.maxHp = Math.max(1, target.maxHp - stolenHp)
-      target.hp = Math.min(target.hp, target.maxHp)
-      attacker.damage += stolenDamage
-      attacker.maxHp += stolenHp
-      attacker.hp += stolenHp
-    })
-  }
 
   const flame = runtime.state.boosts[attacker.team].flameWizard
   if (!statusProtected(runtime, target.team) && flame && damage > 0 && runtime.rng.next() * 100 < flame) target.status.burn = 2
   const phantom = runtime.state.boosts[attacker.team].phantom
   if (!statusProtected(runtime, target.team) && phantom && damage > 0 && runtime.rng.next() * 100 < phantom) target.status.stunned = Math.max(1, target.status.stunned)
 
-  targetRetro(runtime, attacker, target, damage)
-  const didRegen = attackerRetro(runtime, attacker, target, damage)
+  nov22HealGuard(runtime, () => targetRetro(runtime, attacker, target, damage))
+  // DummyLab b10/b12/b14 (Jamiy, 29 fights): Shiny Steal lands after the hit and after the target's own on-hit heals
+  // (Undead, Restoration), even when the hit was blocked (Inari). It drains 10% of the target's max HP from its
+  // current HP and from its max HP, plus 10% ATK; Jamiy gains both, max HP included (Jamiy vs Shu 8/8 needs the max-HP loss).
+  if (hasAbility(runtime, attacker, 'Shiny Steal') && target !== attacker) {
+    runAbilityTrace(runtime, attacker, 'Shiny Steal', () => {
+      const stolenDamage = target.damage * 0.1
+      const stolenHp = target.maxHp * 0.1
+      target.damage = Math.max(0, target.damage - stolenDamage)
+      target.maxHp = Math.max(1, target.maxHp - stolenHp)
+      target.hp -= stolenHp
+      attacker.damage += stolenDamage
+      attacker.maxHp += stolenHp
+      attacker.hp += stolenHp
+    })
+  }
+  const didRegen = nov22HealGuard(runtime, () => attackerRetro(runtime, attacker, target, damage))
 
   if (hasAbility(runtime, target, 'Reveal') && !target.flags.revealed && target.hp > 0 && target.hp / target.maxHp < 0.65) {
     runAbilityTrace(runtime, target, 'Reveal', () => {
@@ -2645,6 +2934,11 @@ function dealDamageCore(runtime: Runtime, attacker: CombatCard, originalTarget: 
   }
 
   if (target.hp <= 0) tryRevive(runtime, attacker, target)
+  if (target !== attacker) {
+    const killers = runtime.nov22Killer || (runtime.nov22Killer = new WeakMap())
+    if (target.hp <= 0) killers.set(target, attacker)
+    else killers.delete(target)
+  }
 
   if (hasAbility(runtime, attacker, 'Infinite Dagger Works') && rand(runtime, attacker.team) > 0.5) { attacker.flags.extraTurn = true; pushAbilityDebug(runtime, attacker, 'Infinite Dagger Works triggered — the opponent turn will be skipped.') }
   if (runtime.captureDebug) pushDebugEvent(runtime, { turn: runtime.state.turn, type: 'attack',
@@ -2680,8 +2974,16 @@ function applyOnDeathCore(runtime: Runtime, dead: CombatCard, opponent: CombatCa
       pushAbilityDebug(runtime, opponent, 'Prehistoric Wrath: enemy defeated; ATK doubled to ' + compactDebugNumber(opponent.damage) + '.')
     }
     if (opponent && alive(opponent) && hasAbility(runtime, opponent, 'All Father')) {
-      for (const card of runtime.state.teams[opponent.team]) boostStats(card, 1.25)
+      // "Boost allies' stats": Odin himself does not grow (DummyLab: Odin vs Vizier+Yeti, dummy)
+      for (const card of runtime.state.teams[opponent.team]) if (card !== opponent) boostStats(card, 1.25)
       pushAbilityDebug(runtime, opponent, 'All Father: enemy defeated; all living allies gained 25% stats.')
+    }
+  }
+
+  // Ice Age's slow ends when the card that cast it dies (DummyLab: Eonus vs Admiral Ice+Sekhmet+Immortal Witch, player 3/3)
+  if (name === 'Ice Age') {
+    for (const foe of runtime.state.teams[team === 'Allies' ? 'Enemies' : 'Allies'] || []) {
+      if (foe.counters.iceAgeSlow) { foe.flags.slowed = false; foe.counters.iceAgeSlow = 0 }
     }
   }
 
@@ -2900,6 +3202,7 @@ function resolveDeathsCore(runtime: Runtime) {
       card.dead = true
       runtime.state.fallen[team].push(card)
       applyCaughtOnTapeKill(runtime, card)
+      nov22OnDeath(runtime, card)
 
       const finalTestament = runtime.state.boosts[team].finalTestament
       const inheritor = deck[0]
@@ -2980,11 +3283,21 @@ function resolveDeathsCore(runtime: Runtime) {
   }
 }
 
+const zeusRecoil = new WeakMap<CombatCard, CombatCard>()
+function applyZeusRecoil(runtime: Runtime, attacker: CombatCard, target: CombatCard) {
+  const zeus = zeusRecoil.get(attacker)
+  if (!zeus) return
+  zeusRecoil.delete(attacker)
+  if (zeus === target && alive(zeus) && alive(attacker))
+    runAbilityTrace(runtime, zeus, 'Lightning Strike', () => dealDamage(runtime, zeus, attacker, 0.75))
+}
+
 function statusStart(runtime: Runtime, attacker: CombatCard, target: CombatCard) {
   if (statusProtected(runtime, attacker.team)) clearStatuses(attacker)
-  if (hasAbility(runtime, target, 'Lightning Strike') && alive(target) && alive(attacker)) {
-    runAbilityTrace(runtime, target, 'Lightning Strike', () => dealDamage(runtime, target, attacker, 0.75))
-  }
+  // Lightning Strike hits back after the attacker's hit, and only if Zeus survives it
+  // (Veyrath vs Mummy+Hathor+Zeus: Veyrath kills Zeus at 3% HP and wins, 4/4).
+  if (hasAbility(runtime, target, 'Lightning Strike') && alive(target) && alive(attacker)) zeusRecoil.set(attacker, target)
+  else zeusRecoil.delete(attacker)
   const poisonPercent = attacker.counters.poisonPercent || 0
   const poisonFlat = attacker.counters.poisonFlat || 0
   if (poisonPercent) attacker.hp = Math.max(0, attacker.hp + poisonPercent * attacker.maxHp)
@@ -3032,6 +3345,7 @@ function tickOuroborosDecay(attacker: CombatCard) {
 }
 
 function statusEnd(runtime: Runtime, attacker: CombatCard) {
+  nov22AfterTurn(runtime, attacker)
   if ((attacker.counters.cyberExposedTurns || 0) > 0) attacker.counters.cyberExposedTurns -= 1
   tickOuroborosDecay(attacker)
   if ((attacker.counters.witheringCursed || 0) > 0 && !statusProtected(runtime, attacker.team)) {
@@ -3260,7 +3574,9 @@ function beforeAttack(runtime: Runtime, attacker: CombatCard) {
   if (hasAbility(runtime, attacker, 'Rejuvenate')) runAbilityTrace(runtime, attacker, 'Rejuvenate', () => { attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.35) })
   if (hasAbility(runtime, attacker, 'First Progenitor')) runAbilityTrace(runtime, attacker, 'First Progenitor', () => { attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.1) })
   if (hasAbility(runtime, attacker, 'Twilight Sparkle') && rand(runtime, attacker.team) > 0.6) runAbilityTrace(runtime, attacker, 'Twilight Sparkle', () => { attacker.hp = attacker.maxHp })
-  if (target && hasAbility(runtime, attacker, 'Viral Breath')) runAbilityTrace(runtime, attacker, 'Viral Breath', () => { target.hp -= target.maxHp * 0.25 })
+  // DummyLab 2026-11-19: in all 4 Infected Maw recordings the Maw itself loses 25% of its max HP at the start of
+  // each of its turns; the opponent's bar does not move (b5b/053-054, b2/153, b3/043).
+  if (hasAbility(runtime, attacker, 'Viral Breath')) runAbilityTrace(runtime, attacker, 'Viral Breath', () => { attacker.hp -= attacker.maxHp * 0.25 })
   if (hasAbility(runtime, attacker, 'Herbal Alchemy')) {
     runAbilityTrace(runtime, attacker, 'Herbal Alchemy', () => {
       attacker.hp = Math.min(attacker.maxHp, attacker.hp + attacker.maxHp * 0.2)
@@ -3277,6 +3593,7 @@ function attackCount(runtime: Runtime, attacker: CombatCard): { count: number; m
   if (hasAbility(runtime, attacker, 'Chainsaw')) base = Math.max(base, 8)
   if (hasAbility(runtime, attacker, 'Firepower')) base = Math.max(base, 5)
   if (hasAbility(runtime, attacker, 'Behavioral Therapy')) base = Math.max(base, 2)
+  if (hasAbility(runtime, attacker, 'Kitchen')) base = Math.max(base, 2 + Math.floor(rand(runtime, attacker.team) * 4))
   return { count: base + bonus, mult: 1 }
 }
 
@@ -3420,6 +3737,19 @@ function processTeamTurnAbilities(runtime: Runtime, movedTeam: BattleTeam, moved
   }
 }
 
+/** DummyLab 2026-11-19: the active Divine Doctor heals to full at the start of every 3rd own turn
+ *  (b2/b6 Doctor vs Orochi: bar 17% -> 100% at its 3rd turn; 8 of 8 recorded winners). */
+function healingMiracleOwnTurn(runtime: Runtime, card: CombatCard) {
+  if (!card || !hasAbility(runtime, card, 'Healing Miracle') || !alive(card)) return
+  card.counters.healingMiracleOwn = (card.counters.healingMiracleOwn || 0) + 1
+  if (card.counters.healingMiracleOwn >= 3) {
+    card.counters.healingMiracleOwn = 0
+    runAbilityTrace(runtime, card, 'Healing Miracle', () => {
+      card.hp = Math.min(card.maxHp, card.hp + card.maxHp)
+    })
+  }
+}
+
 function doDaggerStorm(runtime: Runtime, attacker: CombatCard) {
   const enemyTeam = OTHER_TEAM[attacker.team]
   for (const mult of [0.5, 1, 2]) {
@@ -3446,7 +3776,7 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
   let target = active(runtime, enemyTeam)
   if (!target || !alive(attacker)) return
 
-  prepareTurn(runtime, attacker)
+  nov22HealGuard(runtime, () => prepareTurn(runtime, attacker))
   resolveDeaths(runtime)
   if (!alive(attacker)) return
   target = active(runtime, enemyTeam)
@@ -3460,8 +3790,9 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
   if ((attacker.counters.cyberHackPending || 0) > 0) {
     attacker.counters.cyberHackPending = 0
     const allies = runtime.state.teams[attacker.team].filter((card) => card !== attacker && alive(card))
-    if (allies.length) {
-      const victim = allies[Math.floor(rand(runtime, attacker.team) * allies.length)]
+    // DummyLab 2026-11-19: with no living ally the hacked card hits itself
+    {
+      const victim = allies.length ? allies[Math.floor(rand(runtime, attacker.team) * allies.length)] : attacker
       runAbilityTrace(runtime, attacker, 'Hack', () => {
         pushAbilityDebug(runtime, attacker, 'Hack forced a friendly-fire attack on ' + (effectiveCardName(victim) || victim.definition.name) + '.')
         dealDamage(runtime, attacker, victim)
@@ -3476,7 +3807,7 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
     }
   }
 
-  beforeAttack(runtime, attacker)
+  nov22HealGuard(runtime, () => beforeAttack(runtime, attacker))
 
   if (hasAbility(runtime, attacker, 'Lotus Sutra')) runAbilityTrace(runtime, attacker, 'Lotus Sutra', () => doLotusSutra(runtime, attacker))
   else if (hasAbility(runtime, attacker, 'Origin')) runAbilityTrace(runtime, attacker, 'Origin', () => doOrigin(runtime, attacker))
@@ -3502,7 +3833,9 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
     } else {
       pushAbilityDebug(runtime, attacker, 'Chaos Destruction triggered. There was no other enemy card to swap in, and the next attack deals 3× damage.')
     }
-    attacker.flags.chaosTriple = true
+    // DummyLab 2026-11-19: against a lone enemy card nothing is swapped and no hit is tripled
+    // (0 of 6 Heavenly Demon hits on a lone Wendigo / The Composer were tripled on video).
+    if (deck.length > 1) attacker.flags.chaosTriple = true
   }
 
   if (canNormalAttack(runtime, attacker)) {
@@ -3544,9 +3877,14 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
         }
       }
       const critical = hasAbility(runtime, attacker, 'Jackpot') && rand(runtime, attacker.team) < 0.3
-      const dealt = dealDamage(runtime, attacker, target, dance ? 0.5 : critical ? 1.5 : 1)
+      const dealt = nov22NormalAttack(runtime, attacker, target, dance ? 0.5 : critical ? 1.5 : 1)
       recordCaughtOnTape(runtime, attacker, target)
-      const armageddonLethal = Boolean(attacker.flags.armageddonLethalThisHit)
+      applyZeusRecoil(runtime, attacker, target)
+      // Any kill by The Smasher's normal attack also shortens Night City Massacre's interval (fast8: 3 Smasher fights
+      // the game gave the player; the massacre came one attack sooner after each normal-attack kill).
+      if (hasAbility(runtime, attacker, 'Night City Massacre') && target.team !== attacker.team && target.hp <= 0)
+        attacker.counters.cyberMassacreInterval = Math.max(1, (attacker.counters.cyberMassacreInterval || 3) - 1)
+      const armageddonLethal =Boolean(attacker.flags.armageddonLethalThisHit)
       if (hasAbility(runtime, attacker, 'Fortify') && alive(attacker)) {
         const block = attacker.maxHp * 0.4
         const remaining = attacker.counters.blockHp || 0
@@ -3661,7 +3999,7 @@ function doTurn(runtime: Runtime, attacker: CombatCard) {
   if (attacker.flags.diesAfterAttack && alive(attacker)) { attacker.hp = 0; pushAbilityDebug(runtime, attacker, 'We Want YOU expired — the boosted card was sacrificed after its attack.') }
 
   statusEnd(runtime, attacker)
-  processTeamTurnAbilities(runtime, attacker.team, attacker)
+  nov22HealGuard(runtime, () => processTeamTurnAbilities(runtime, attacker.team, attacker))
   resolveDeaths(runtime)
 
   // Source behavior: Order of the Cosmos counts down only when the locked team
@@ -3694,8 +4032,7 @@ function processDivination(runtime: Runtime) {
 }
 
 function growHiddenInDepths(runtime: Runtime, moving: BattleTeam) {
-  if (moving !== 'Allies') return
-  const deck = runtime.state.teams.Allies
+  const deck = runtime.state.teams[moving]
   for (let index = 1; index < deck.length; index++) {
     const card = deck[index]
     if (hasAbility(runtime, card, 'Hidden in the Depths')) {
@@ -3801,13 +4138,21 @@ export function simulateBattleV2(
     attacker = active(runtime, state.moving)
     defender = active(runtime, OTHER_TEAM[state.moving])
     if (!attacker || !defender) break
+    if ((attacker.counters.fsEntryFrozen || 0) > 0) {
+      attacker.counters.fsEntryFrozen = 0
+      attacker.counters.videoFrozen = 1
+      state.moving = OTHER_TEAM[state.moving]
+      continue
+    }
 
     if (runtime.deathEpoch !== lastDeathEpoch) {
       turnsWithoutDeaths = 0
       lastDeathEpoch = runtime.deathEpoch
     }
     turnsWithoutDeaths += 1
-    if (turnsWithoutDeaths >= 150) {
+    // DummyLab b10/b12 (Sandman vs Buddha/Shu, 4 fights) + b3/272: after 100 turns without a death the active card with
+    // less HP is defeated (Sandman at 36% but far more HP beat Shu at 100%; 100 Men at 3.2M HP beat Gunslinger).
+    if (turnsWithoutDeaths >= 100) {
       debug.forcedStallResolutions += 1
       stallResolved = true
       if (runtime.captureDebug) pushDebugEvent(runtime, {
@@ -3815,11 +4160,10 @@ export function simulateBattleV2(
         type: 'stall',
         team: state.moving,
         card: effectiveCardName(attacker) || attacker.definition.name,
-        detail: `Expansion 150-turn no-progress resolution vs ${effectiveCardName(defender) || defender.definition.name}: both active cards defeated`,
+        detail: `Expansion 100-turn no-progress resolution vs ${effectiveCardName(defender) || defender.definition.name}: the card with less HP is defeated`,
         hp: attacker.hp, maxHp: attacker.maxHp, damage: attacker.damage,
       })
-      attacker.hp = 0
-      defender.hp = 0
+      ;(attacker.hp < defender.hp ? attacker : defender).hp = 0
       resolveDeaths(runtime)
       continue
     }
@@ -3832,6 +4176,7 @@ export function simulateBattleV2(
       hp: attacker.hp, maxHp: attacker.maxHp, damage: attacker.damage,
     })
 
+    healingMiracleOwnTurn(runtime, attacker)
     doTurn(runtime, attacker)
     processDivination(runtime)
     growHiddenInDepths(runtime, state.moving)
@@ -3841,7 +4186,9 @@ export function simulateBattleV2(
     // Tick after the turn resolves so the second turn still happens while the
     // Zombie Dragon is alive; expiring at the start of that turn let the next
     // enemy enter one action too early.
-    tickGlobalUnholyCreature(runtime)
+    // DummyLab cmp-02/016: the battle ends as soon as one side is wiped, so a Zombie Dragon
+    // whose survival would expire on the turn it kills the last enemy still wins.
+    if (state.teams.Allies.length && state.teams.Enemies.length) tickGlobalUnholyCreature(runtime)
     resolveDeaths(runtime)
     if (!state.teams.Allies.length || !state.teams.Enemies.length) break
 
@@ -3861,7 +4208,9 @@ export function simulateBattleV2(
         && !next.flags.frozenSolitudeFirstTurnUsed
         && frozenSource
         && hasAbility(runtime, frozenSource, 'Frozen Solitude')
-      if (next && !next.flags.frozenSolitudeFirstTurnUsed) next.flags.frozenSolitudeFirstTurnUsed = true
+      // The first turn is counted per Ice King: a card that already acted earlier is still frozen
+      // on its first turn against Ice King (Dracula vs Buddhist Monk+Mothman+Ice King: dummy).
+      if (canFirstTurnFreeze) next.flags.frozenSolitudeFirstTurnUsed = true
 
       if (canFirstTurnFreeze && !statusProtected(runtime, nextTeam)) {
         next.counters.videoFrozen = 1
@@ -3889,10 +4238,9 @@ export function simulateBattleV2(
   }
 
   // Both sides wiped in the same turn: the game gives the win to the side whose turn it was (its card struck last),
-  // except when The Fall killed that attacker, which hands it to the defender. A 150-turn stall stays a Draw.
-  const doubleKnockoutWinner: BattleResult['winner'] = stallResolved
-    ? 'Draw'
-    : runtime.fallKillTurn === state.turn ? OTHER_TEAM[state.moving] : state.moving
+  // also when The Fall's recoil killed that attacker (Titan stays on the board in all 7 Titan vs Lucifer videos).
+  // A double knockout during a stall resolution stays a Draw.
+  const doubleKnockoutWinner: BattleResult['winner'] = stallResolved ? 'Draw' : state.moving
   const winner: BattleResult['winner'] = state.teams.Allies.length
     ? state.teams.Enemies.length ? 'Draw' : 'Allies'
     : state.teams.Enemies.length ? 'Enemies' : doubleKnockoutWinner

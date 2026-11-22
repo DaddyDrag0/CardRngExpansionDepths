@@ -51,6 +51,9 @@ export const SOURCE_ALIGNED_ABILITIES = new Set([
   'Frozen Solitude', 'The D8', 'Fortify', 'Divine Arrogance', 'Void Heart',
   'Hidden Blade', 'Glory Kill',
   'Cursed Orchard', 'Haunted Heirloom', 'King of Horror', 'Never Fall Asleep', 'Stone Vigil',
+  // Nov 22 2026 update: modeled from the ability text (no server code in the export); not DummyLab-verified yet.
+  'Supreme Eye', 'Arise', 'Black Meteor', 'Judgment Divide', 'Noxious Arrival',
+  "Pharaoh's Judgment", 'Relentless Assault', 'Sacred Intervention', 'Celestial Protection', 'Vault of Blades',
 ])
 
 export function getDepthsAbilityCoverage() {

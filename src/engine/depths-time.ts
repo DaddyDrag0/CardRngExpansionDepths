@@ -33,7 +33,12 @@ export const BATTLE_SPEED_SKILL_TREE_BONUSES = [0, 0.5, 1, 1.5, 2.5, 4, 5.5] as 
 export const DEPTHS_FLOOR_SPEED_STEP = 0.25
 export const DEPTHS_FLOOR_SPEED_STEP_FLOORS = 100
 export const DEPTHS_FLOOR_SPEED_BONUS_CAP = 4.5
-export const BASE_ATTACK_ANIMATION_SECONDS = 1
+// DummyLab calibration (2026-11-22): 3,334 recorded Target Dummy fights at in-game 1x fit
+// 0.37 s battle start + 0.405 s per accelerated attack unit + 0.536 s per card death
+// (mean error 0.6 s). Revives and shields added no time beyond the turns they cause.
+export const BASE_ATTACK_ANIMATION_SECONDS = 0.405
+export const BATTLE_START_SECONDS = 0.37
+export const CARD_DEATH_SECONDS = 0.536
 export const MIN_DEPTHS_BATTLE_SECONDS = 0.2
 export const DEFAULT_DEPTHS_FLOOR_OVERHEAD_SECONDS = 0.8
 export function normalizeDepthsFloorOverhead(seconds = DEFAULT_DEPTHS_FLOOR_OVERHEAD_SECONDS): number {
@@ -91,7 +96,7 @@ export function inBattleAcceleration(attackNumber: number): number {
  * Piecewise constant integration makes a 10,000-event fight O(1) rather than
  * looping 10,000 times and enables floor-specific timing per Depths battle.
  */
-export function attackAnimationSecondsForCount(turns: number, effectiveSpeed: number, animationScale = 1): number {
+export function attackAnimationSecondsForCount(turns: number, effectiveSpeed: number, animationScale = 1, deaths = 0): number {
   const count = Math.max(0, Number(turns) || 0)
   const pace = Math.max(0.1, Math.min(5, Number(animationScale) || 1))
   const segments: readonly [number, number, number][] = [
@@ -102,7 +107,8 @@ export function attackAnimationSecondsForCount(turns: number, effectiveSpeed: nu
     const actions = Math.max(0, Math.min(count, end) - start)
     if (actions) units += actions / multiplier
   }
-  return units * BASE_ATTACK_ANIMATION_SECONDS * pace / Math.max(0.01, effectiveSpeed)
+  const dead = Math.max(0, Number(deaths) || 0)
+  return (BATTLE_START_SECONDS + units * BASE_ATTACK_ANIMATION_SECONDS + dead * CARD_DEATH_SECONDS) * pace / Math.max(0.01, effectiveSpeed)
 }
 
 export function estimateBattleSeconds(
@@ -116,10 +122,11 @@ export function estimateBattleSeconds(
   baseBattleSpeed = DEPTHS_BASE_BATTLE_SPEED,
   blessingMultiplier = 1,
   animationScale = 1,
+  deaths = 0,
 ): number {
   const speed = effectiveDepthsBattleSpeed(floor, chronoShard, structureLevel, skillTreeLevel, chronoShardLevel, baseBattleSpeed, blessingMultiplier)
   return normalizeDepthsFloorOverhead(floorOverheadSeconds)
-    + Math.max(MIN_DEPTHS_BATTLE_SECONDS, attackAnimationSecondsForCount(turns, speed, animationScale))
+    + Math.max(MIN_DEPTHS_BATTLE_SECONDS, attackAnimationSecondsForCount(turns, speed, animationScale, deaths))
 }
 
 /** Estimate a full run using the batch's observed average turns per battle. */

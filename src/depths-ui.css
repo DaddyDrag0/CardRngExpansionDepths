@@ -707,3 +707,5 @@ details.ban-lab[open]>summary::after{content:'−'}
 
 /* Preserve readable, multiline card/ability diagnostics without additional UI boxes. */
 .team-error{white-space:pre-line;overflow-wrap:anywhere;line-height:1.65}
+
+.result-card .result-disclaimer{margin:8px 0 0;font-size:10px;line-height:1.45;opacity:.7}

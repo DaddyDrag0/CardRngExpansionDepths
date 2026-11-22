@@ -306,7 +306,7 @@ assert(astraeusCardA.abilityOverride === astraeusCardB.abilityOverride, 'Constel
   const result = simulateBattleV2(loadout([first.name, second.name, heroes.name]), [namedDummy('__Heroes Executioner__', 1e250, 1e250)], 1105)
   const holder = findBattleCard(result, heroes.name)
   assert(holder, 'Heroes holder disappeared from battle state')
-  assert(JSON.stringify(holder.bonusAbilities) === JSON.stringify(['Armor', 'Regenerate']), 'Heroes did not retain both first-two-fallen abilities')
+  assert(JSON.stringify(holder.bonusAbilities) === JSON.stringify(['Armor']), 'Heroes should inherit only one fallen ally ability')
 }
 
 {

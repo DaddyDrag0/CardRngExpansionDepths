@@ -166,6 +166,7 @@ export function simulateDepthsRun(
         time.skillTreeBattleSpeedLevel ?? 0, time.chronoShardLevel ?? 0,
         time.floorOverheadSeconds ?? 0.8, time.baseBattleSpeed ?? 3,
         time.blessingMultiplier ?? 1, time.attackAnimationScale ?? 1,
+        (battle.state.fallen?.Allies?.length ?? 0) + (battle.state.fallen?.Enemies?.length ?? 0),
       ) * representedFloors
     }
     for (const ability of battle.unsupportedAbilities) unsupported.add(ability)

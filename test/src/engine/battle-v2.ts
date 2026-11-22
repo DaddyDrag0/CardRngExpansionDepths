@@ -1156,7 +1156,8 @@ function onEntryCore(runtime: Runtime, card: CombatCard) {
   }
 
   if (name === 'Heroes') {
-    const chosen = runtime.state.fallen[card.team].slice(0, 2)
+    // Heroes gains only ONE fallen ally ability (Roblox ability description is singular).
+    const chosen = runtime.state.fallen[card.team].slice(0, 1)
       .filter((fallen) => fallen.definition.name !== card.definition.name && fallen.definition.name !== 'Legends')
       .map((fallen) => fallen.definition.ability)
       .filter((gained): gained is string => Boolean(gained))

@@ -21,7 +21,7 @@
   "Stardust Driver": "Attack for 2.5x damage on entry.",
   "Starvation": "Opponent loses 25% stats at the start of their turn.",
   "Steal Christmas": "Steal 20% of enemy stats upon being attacked.",
-  "Stolen Spotlight": "Steals 75% of the stats from the card behind this card and banishes it. Counter attacks",
+  "Stolen Spotlight": "Steals 75% of the stats from the card behind this card (at most 250% of its own stats) and banishes it. Counter attacks",
   "Stone Vigil": "Every other turn, enter Stone Form, taking 80% less Damage but unable to attack. On awakening, strike for 2x Damage.",
   "Sudden Demise": "On entry, attack the entire enemy team 1-8 times, dealing 10% Damage per hit.",
   "Sunken Kingdom": "On entry, resurrects each defeated ally as The Drowned with 25% of The Drowned Monarch's stats.",
@@ -75,5 +75,17 @@
   "Whooping": "Deals 100% more damage to younger cards.",
   "Witch's Curse": "Steals the ability of the first card it attacks.",
   "Withering Curse": "On entry, curse the enemy. Cursed enemies lose 25% ATK and Accuracy at the end of their turns, stacking up to 75%.",
-  "World Creation": "Double HP and ATK every 3 turns."
+  "World Creation": "Double HP and ATK every 3 turns.",
+  "Supreme Eye": "Evades the first normal attack from each enemy once, then instantly counterattacks that enemy for 60% Damage.",
+  "Arise": "Every enemy this card defeats becomes a Shadow (max 3). Each normal attack is followed by one strike per Shadow for 35% Damage.",
+  "Black Meteor": "On entry, charges a meteor. After 3 allied normal attacks, strikes every enemy for 150% base Damage; they take +15% normal-attack damage for 2 turns. Once per battle.",
+  "Judgment Divide": "Every 3rd normal attack unleashes 3 rapid strikes on every enemy, each for 50% Damage.",
+  "Noxious Arrival": "On entry, a toxic mist covers every enemy for 3 turns: -20% accuracy and -30% healing received. Their first heal fails and deals 100% of this card's Damage instead.",
+  "Pharaoh's Judgment": "On entry, marks the highest-HP enemy. The next 3 allied normal attacks against it deal +50% Damage.",
+  "Relentless Assault": "Consecutive normal attacks against the same enemy deal +25% Damage each time, up to +100%.",
+  "Sacred Intervention": "The first time an ally would take a lethal normal attack, that hit deals 30% less damage. Once per battle.",
+  "Apex Predator": "On entry, x1.2 stats for every Fossil your team has.",
+  "Celestial Protection": "On entry, shields every ally (itself too) for 25% of this card's Max HP. An enemy that breaks a shield takes damage equal to that shield.",
+  "Vault of Blades": "On entry, fires 5-20 weapons at each enemy, each hitting for 5% Damage (25%-100% per enemy).",
+  "Sealed for Eternity": "This card can never die. Every time he falls, he rises."
 }

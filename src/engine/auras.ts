@@ -79,8 +79,10 @@ export function getAuraRarity(aura: AuraDefinition, border?: AuraBorderName | nu
 }
 
 export function getStatAuraValue(aura: AuraDefinition, border?: AuraBorderName | null): number {
-  const rarity = getAuraRarity(aura, border)
-  return rarity > 0 ? Math.floor(Math.pow(2, Math.log10(rarity)) / 2) : 0
+  // Nov 22 auras (Herald Of Virtue, Mythic Convergence) carry a separate StatRarity, and
+  // Mythic Convergence a StatScale: 2^9/2 = 256 x 0.09765625 = 25% (50/100/200% with borders).
+  const rarity = (aura.statRarity || aura.rarity) * (border ? AURA_RARITY_MULTIPLIERS[border] : 1)
+  return rarity > 0 ? Math.floor(Math.pow(2, Math.log10(rarity)) / 2) * (aura.statScale || 1) : 0
 }
 
 export function getSkillAuraValue(aura: AuraDefinition, border?: AuraBorderName | null): number {
@@ -98,6 +100,7 @@ export function getAuraValue(aura: AuraDefinition, border?: AuraBorderName | nul
 
 function isStatAuraBoosted(aura: AuraDefinition, card: CombatCard): boolean {
   if (aura.boostedCards?.includes(card.definition.name)) return true
+  if (aura.boostedCollection && card.definition.collection === aura.boostedCollection) return true
   const pack = BOOSTED_PACKS[aura.name]
   if (pack && card.definition.pack === pack) return true
   const weather = BOOSTED_WEATHERS[aura.name]

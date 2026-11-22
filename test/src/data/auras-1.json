@@ -134,7 +134,7 @@
     "skillName": "Capricorn",
     "description": "Limited cards gain +STAT% Stats for every eligible fighting card in your deck.",
     "base": 10,
-    "perLevel": 0,
+    "perLevel": 5,
     "boostMult": null,
     "boostedCards": [],
     "unobtainable": false
@@ -489,7 +489,7 @@
     "skillName": "Spooky Scary",
     "description": "Halloween cards gain +STAT% Stats for every eligible fighting card in your deck.",
     "base": 10,
-    "perLevel": 0,
+    "perLevel": 5,
     "boostMult": null,
     "boostedCards": [],
     "unobtainable": false

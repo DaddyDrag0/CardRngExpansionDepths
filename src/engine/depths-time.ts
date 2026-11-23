@@ -41,16 +41,16 @@ export const BATTLE_START_SECONDS = 0.37
 export const CARD_DEATH_SECONDS = 0.536
 export const MIN_DEPTHS_BATTLE_SECONDS = 0.2
 // Depths recordings (2026-11-22/23, Galaxy Chrono, 7 speed setups, 2 decks):
-//  deck A one-shots 4 enemies one by one (~7 turns): 2.9 s (3x B45-400), 2.7 s (1x B1300), 2.46 s (1x B1772),
+//  deck A (base Fuxi, Zen-kai, Volcano Spirit, 2x Julius Leader; simulated ~10 turns, 5 deaths per floor): 2.9 s (3x B45-400), 2.7 s (1x B1300), 2.46 s (1x B1772),
 //  2.10 s (3x B1790), 1.75 s (3x + skill tree 5.5, B2150);
 //  deck B (Triceratops carry-over) kills all 4 enemies with 1 attack: 1.32 s (1x B2680), 0.84 s (3x + 5.5, B2900).
-// Fit (all within ~0.1 s): floor = 0.36 s fixed + 0.123 s per extra attack unit (not sped up)
-//  + (1.0 + 0.367 per attack unit + 1.46 per card death) / full stacked Battle Speed.
+// Fit (all within ~0.05 s): floor = 0.36 s fixed + 0.087 s per extra attack unit (not sped up)
+//  + (1.0 + 0.124 per attack unit + 1.52 per card death) / full stacked Battle Speed.
 export const DEFAULT_DEPTHS_FLOOR_OVERHEAD_SECONDS = 0.36
-export const DEPTHS_UNSCALED_SECONDS_PER_EXTRA_ATTACK = 0.123
+export const DEPTHS_UNSCALED_SECONDS_PER_EXTRA_ATTACK = 0.087
 export const DEPTHS_BATTLE_START_SECONDS = 1.0
-export const DEPTHS_ATTACK_SECONDS = 0.367
-export const DEPTHS_DEATH_SECONDS = 1.46
+export const DEPTHS_ATTACK_SECONDS = 0.124
+export const DEPTHS_DEATH_SECONDS = 1.52
 /** Cards that die on an average Depths floor when only an average turn count is known. */
 export const DEPTHS_DEFAULT_DEATHS_PER_FLOOR = 4
 export function normalizeDepthsFloorOverhead(seconds = DEFAULT_DEPTHS_FLOOR_OVERHEAD_SECONDS): number {

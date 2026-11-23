@@ -25,12 +25,12 @@ assert(inBattleAcceleration(9) === 1 && inBattleAcceleration(10) === 2, '10-atta
 assert(inBattleAcceleration(20) === 3 && inBattleAcceleration(40) === 5 && inBattleAcceleration(60) === 10, 'Long-battle acceleration mismatch')
 assert(close(MIN_DEPTHS_BATTLE_SECONDS, 0.2), 'Attack phase minimum must remain 0.2s')
 assert(close(DEFAULT_DEPTHS_FLOOR_OVERHEAD_SECONDS, 0.36), 'Default fixed floor time is 0.36s (Depths recordings 2026-11-23)')
-// model: overhead + 0.123*(units-1) + max(0.2, (1 + 0.367*units + 1.46*deaths)/speed); units = turns below 10
-const M = (speed: number, turns: number, deaths = 0, overhead = 0.36) => overhead + 0.123*Math.max(0, turns - 1) + Math.max(0.2, (1 + 0.367*turns + 1.46*deaths)/speed)
+// model: overhead + 0.087*(units-1) + max(0.2, (1 + 0.124*units + 1.52*deaths)/speed); units = turns below 10
+const M = (speed: number, turns: number, deaths = 0, overhead = 0.36) => overhead + 0.087*Math.max(0, turns - 1) + Math.max(0.2, (1 + 0.124*turns + 1.52*deaths)/speed)
 assert(close(depthsPlaybackSpeed(380, true, 7, 6, 4), 13), 'Every bonus counts toward playback')
 assert(close(depthsPlaybackSpeed(1, true, 0, 0, 0, 3, 2), 8), 'A blessing multiplies the stacked playback speed')
-// Recording fit (Galaxy Chrono). Deck A one-shots 4 enemies one by one (~7 turns); deck B kills all 4 with one attack.
-const A = (floor: number, base: number, skill = 0) => estimateBattleSeconds(floor, 7, true, 0, skill, 4, undefined, base, 1, 1, 4)
+// Recording fit (Galaxy Chrono). Deck A (base Fuxi, Zen-kai, Volcano Spirit, 2x Julius Leader) simulates ~10 turns + 5 deaths per floor; deck B (Triceratops) kills all 4 with one attack.
+const A = (floor: number, base: number, skill = 0) => estimateBattleSeconds(floor, 10, true, 0, skill, 4, undefined, base, 1, 1, 5)
 const B = (floor: number, base: number, skill = 0) => estimateBattleSeconds(floor, 1, true, 0, skill, 4, undefined, base, 1, 1, 4)
 const near = (got: number, want: number, label: string) => assert(Math.abs(got - want) <= 0.12, `${label}: recorded ${want}s/floor, model ${got.toFixed(2)}s`)
 near(A(200, 3), 2.9, 'Deck A 3x B200'); near(A(1300, 1), 2.7, 'Deck A 1x B1300'); near(A(1772, 1), 2.46, 'Deck A 1x B1772')
@@ -39,7 +39,7 @@ near(B(2680, 1), 1.32, 'Deck B 1x B2680'); near(B(2900, 3, 6), 0.84, 'Deck B 3x+
 assert(close(estimateBattleSeconds(1, 0, true), M(4, 0)), '0-turn floor: battle start plus 0.36s fixed time')
 assert(close(estimateBattleSeconds(1, 1, true), M(4, 1)), 'One attack at speed 4')
 assert(close(estimateBattleSeconds(1, 2, true), M(4, 2)), 'Two attacks at speed 4')
-assert(close(estimateBattleSeconds(1, 2, true, 0, 0, 0, .8, 3, 1, 1, 2), M(4, 2, 2, .8)), 'Each card death adds 1.46s before the speed divisor')
+assert(close(estimateBattleSeconds(1, 2, true, 0, 0, 0, .8, 3, 1, 1, 2), M(4, 2, 2, .8)), 'Each card death adds 1.52s before the speed divisor')
 assert(close(estimateBattleSeconds(1, 12, true), M(4, 10.5)), 'Attack 10+ acceleration should still reduce timing')
 assert(close(estimateBattleSeconds(1, 1, false), M(3, 1)), 'No-Chrono one-attack time')
 assert(estimateBattleSeconds(1, 1, true, 0, 0, 4) < estimateBattleSeconds(1, 1, true), 'Galaxy Chrono speeds playback')

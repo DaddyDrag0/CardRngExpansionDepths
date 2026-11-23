@@ -40,7 +40,9 @@ export const BASE_ATTACK_ANIMATION_SECONDS = 0.405
 export const BATTLE_START_SECONDS = 0.37
 export const CARD_DEATH_SECONDS = 0.536
 export const MIN_DEPTHS_BATTLE_SECONDS = 0.2
-export const DEFAULT_DEPTHS_FLOOR_OVERHEAD_SECONDS = 0.8
+// Depths recording (2026-11-22): about 2.9-3.0 s per floor where the team one-shots 4 enemies; with the 3x
+// playback cap the battle part is ~1.9 s, leaving ~1.0 s for the floor transition (fade out, no-card gap, fade in).
+export const DEFAULT_DEPTHS_FLOOR_OVERHEAD_SECONDS = 1.0
 export function normalizeDepthsFloorOverhead(seconds = DEFAULT_DEPTHS_FLOOR_OVERHEAD_SECONDS): number {
   const value = Number(seconds)
   return Number.isFinite(value) ? Math.max(0, Math.min(3, value)) : DEFAULT_DEPTHS_FLOOR_OVERHEAD_SECONDS
@@ -81,6 +83,27 @@ export function effectiveDepthsBattleSpeed(
     + battleSpeedStructureBonus(structureLevel)
     + battleSpeedSkillTreeBonus(skillTreeLevel)
     + depthsFloorSpeedBonus(floor)) * blessing
+}
+
+/**
+ * Speed the battle animations actually play at. Depths recording (2026-11-22, 3x + Chrono Shard,
+ * ~440 floors from B12 to B400): battles took the same time at B45 and B380 even though the floor
+ * bonus grew by +0.75, and the absolute times fit a total of 3x. So the bonuses above the 3x setting
+ * (Chrono Shard, floor, structure, skill tree) do not shorten playback; a blessing still multiplies it.
+ */
+export const DEPTHS_PLAYBACK_SPEED_CAP = 3
+export function depthsPlaybackSpeed(
+  floor: number,
+  chronoShard = true,
+  structureLevel = 0,
+  skillTreeLevel = 0,
+  chronoShardLevel = 0,
+  baseBattleSpeed = DEPTHS_BASE_BATTLE_SPEED,
+  blessingMultiplier = 1,
+): number {
+  const blessing = [1.5, 2].includes(Number(blessingMultiplier)) ? Number(blessingMultiplier) : 1
+  const raw = effectiveDepthsBattleSpeed(floor, chronoShard, structureLevel, skillTreeLevel, chronoShardLevel, baseBattleSpeed, 1)
+  return Math.min(DEPTHS_PLAYBACK_SPEED_CAP, raw) * blessing
 }
 
 export function inBattleAcceleration(attackNumber: number): number {
@@ -124,7 +147,7 @@ export function estimateBattleSeconds(
   animationScale = 1,
   deaths = 0,
 ): number {
-  const speed = effectiveDepthsBattleSpeed(floor, chronoShard, structureLevel, skillTreeLevel, chronoShardLevel, baseBattleSpeed, blessingMultiplier)
+  const speed = depthsPlaybackSpeed(floor, chronoShard, structureLevel, skillTreeLevel, chronoShardLevel, baseBattleSpeed, blessingMultiplier)
   return normalizeDepthsFloorOverhead(floorOverheadSeconds)
     + Math.max(MIN_DEPTHS_BATTLE_SECONDS, attackAnimationSecondsForCount(turns, speed, animationScale, deaths))
 }

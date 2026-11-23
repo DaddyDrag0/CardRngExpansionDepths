@@ -111,4 +111,14 @@ for (const [att, dum, want] of [
   [['Veyrath the Unyielding'], ['Mummy', 'Hathor', 'Zeus'], 'Allies'],
 ]) for (const seed of [1, 2, 3])
   assert.equal(fight(engine, att, dum, seed).winner, want, `${att[0]} vs ${dum.join('+')} should go to ${want}, seed ${seed}`)
+// fast11 (v67 -> v68): Vault of Blades weapons ignore damage reduction, Marionette swaps places but not stats,
+// the player's Tsukuyomi uses Full Moon on its first turn, and Sable keeps Jealousy after a borrowed Divine Ascension.
+for (const [att, dum, want] of [
+  [['Ragon'], ['Golden Arsenal King'], 'Enemies'],
+  [['Marionette'], ['River Dragon', 'Shén Lóng'], 'Enemies'],
+  [['Marionette'], ['The Curse', 'Samurai'], 'Enemies'],
+  [['Tsukuyomi'], ['Tornado', 'Horus', 'Three-Legged Golden Crow'], 'Allies'],
+  [['Sable The Envious'], ['Shuten-dōji', 'Yeti', 'Ultimate Brawler'], 'Allies'],
+]) for (const seed of [1, 2, 3])
+  assert.equal(fight(engine, att, dum, seed).winner, want, `${att[0]} vs ${dum.join('+')} should go to ${want}, seed ${seed}`)
 console.log(`dummylab-campaign-regression: Nüwa vs Loki ${JSON.stringify(tally)}, Zombie Dragon Unholy finish ok`)

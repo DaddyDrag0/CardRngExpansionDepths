@@ -553,7 +553,8 @@ function nov22Entry(runtime: Runtime, card: CombatCard, name: string) {
         const weapons = 5 + Math.floor(rand(runtime, card.team) * 16)
         let hits = 0
         for (let i = 0; i < weapons && alive(enemy) && alive(card); i++) {
-          dealDamage(runtime, card, enemy, 0.05)
+          // DummyLab fast11: the weapons ignore damage reduction (Ragon's Scale Armor did not stop them)
+          dealDamage(runtime, card, enemy, 0.05, true)
           hits += 1
         }
         resolveDeaths(runtime)
@@ -1373,9 +1374,7 @@ function onEntryCore(runtime: Runtime, card: CombatCard) {
         if (secondIndex >= firstIndex) secondIndex += 1
         const first = deck[firstIndex]
         const second = deck[secondIndex]
-        ;[first.damage, second.damage] = [second.damage, first.damage]
-        ;[first.maxHp, second.maxHp] = [second.maxHp, first.maxHp]
-        ;[first.hp, second.hp] = [Math.min(second.hp, second.maxHp), Math.min(first.hp, first.maxHp)]
+        // DummyLab fast11: the two cards trade places but keep their own stats (13 recordings)
         boostStats(first, 0.85)
         boostStats(second, 0.85)
         ;[deck[firstIndex], deck[secondIndex]] = [deck[secondIndex], deck[firstIndex]]
@@ -3140,7 +3139,8 @@ function resolveDeathsCore(runtime: Runtime) {
 
       if (hasAbility(runtime, card, 'Divine Ascension') && !card.flags.awakened) {
         card.flags.awakened = true
-        card.abilityOverride = 'Mastered Ascension'
+        // DummyLab fast11: Sable The Envious awakens through a borrowed Divine Ascension but keeps Jealousy
+        if (ability(card) !== 'Jealousy') card.abilityOverride = 'Mastered Ascension'
         card.maxHp *= 1.5
         card.damage *= 1.5
         card.hp = card.maxHp
@@ -3467,7 +3467,8 @@ function prepareTurn(runtime: Runtime, attacker: CombatCard) {
   }
   if (hasAbility(runtime, attacker, 'Full Moon')) {
     attacker.counters.fullMoon = (attacker.counters.fullMoon || 0) + 1
-    if (attacker.counters.fullMoon % 2 === 0) {
+    // DummyLab fast11: the player's Tsukuyomi triggers on its 1st, 3rd, ... turns; an enemy Tsukuyomi on its 2nd, 4th, ...
+    if (attacker.counters.fullMoon % 2 === (attacker.team === 'Allies' ? 1 : 0)) {
       const target = active(runtime, OTHER_TEAM[attacker.team])
       if (target && alive(target)) runAbilityTrace(runtime, attacker, 'Full Moon', () => dealDamage(runtime, target, target))
     }

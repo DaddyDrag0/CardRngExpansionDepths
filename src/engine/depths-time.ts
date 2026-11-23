@@ -86,12 +86,13 @@ export function effectiveDepthsBattleSpeed(
 }
 
 /**
- * Speed the battle animations actually play at. Depths recording (2026-11-22, 3x + Chrono Shard,
- * ~440 floors from B12 to B400): battles took the same time at B45 and B380 even though the floor
- * bonus grew by +0.75, and the absolute times fit a total of 3x. So the bonuses above the 3x setting
- * (Chrono Shard, floor, structure, skill tree) do not shorten playback; a blessing still multiplies it.
+ * Speed the battle animations actually play at. Depths recordings (2026-11-22/23, Galaxy Chrono Shard):
+ * 3x setting B45-B400 ~2.9 s/floor, 1x setting ~B1300 ~2.7 s, and one run switched 1x -> 3x at B1772:
+ * 2.46 s/floor at 1x vs 2.10 s at 3x on the same floors. All four fit
+ * floor time = 1.0 s transition + battle / (full stacked speed / 1.9): every bonus counts (no cap),
+ * but Depths battles play about 1.9x longer than the Target Dummy timing model predicts.
  */
-export const DEPTHS_PLAYBACK_SPEED_CAP = 3
+export const DEPTHS_ANIMATION_SLOWDOWN = 1.9
 export function depthsPlaybackSpeed(
   floor: number,
   chronoShard = true,
@@ -101,9 +102,7 @@ export function depthsPlaybackSpeed(
   baseBattleSpeed = DEPTHS_BASE_BATTLE_SPEED,
   blessingMultiplier = 1,
 ): number {
-  const blessing = [1.5, 2].includes(Number(blessingMultiplier)) ? Number(blessingMultiplier) : 1
-  const raw = effectiveDepthsBattleSpeed(floor, chronoShard, structureLevel, skillTreeLevel, chronoShardLevel, baseBattleSpeed, 1)
-  return Math.min(DEPTHS_PLAYBACK_SPEED_CAP, raw) * blessing
+  return effectiveDepthsBattleSpeed(floor, chronoShard, structureLevel, skillTreeLevel, chronoShardLevel, baseBattleSpeed, blessingMultiplier) / DEPTHS_ANIMATION_SLOWDOWN
 }
 
 export function inBattleAcceleration(attackNumber: number): number {

@@ -3,7 +3,7 @@
 import { simulateDepthsRun, type DepthsRunResult } from './engine/simulation'
 import { SeededRng } from './engine/rng'
 import { auraPacksForClearedRange, potionDropsForDepth } from './engine/depths-rewards'
-import { estimateDepthClearSeconds } from './engine/depths-time'
+import { DEFAULT_DEPTHS_FLOOR_OVERHEAD_SECONDS, estimateDepthClearSeconds } from './engine/depths-time'
 import type { TeamLoadout } from './types'
 
 interface BatchRequest {
@@ -73,7 +73,7 @@ function summarize(
   hardMode = false,
   chronoShardLevel = 0,
   bountifulDepthsLevel = 0,
-  floorOverheadSeconds = 0.8,
+  floorOverheadSeconds = DEFAULT_DEPTHS_FLOOR_OVERHEAD_SECONDS,
   baseBattleSpeed = 3,
   blessingMultiplier = 1,
   attackAnimationScale = 1,

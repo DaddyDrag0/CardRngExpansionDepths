@@ -4,7 +4,7 @@ import { generateDepthsTeam } from './depths'
 import { SeededRng } from './rng'
 import { simulateBattleV2 } from './battle-v2'
 import { auraPacksForClearedRange } from './depths-rewards'
-import { estimateDepthClearSeconds, estimateBattleSeconds } from './depths-time'
+import { DEFAULT_DEPTHS_FLOOR_OVERHEAD_SECONDS, estimateDepthClearSeconds, estimateBattleSeconds } from './depths-time'
 
 export interface DepthsRunResult {
   deathFloor: number
@@ -164,7 +164,7 @@ export function simulateDepthsRun(
       playbackSeconds += estimateBattleSeconds(
         floor, battle.turns, time.chronoShard ?? true, time.battleSpeedStructureLevel ?? 0,
         time.skillTreeBattleSpeedLevel ?? 0, time.chronoShardLevel ?? 0,
-        time.floorOverheadSeconds ?? 0.8, time.baseBattleSpeed ?? 3,
+        time.floorOverheadSeconds ?? DEFAULT_DEPTHS_FLOOR_OVERHEAD_SECONDS, time.baseBattleSpeed ?? 3,
         time.blessingMultiplier ?? 1, time.attackAnimationScale ?? 1,
         (battle.state.fallen?.Allies?.length ?? 0) + (battle.state.fallen?.Enemies?.length ?? 0),
       ) * representedFloors
@@ -294,7 +294,7 @@ export function simulateDepthsBatch(
       options.timing?.battleSpeedStructureLevel ?? options.battleSpeedStructureLevel ?? 0,
       options.timing?.skillTreeBattleSpeedLevel ?? 0,
       options.timing?.chronoShardLevel ?? 0,
-      options.timing?.floorOverheadSeconds ?? 0.8,
+      options.timing?.floorOverheadSeconds ?? DEFAULT_DEPTHS_FLOOR_OVERHEAD_SECONDS,
       options.timing?.baseBattleSpeed ?? 3,
       options.timing?.blessingMultiplier ?? 1,
       options.timing?.attackAnimationScale ?? 1)
@@ -304,7 +304,7 @@ export function simulateDepthsBatch(
       options.timing?.battleSpeedStructureLevel ?? options.battleSpeedStructureLevel ?? 0,
       options.timing?.skillTreeBattleSpeedLevel ?? 0,
       options.timing?.chronoShardLevel ?? 0,
-      options.timing?.floorOverheadSeconds ?? 0.8,
+      options.timing?.floorOverheadSeconds ?? DEFAULT_DEPTHS_FLOOR_OVERHEAD_SECONDS,
       options.timing?.baseBattleSpeed ?? 3,
       options.timing?.blessingMultiplier ?? 1,
       options.timing?.attackAnimationScale ?? 1)
@@ -314,7 +314,7 @@ export function simulateDepthsBatch(
       options.timing?.battleSpeedStructureLevel ?? options.battleSpeedStructureLevel ?? 0,
       options.timing?.skillTreeBattleSpeedLevel ?? 0,
       options.timing?.chronoShardLevel ?? 0,
-      options.timing?.floorOverheadSeconds ?? 0.8,
+      options.timing?.floorOverheadSeconds ?? DEFAULT_DEPTHS_FLOOR_OVERHEAD_SECONDS,
       options.timing?.baseBattleSpeed ?? 3,
       options.timing?.blessingMultiplier ?? 1,
       options.timing?.attackAnimationScale ?? 1)

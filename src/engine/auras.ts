@@ -82,12 +82,12 @@ export function getStatAuraValue(aura: AuraDefinition, border?: AuraBorderName |
   // Nov 22 auras (Herald Of Virtue, Mythic Convergence) carry a separate StatRarity, and
   // Mythic Convergence a StatScale: 2^9/2 = 256 x 0.09765625 = 25% (50/100/200% with borders).
   const rarity = (aura.statRarity || aura.rarity) * (border ? AURA_RARITY_MULTIPLIERS[border] : 1)
-  return rarity > 0 ? Math.floor(Math.pow(2, Math.log10(rarity)) / 2) * (aura.statScale || 1) : 0
+  return rarity > 0 ? Math.floor(Math.pow(2, Math.log10(rarity)) / 2 * (aura.statScale || 1) + 1e-6) : 0
 }
 
 export function getSkillAuraValue(aura: AuraDefinition, border?: AuraBorderName | null): number {
   const tier = getAuraTier(border)
-  const custom = CUSTOM_SKILL_VALUES[aura.name]
+  const custom = CUSTOM_SKILL_VALUES[aura.name] ?? aura.customValues
   if (custom) return custom[tier] ?? custom[0] ?? 0
   return Number(aura.base || 0) + Number(aura.perLevel || 0) * tier
 }

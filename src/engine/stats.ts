@@ -34,11 +34,22 @@ export function rarityWithBorders(card: CardDefinition, borders: BorderName[] = 
   return borders.reduce((rarity, border) => rarity * BORDER_RARITY_MULTIPLIERS[border], card.rarity)
 }
 
+/** CardStatTiers from Roblox: natural rarity, not border rarity; weather, bosses and limited cards exempt (Halloween exception). */
+export function cardRarityTier(card: CardDefinition): number {
+  if (card.weather || card.boss || card.sin || card.virtue) return 1
+  const halloween = ['Halloween','Halloween2','Halloween3']
+  const limited = card.expires || card.limited || card.collection != null || ['Christmas','Valentines','Easter','Halloween','Halloween2'].includes(card.pack || '')
+  if (limited && !halloween.includes(card.pack || '') && !halloween.includes(card.collection || '')) return 1
+  return card.rarity >= 250_000_000 ? 2.5 : card.rarity >= 100_000_000 ? 2 : card.rarity >= 50_000_000 ? 1.5 : 1
+}
+export function effectiveCardStatMultiplier(card: CardDefinition): number {
+  return Math.max(Number(card.baseStatMultiplier ?? card.statMultiplier) || 1, cardRarityTier(card))
+}
 export function getPower(card: CardDefinition, borders: BorderName[] = [], mutationWeather?: MutationWeather | null): number {
   // Expansion Util.GetPower. Limited borders Great/Mighty/Almighty are intentionally unsupported.
   const rarity = card.name === 'Ouroboros' ? 100_000_000_000_000 : rarityWithBorders(card, borders)
   if (rarity <= 0) return 0
-  return Math.pow(2, Math.log10(rarity)) * 10 * (card.statMultiplier || 1) * mutationStatMultiplier(mutationWeather)
+  return Math.pow(2, Math.log10(rarity)) * 10 * effectiveCardStatMultiplier(card) * mutationStatMultiplier(mutationWeather)
 }
 
 export function getHealth(card: CardDefinition, borders: BorderName[] = [], mutationWeather?: MutationWeather | null): number {

@@ -37,6 +37,7 @@ export interface AuraDefinition {
   boostMult: number | null
   boostedCards: string[]
   customValues?: number[]
+  onlyCards?: string[]
   /** Stat auras whose bonus uses a different rarity than their roll rarity (Nov 22 update). */
   statRarity?: number
   /** Multiplier applied to the stat bonus (Mythic Convergence: 0.09765625 = 25/256). */

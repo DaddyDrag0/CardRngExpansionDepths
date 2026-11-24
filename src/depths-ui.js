@@ -334,12 +334,12 @@
   const cardTier=c=>!c||c.weather||c.boss||c.sin||c.virtue?1:((['Halloween','Halloween2','Halloween3'].includes(c.pack)||['Halloween','Halloween2','Halloween3'].includes(c.collection))||!(c.expires||c.limited||c.collection!=null||['Christmas','Valentines','Easter','Halloween','Halloween2'].includes(c.pack)))?(c.rarity>=250000000?2.5:c.rarity>=100000000?2:c.rarity>=50000000?1.5:1):1;
   function getPower(card,borders=[],mutationWeather=''){if(!card)return 0;const rarity=card.name==='Ouroboros'?100000000000000:rarityWithBorders(card,borders);const mutation=MUTATION_MULT[mutationWeather]||1;return rarity>0?Math.pow(2,Math.log10(rarity))*10*Math.max(Number(card.baseStatMultiplier??card.statMultiplier)||1,cardTier(card))*mutation:0}
   const getAttack=(card,borders=[],mutationWeather='')=>getPower(card,borders,mutationWeather)/2,getHealth=(card,borders=[],mutationWeather='')=>getPower(card,borders,mutationWeather)*(card?.hpMultiplier||1);
-  function auraValue(aura,border){if(!aura)return 0;if(aura.type==='Stat'){const rarity=(Number(aura.statRarity||aura.rarity)||0)*(AURA_RARITY_MULT[border]||1);return rarity>0?Math.floor(Math.pow(2,Math.log10(rarity))/2*(aura.statScale||1)+1e-6):0}const tier=AURA_TIER[border]||0,custom=AURA_CUSTOM[aura.name];return (custom||aura.customValues)?.[tier]??((Number(aura.base)||0)+(Number(aura.perLevel)||0)*tier)}
+  function auraValue(aura,border){if(!aura)return 0;if(aura.type==='Stat'){if(aura.name==='The Apocalypse')return (Number(aura.base)||0)+(Number(aura.perLevel)||0)*(AURA_TIER[border]||0);const rarity=(Number(aura.statRarity||aura.rarity)||0)*(AURA_RARITY_MULT[border]||1);return rarity>0?Math.floor(Math.pow(2,Math.log10(rarity))/2*(aura.statScale||1)+1e-6):0}const tier=AURA_TIER[border]||0,custom=AURA_CUSTOM[aura.name];return (custom||aura.customValues)?.[tier]??((Number(aura.base)||0)+(Number(aura.perLevel)||0)*tier)}
   function resolveStatText(text,value){return String(text||'').replace(/(\d+(?:\.\d+)?)?STAT/g,(_,coef)=>pct((coef?Number(coef):1)*value))}
   function auraSummary(aura,border){
   if(!aura)return '';
   const value=auraValue(aura,border);
-  if(aura.type==='Skill')return resolveStatText(aura.description,value);
+  if(aura.type==='Skill'||aura.name==='The Apocalypse'||aura.name==='The One Ring')return resolveStatText(aura.description,value);
   if(aura.name==='General Sun Tzu')return `<div class="aura-stat-grid"><div class="aura-stat"><span>All allied cards</span><b>+${pct(value)}%</b><small>HP</small></div></div>`;
   const boost=Number(aura.boostMult)||0,pack=AURA_PACK[aura.name],weather=AURA_WEATHER[aura.name],listed=(aura.boostedCards||[]).filter(Boolean),scopes=[];
   if(pack)scopes.push(`${pack} Pack`);

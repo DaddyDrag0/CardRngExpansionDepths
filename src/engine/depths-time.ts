@@ -17,7 +17,7 @@
  * were omitted from the too-optimistic attack-only estimate. This allowance
  * is a provisional calibration; the client does not expose the server-side
  * `battlecd` duration. It can be adjusted against real-world run times.
- * Ability-specific animation delays are not separately modeled.
+ * Ability-specific animation delays and server/network stalls are not separately modeled. UI defaults to a provisional longer-run overhead of 2.76s; the 0.36s source-calibration constant below is retained for short playback tests. Neither value is a proven server cooldown.
  */
 export const DEPTHS_BASE_BATTLE_SPEED = 3
 export const CHRONO_SHARD_BONUS = 1
@@ -55,7 +55,7 @@ export const DEPTHS_DEATH_SECONDS = 1.52
 export const DEPTHS_DEFAULT_DEATHS_PER_FLOOR = 4
 export function normalizeDepthsFloorOverhead(seconds = DEFAULT_DEPTHS_FLOOR_OVERHEAD_SECONDS): number {
   const value = Number(seconds)
-  return Number.isFinite(value) ? Math.max(0, Math.min(3, value)) : DEFAULT_DEPTHS_FLOOR_OVERHEAD_SECONDS
+  return Number.isFinite(value) ? Math.max(0, Math.min(10, value)) : DEFAULT_DEPTHS_FLOOR_OVERHEAD_SECONDS
 }
 
 export function depthsFloorSpeedBonus(floor: number): number {

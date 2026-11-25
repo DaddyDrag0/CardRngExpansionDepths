@@ -125,13 +125,13 @@ export function simulateDepthsRun(
   onProgress?: DepthsProgressCallback,
 ): DepthsRunResult {
   const startFloor = Math.max(1, Math.floor(options.startFloor ?? 1))
-  const floorCap = Math.max(startFloor, Math.floor(options.floorCap ?? 300_000))
+  const floorCap = Math.max(startFloor, Math.floor(options.floorCap ?? 1_000_000))
   const runSeed = options.seed ?? 1
   const unsupported = new Set<string>()
   let totalTurns = 0
   let battles = 0
   let playbackSeconds = 0
-  const accepted = options.hardMode ? [1, 2, 3] : [1, 10, 15, 20, 25]
+  const accepted = options.hardMode ? [1, 2, 3, 10, 15, 20, 25] : [1, 10, 15, 20, 25]
   const floorStride = accepted.includes(Number(options.floorStride)) ? Number(options.floorStride) : 1
   let lastSampled = startFloor - 1
   for (let floor = Math.min(floorCap, Math.ceil(startFloor / floorStride) * floorStride); floor <= floorCap; floor = Math.min(floorCap, floor + floorStride)) {

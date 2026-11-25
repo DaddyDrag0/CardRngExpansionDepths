@@ -83,16 +83,16 @@ export function effectiveDepthsBattleSpeed(
   skillTreeLevel = 0,
   chronoShardLevel = 0,
   baseBattleSpeed = DEPTHS_BASE_BATTLE_SPEED,
-  blessingMultiplier = 1,
+  // Retained for legacy positional callers; temporary blessings never affect sustained timing.
+  _legacyBlessingMultiplier = 1,
 ): number {
   const selectedSpeed = Number(baseBattleSpeed)
   const base = [1, 1.5, 2, 3].includes(selectedSpeed) ? selectedSpeed : DEPTHS_BASE_BATTLE_SPEED
-  const blessing = [1.5, 2].includes(Number(blessingMultiplier)) ? Number(blessingMultiplier) : 1
   return (base
     + (chronoShard ? chronoShardRelicBonus(chronoShardLevel) : 0)
     + battleSpeedStructureBonus(structureLevel)
     + battleSpeedSkillTreeBonus(skillTreeLevel)
-    + depthsFloorSpeedBonus(floor)) * blessing
+    + depthsFloorSpeedBonus(floor))
 }
 
 /** Speed the battle animations play at: the full stacked Battle Speed (no cap; see the fit above). */

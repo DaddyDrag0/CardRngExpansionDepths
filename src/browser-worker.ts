@@ -23,7 +23,6 @@ interface BatchRequest {
   skillTreeBattleSpeedLevel?: number
   floorOverheadSeconds?: number
   baseBattleSpeed?: number
-  blessingMultiplier?: number
   attackAnimationScale?: number
   chronoShard?: boolean
   hardMode?: boolean
@@ -43,7 +42,7 @@ interface SingleRunRequest {
   hardMode?: boolean
   floorStride?: number
   lazyDebug?: boolean
-  timingSettings?: { chronoShard?: boolean; chronoShardLevel?: number; battleSpeedStructureLevel?: number; skillTreeBattleSpeedLevel?: number; floorOverheadSeconds?: number; baseBattleSpeed?: number; blessingMultiplier?: number; attackAnimationScale?: number }
+  timingSettings?: { chronoShard?: boolean; chronoShardLevel?: number; battleSpeedStructureLevel?: number; skillTreeBattleSpeedLevel?: number; floorOverheadSeconds?: number; baseBattleSpeed?: number; attackAnimationScale?: number }
 }
 
 type SimulationRequest = BatchRequest | SingleRunRequest
@@ -320,7 +319,6 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
           skillTreeBattleSpeedLevel: request.skillTreeBattleSpeedLevel,
           floorOverheadSeconds: request.floorOverheadSeconds,
           baseBattleSpeed: request.baseBattleSpeed,
-          blessingMultiplier: request.blessingMultiplier,
           attackAnimationScale: request.attackAnimationScale,
         },
       } satisfies SingleRunRequest)
@@ -358,7 +356,7 @@ self.onmessage = async (event: MessageEvent<SimulationRequest>) => {
     }
     const results = await simulateParallel(request)
     self.postMessage({ id: request.id, ok: true, elapsedMs: performance.now() - started, result: summarize(results, request.bountifulDepths, request.battleSpeedStructureLevel, request.skillTreeBattleSpeedLevel, request.chronoShard !== false, request.hardMode === true, request.chronoShardLevel, request.bountifulDepthsLevel, request.floorOverheadSeconds ?? 0.8,
-      request.baseBattleSpeed ?? 3, request.blessingMultiplier ?? 1, request.attackAnimationScale ?? 1, normalizeStartFloor(request.startFloor)) })
+      request.baseBattleSpeed ?? 3, 1, request.attackAnimationScale ?? 1, normalizeStartFloor(request.startFloor)) })
   } catch (error) {
     self.postMessage({
       id: request.id,

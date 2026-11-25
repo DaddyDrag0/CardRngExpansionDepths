@@ -51,7 +51,7 @@ const STALL_WATCHDOG_MS = 20_000
 const LIVE_BATTLE_TURN_CAP = 10_000
 
 function normalizeStartFloor(value: number | undefined): number {
-  return Math.min(300_000, Math.max(1, Math.floor(Number(value) || 1)))
+  return Math.min(1_000_000, Math.max(1, Math.floor(Number(value) || 1)))
 }
 
 function runSeed(batchSeed: number, runIndex: number): number {

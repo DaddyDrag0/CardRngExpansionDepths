@@ -43,7 +43,8 @@ export function cardRarityTier(card: CardDefinition): number {
   return card.rarity >= 250_000_000 ? 2.5 : card.rarity >= 100_000_000 ? 2 : card.rarity >= 50_000_000 ? 1.5 : 1
 }
 export function effectiveCardStatMultiplier(card: CardDefinition): number {
-  return Math.max(Number(card.baseStatMultiplier ?? card.statMultiplier) || 1, cardRarityTier(card))
+  const tier = cardRarityTier(card)
+  return tier > 1 ? Math.max(Number(card.baseStatMultiplier ?? card.statMultiplier) || 1, tier) : (Number(card.statMultiplier) || 1)
 }
 export function getPower(card: CardDefinition, borders: BorderName[] = [], mutationWeather?: MutationWeather | null): number {
   // Expansion Util.GetPower. Limited borders Great/Mighty/Almighty are intentionally unsupported.

@@ -14,7 +14,7 @@ const bonus=(result.bountifulDepths??state.bountifulDepths)?bountiful[Math.min(4
 const startFloor=Math.max(1,Math.floor(Number(result.startFloor??state.startFloor)||1));
 const key=`${hard}:${bonus}:${startFloor}`;
 const existing=cache.get(result);if(existing?.key===key)return existing.data;
-const floors=(result.runs||[]).map(run=>Math.min(300000,Math.max(startFloor-1,Math.floor(Number(run.deathFloor)||1)-1)));
+const floors=(result.runs||[]).map(run=>Math.min(1000000,Math.max(startFloor-1,Math.floor(Number(run.deathFloor)||1)-1)));
 const maxFloor=Math.max(0,...floors);
 const runs=Math.max(1,floors.length);
 const sorted=[...floors].sort((a,b)=>a-b);

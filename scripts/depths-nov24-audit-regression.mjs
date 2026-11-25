@@ -4,7 +4,7 @@ import {performance} from 'node:perf_hooks';
 
 for(const prefix of ['', 'test/']){
  const workerSource=readFileSync(prefix+'browser/depths-worker.js','utf8');
- const s=workerSource.replace(/\}\)\(\);\s*$/, 'self.__audit={Be,Te,ea,ws,__crxCardTier,__depthsCorrectRewards,__depthsRealPlaybackTime};})();');
+ const s=workerSource.replace(/\}\)\(\);\s*$/, 'self.__audit={Be,Te,ea,ws,__crxCardTier,__depthsCorrectRewards,__depthsRealPlaybackTime,Na,Wa};})();');
  const self={navigator:{hardwareConcurrency:2},location:{href:'mock'},postMessage(){}};
  new Function('self','performance',s)(self,performance);
  const a=self.__audit;
@@ -22,6 +22,13 @@ for(const prefix of ['', 'test/']){
   a.__depthsCorrectRewards(r,[{deathFloor:death}],{startFloor:start,hardMode:true,packRewardMultiplier:m,bountifulDepths:true,bountifulDepthsLevel:4});
   assert.equal(r.auraPackMedian,expected);
  }
+ assert.equal(a.Wa(900000),900000);
+ assert.equal(a.Wa(1100000),1000000);
+ const loadout={cards:Array.from({length:4},()=>({cardName:'Triceratops',borders:['Platinum','Emerald','Crystal','Ruby','Galaxy'],mutationWeather:'Reality Fracture'}))};
+ for(const stride of [10,15,20,25]){
+  const r=a.Na(loadout,{startFloor:1,floorCap:50,seed:123,hardMode:true,floorStride:stride,lazyDebug:true,battleTurnCap:500});
+  assert.equal(r.floorStride,stride);assert.equal(r.battles,Math.ceil(50/stride));assert.equal(r.floorsCleared,50);assert(r.capReached);
+ }
  const settings={baseBattleSpeed:3,skillTreeBattleSpeedLevel:6,chronoShardLevel:4,battleSpeedStructureLevel:7};
  const t=x=>a.__depthsRealPlaybackTime(300000,1,{...settings,floorOverheadSeconds:x},4);
  assert(Math.abs(t(2.76)-t(.36)-2.4)<1e-6);
@@ -36,6 +43,8 @@ for(const prefix of ['', 'test/']){
  new Function('window',readFileSync(prefix+'src/depths-drops.js','utf8'))(window);
  const d=window.CRXDepthsDrops.compute({runs:[{deathFloor:54196}],hardMode:true,totalSimulatedSeconds:172800,bountifulDepths:true,bountifulDepthsLevel:4,startFloor:1},{hardMode:false,startFloor:500,bountifulDepths:false});
  assert.equal(d.seconds,172800);
+ const high=window.CRXDepthsDrops.compute({runs:[{deathFloor:1000001}],hardMode:true,startFloor:999900,totalSimulatedSeconds:1000},{});
+ assert.equal(high.maxFloor,1000000);
  assert(Math.abs(d.loot.find(x=>x.name==='Jackpot Potion').expected-4780.833775)<1e-4);
  assert(Math.abs(d.loot.find(x=>x.name==='Gold Structure Coin').expected-189.224586)<1e-4);
  console.log(prefix||'main','audit checks passed');

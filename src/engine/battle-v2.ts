@@ -21,6 +21,7 @@ const OTHER_TEAM: Record<BattleTeam, BattleTeam> = { Allies: 'Enemies', Enemies:
 const CARD_BY_NAME = new Map(cards.map((card) => [card.name, card] as const))
 
 const FULLY_SUPPORTED = new Set([
+  'Lucky', // Witch's Curse victim placeholder; no combat effect.
   'Drowned', // Summoned by The Drowned Monarch: no additional proc beyond normal combat.
   'Gathering', 'Remembrance', 'Am I Beautiful?', 'Persistent', 'Chimeric',
   'First Progenitor', 'Undead Practitioner', 'Big and Large', 'Patience', 'Blade',

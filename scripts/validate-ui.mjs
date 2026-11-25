@@ -37,9 +37,9 @@ for (const hook of ['depthBanLayouts','data-depth-ban-layout','data-depth-bans-e
 }
 if (!depthsUi.includes("payload={v:3,name:sanitizeBanName(state.depthBanNames[state.activeDepthBanLayout],state.activeDepthBanLayout),bans:sanitizeBanList(state.depthBans)}")) throw new Error('Ban export must contain only the active layout')
 if (!depthsUi.includes('setActiveDepthBans(decoded.bans)')) throw new Error('Ban import must target the currently viewed layout')
-if (!depthsUi.includes('runs:15,normalFloorStride:10,hardFloorStride:1,startFloor:1,cap:300000,seed:1000')) throw new Error('Depths start floor/default floor cap state is not initialized correctly')
-if (!depthsUi.includes('id="startFloorInput" type="number" min="1" max="300000"')) throw new Error('Depths Start Floor input must support 1-300,000')
-if (!depthsUi.includes('state.startFloor=Math.min(300000,Math.max(1,Math.floor(Number(s.startFloor)||1)))')) throw new Error('Depths Start Floor restore path must clamp to 1-300,000')
+if (!depthsUi.includes('runs:15,normalFloorStride:10,hardFloorStride:1,startFloor:1,cap:1000000,seed:1000')) throw new Error('Depths start floor/default floor cap state is not initialized correctly')
+if (!depthsUi.includes('id="startFloorInput" type="number" min="1" max="1000000"')) throw new Error('Depths Start Floor input must support 1-1,000,000')
+if (!depthsUi.includes('state.startFloor=Math.min(1000000,Math.max(1,Math.floor(Number(s.startFloor)||1)))')) throw new Error('Depths Start Floor restore path must clamp to 1-1,000,000')
 if (!depthsUi.includes('startFloor:state.startFloor')) throw new Error('Depths Start Floor is not sent to the simulation worker')
 if (depthsUi.includes('data-preview-battle') || depthsUi.includes('previewFloorInput') || depthsUi.includes('previewBattle(')) throw new Error('Removed standalone battle preview returned')
 if (!depthsUi.includes('async function showRunDebug(') || !depthsUi.includes("data-debug-run")) throw new Error('Saved-run battle replay must remain accessible')
@@ -52,8 +52,8 @@ if (overhaulHub.includes('crx-testmark') || overhaulHub.includes('crx-version'))
 if (!depthsUi.includes('chronoShard:true')) throw new Error('Chrono Shard timing toggle must default on')
 if (!depthsUi.includes('data-chrono-shard')) throw new Error('Chrono Shard timing toggle is missing from the UI')
 if (!depthsUi.includes('chronoShard:state.chronoShard')) throw new Error('Chrono Shard timing setting is not sent to the worker')
-if (!depthsUi.includes('id="capInput" type="number" min="300000" max="300000" value="300000" readonly')) throw new Error('Depths floor cap is not rendered as a locked 300,000 value')
-if (!depthsUi.includes('state.cap=300000;')) throw new Error('Depths restore path does not force the cap to 300,000')
+if (!depthsUi.includes('id="capInput" type="number" min="1000000" max="1000000" value="1000000" readonly')) throw new Error('Depths floor cap is not rendered as a locked 1,000,000 value')
+if (!depthsUi.includes('state.cap=1000000;')) throw new Error('Depths restore path does not force the cap to 1,000,000')
 if (depthsUi.includes('cap:state.cap')) throw new Error('Depths floor cap is still being persisted as a user setting')
 if (depthsUi.includes("root.querySelector('#capInput')?.addEventListener('change'")) throw new Error('Depths floor cap is still user-editable')
 
@@ -92,7 +92,7 @@ for (const publicFile of [loaderHtml, liveHtml, depthsUi, feedbackUi, themeContr
 }
 
 const simulationSource = fs.readFileSync('src/engine/simulation.ts', 'utf8')
-if (!simulationSource.includes('options.floorCap ?? 300_000')) throw new Error('Depths engine default floor cap is not 300,000')
+if (!simulationSource.includes('options.floorCap ?? 1_000_000')) throw new Error('Depths engine default floor cap is not 1,000,000')
 for (const removedHook of ['data-library-mode="bans"', 'data-library-mode="pool"', 'id="seedInput"', 'src/main.tsx']) {
   if (html.includes(removedHook)) throw new Error(`Removed/dead UI hook returned: ${removedHook}`)
 }
@@ -100,7 +100,7 @@ for (const removedHook of ['data-library-mode="bans"', 'data-library-mode="pool"
 const workerSource = fs.readFileSync('src/browser-worker.ts', 'utf8')
 if (!workerSource.includes('chronoShard?: boolean')) throw new Error('Browser worker Chrono Shard request field is missing')
 if (!workerSource.includes('startFloor?: number')) throw new Error('Browser worker Start Floor request field is missing')
-if (!workerSource.includes('Math.min(300_000, Math.max(1')) throw new Error('Browser worker Start Floor must clamp to 1-300,000')
+if (!workerSource.includes('Math.min(1_000_000, Math.max(1')) throw new Error('Browser worker Start Floor must clamp to 1-1,000,000')
 if (!workerSource.includes('request.chronoShard !== false')) throw new Error('Browser worker does not apply the Chrono Shard timing toggle')
 for (const removedField of ['excludedCardNames', 'selectedCardNames']) {
   if (workerSource.includes(removedField)) throw new Error(`Removed calculator-only field returned: ${removedField}`)

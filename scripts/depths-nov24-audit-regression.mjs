@@ -49,3 +49,15 @@ for(const prefix of ['', 'test/']){
  assert(Math.abs(d.loot.find(x=>x.name==='Gold Structure Coin').expected-189.224586)<1e-4);
  console.log(prefix||'main','audit checks passed');
 }
+
+// Witch's Curse replaces stolen abilities with the noncombat Lucky sentinel.
+for(const prefix of ['', 'test/']) for(const [name, checker] of [['depths','Ca'],['tower','za']]){
+ const source=readFileSync(prefix+'browser/'+name+'-worker.js','utf8');
+ const self={navigator:{hardwareConcurrency:2},location:{href:'mock'},postMessage(){}};
+ new Function('self','performance',source.replace(/\}\)\(\);\s*$/, 'self.__checkLucky='+checker+';})();'))(self,performance);
+ const state={unsupportedAbilities:new Set()};
+ self.__checkLucky(state,{abilityOverride:'Lucky',definition:{name:'Triceratops'}});
+ assert.equal(state.unsupportedAbilities.size,0,'Witch’s Curse sentinel is a known no-op');
+ self.__checkLucky(state,{abilityOverride:'Unknown audit fixture',definition:{name:'Triceratops'}});
+ assert(state.unsupportedAbilities.has('Unknown audit fixture'),'Real unsupported abilities must remain visible');
+}

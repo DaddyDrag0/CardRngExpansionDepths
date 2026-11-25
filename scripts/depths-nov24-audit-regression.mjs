@@ -25,6 +25,13 @@ for(const prefix of ['', 'test/']){
  const settings={baseBattleSpeed:3,skillTreeBattleSpeedLevel:6,chronoShardLevel:4,battleSpeedStructureLevel:7};
  const t=x=>a.__depthsRealPlaybackTime(300000,1,{...settings,floorOverheadSeconds:x},4);
  assert(Math.abs(t(2.76)-t(.36)-2.4)<1e-6);
+ // Real Triceratops run: 20,500 floors in 5h, 3x gamepass, max structure, first skill-tree node.
+ // Chrono tier and exact per-floor event counts are unknown. This is a speed sanity bound, not an exact fit.
+ const ui=readFileSync(prefix+'src/depths-ui.js','utf8');
+ assert(ui.includes('floorOverheadSeconds:.36'),'Default overhead must not penalize speedrun decks');
+ let speedrunSeconds=0;
+ for(let floor=1;floor<=20500;floor++)speedrunSeconds+=a.__depthsRealPlaybackTime(floor,1,{...settings,skillTreeBattleSpeedLevel:1,floorOverheadSeconds:.36},4);
+ assert(speedrunSeconds>=18000*.8&&speedrunSeconds<=18000*1.25,'Triceratops timing sanity bound');
  const window={};
  new Function('window',readFileSync(prefix+'src/depths-drops.js','utf8'))(window);
  const d=window.CRXDepthsDrops.compute({runs:[{deathFloor:54196}],hardMode:true,totalSimulatedSeconds:172800,bountifulDepths:true,bountifulDepthsLevel:4,startFloor:1},{hardMode:false,startFloor:500,bountifulDepths:false});

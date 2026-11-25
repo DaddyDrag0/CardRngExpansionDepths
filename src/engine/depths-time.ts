@@ -17,7 +17,7 @@
  * were omitted from the too-optimistic attack-only estimate. This allowance
  * is a provisional calibration; the client does not expose the server-side
  * `battlecd` duration. It can be adjusted against real-world run times.
- * Ability-specific animation delays and server/network stalls are not separately modeled. UI defaults to a provisional longer-run overhead of 2.76s; the 0.36s source-calibration constant below is retained for short playback tests. Neither value is a proven server cooldown.
+ * Ability-specific animation delays and server/network stalls are not separately modeled. UI retains the 0.36s short-playback calibration; a 20,500-floor Triceratops run in five hours rules out a universal 2.76s overhead. Per-deck timing can be adjusted against real observations. The exact server cooldown remains unknown.
  */
 export const DEPTHS_BASE_BATTLE_SPEED = 3
 export const CHRONO_SHARD_BONUS = 1

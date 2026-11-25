@@ -49,7 +49,7 @@ const slow=await test(102,{baseBattleSpeed:1});
 const delay=await test(103,{floorOverheadSeconds:1.8});
 assert.ok(basic.playbackSeconds>0&&Number.isFinite(basic.playbackSeconds));
 assert.equal(basic.totalTurns,blessing.totalTurns,"Playback settings must not change win/turn results");
-assert.ok(blessing.playbackSeconds<basic.playbackSeconds,"2x blessing should reduce actual playback estimate");
+assert.equal(blessing.playbackSeconds,basic.playbackSeconds,"Legacy 2x blessing must not affect sustained playback estimate");
 assert.ok(slow.playbackSeconds>basic.playbackSeconds,"Lower base speed should increase playback estimate");
 assert.ok(Math.abs(delay.playbackSeconds-basic.playbackSeconds-basic.battles)<1e-6,"One second of delay per battle mismatch");
 const inspectSource=source.replace(/\}\)\(\);\s*$/, 'self.__testRefine=__depthsRefineBatchTime;self.__testCorrectRewards=__depthsCorrectRewards;self.__testDepthsTeam=qe;self.__testDepthsEligible=ns;})();');

@@ -17,7 +17,7 @@
  * were omitted from the too-optimistic attack-only estimate. This allowance
  * is a provisional calibration; the client does not expose the server-side
  * `battlecd` duration. It can be adjusted against real-world run times.
- * Ability-specific animation delays are not separately modeled.
+ * Ability-specific animation delays and server/network stalls are not separately modeled. UI retains the 0.36s short-playback calibration; a 20,500-floor Triceratops run in five hours rules out a universal 2.76s overhead. Per-deck timing can be adjusted against real observations. The exact server cooldown remains unknown.
  */
 export const DEPTHS_BASE_BATTLE_SPEED = 3
 export const CHRONO_SHARD_BONUS = 1
@@ -55,7 +55,7 @@ export const DEPTHS_DEATH_SECONDS = 1.52
 export const DEPTHS_DEFAULT_DEATHS_PER_FLOOR = 4
 export function normalizeDepthsFloorOverhead(seconds = DEFAULT_DEPTHS_FLOOR_OVERHEAD_SECONDS): number {
   const value = Number(seconds)
-  return Number.isFinite(value) ? Math.max(0, Math.min(3, value)) : DEFAULT_DEPTHS_FLOOR_OVERHEAD_SECONDS
+  return Number.isFinite(value) ? Math.max(0, Math.min(10, value)) : DEFAULT_DEPTHS_FLOOR_OVERHEAD_SECONDS
 }
 
 export function depthsFloorSpeedBonus(floor: number): number {
@@ -83,16 +83,16 @@ export function effectiveDepthsBattleSpeed(
   skillTreeLevel = 0,
   chronoShardLevel = 0,
   baseBattleSpeed = DEPTHS_BASE_BATTLE_SPEED,
-  blessingMultiplier = 1,
+  // Retained for legacy positional callers; temporary blessings never affect sustained timing.
+  _legacyBlessingMultiplier = 1,
 ): number {
   const selectedSpeed = Number(baseBattleSpeed)
   const base = [1, 1.5, 2, 3].includes(selectedSpeed) ? selectedSpeed : DEPTHS_BASE_BATTLE_SPEED
-  const blessing = [1.5, 2].includes(Number(blessingMultiplier)) ? Number(blessingMultiplier) : 1
   return (base
     + (chronoShard ? chronoShardRelicBonus(chronoShardLevel) : 0)
     + battleSpeedStructureBonus(structureLevel)
     + battleSpeedSkillTreeBonus(skillTreeLevel)
-    + depthsFloorSpeedBonus(floor)) * blessing
+    + depthsFloorSpeedBonus(floor))
 }
 
 /** Speed the battle animations play at: the full stacked Battle Speed (no cap; see the fit above). */

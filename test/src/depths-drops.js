@@ -10,11 +10,11 @@ const perHour=(v,t)=>t>0?v*3600/t:0;
 const percent=v=>`${(v*100).toFixed(v<.001?3:2)}%`;
 function compute(result,state){
 const hard=!!(result.hardMode??state.hardMode);
-const bonus=state.bountifulDepths?bountiful[Math.min(4,Math.max(0,Number(state.bountifulDepthsLevel)||0))]:0;
-const startFloor=Math.max(1,Math.floor(Number(state.startFloor)||1));
+const bonus=(result.bountifulDepths??state.bountifulDepths)?bountiful[Math.min(4,Math.max(0,Number(result.bountifulDepthsLevel??state.bountifulDepthsLevel)||0))]:0;
+const startFloor=Math.max(1,Math.floor(Number(result.startFloor??state.startFloor)||1));
 const key=`${hard}:${bonus}:${startFloor}`;
 const existing=cache.get(result);if(existing?.key===key)return existing.data;
-const floors=(result.runs||[]).map(run=>Math.min(300000,Math.max(startFloor-1,Math.floor(Number(run.deathFloor)||1)-1)));
+const floors=(result.runs||[]).map(run=>Math.min(1000000,Math.max(startFloor-1,Math.floor(Number(run.deathFloor)||1)-1)));
 const maxFloor=Math.max(0,...floors);
 const runs=Math.max(1,floors.length);
 const sorted=[...floors].sort((a,b)=>a-b);
@@ -72,7 +72,7 @@ return `<details class="crx-drop-details"><summary><span>Expected drops</span><s
 ${keySummary}
 <div class="crx-drop-cols"><div class="crx-drop-column">${section("Potions & special drops","Every cleared floor",orderedLoot)}</div><div class="crx-drop-column">${section("Materials","Every 100 floors",d.materials)}</div></div>
 ${d.hard?`<div class="crx-drop-gem-block">${section("Gems","Hard Depths · milestone rewards",d.gems)}</div>`:""}
-<p class="crx-drop-note">Averages from ${d.floors.length} simulated runs and mean estimated run duration. Defeat and skipped floors earn no drops. Actual drops may vary.</p>
+<p class="crx-drop-note">Averages from ${d.floors.length} simulated runs and mean estimated run duration. Only cleared floors count. Sampled intervals estimate intervening clears; cutoff results describe the simulated segment, not a completed run. Hour/day figures depend on wall-time calibration. Legendary gem Bountiful bonus is provisional.</p>
 </div></details>`;
 }
 window.CRXDepthsDrops={render,compute};

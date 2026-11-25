@@ -23,7 +23,6 @@ interface BatchRequest {
   skillTreeBattleSpeedLevel?: number
   floorOverheadSeconds?: number
   baseBattleSpeed?: number
-  blessingMultiplier?: number
   attackAnimationScale?: number
   chronoShard?: boolean
   hardMode?: boolean
@@ -43,7 +42,7 @@ interface SingleRunRequest {
   hardMode?: boolean
   floorStride?: number
   lazyDebug?: boolean
-  timingSettings?: { chronoShard?: boolean; chronoShardLevel?: number; battleSpeedStructureLevel?: number; skillTreeBattleSpeedLevel?: number; floorOverheadSeconds?: number; baseBattleSpeed?: number; blessingMultiplier?: number; attackAnimationScale?: number }
+  timingSettings?: { chronoShard?: boolean; chronoShardLevel?: number; battleSpeedStructureLevel?: number; skillTreeBattleSpeedLevel?: number; floorOverheadSeconds?: number; baseBattleSpeed?: number; attackAnimationScale?: number }
 }
 
 type SimulationRequest = BatchRequest | SingleRunRequest
@@ -52,7 +51,7 @@ const STALL_WATCHDOG_MS = 20_000
 const LIVE_BATTLE_TURN_CAP = 10_000
 
 function normalizeStartFloor(value: number | undefined): number {
-  return Math.min(300_000, Math.max(1, Math.floor(Number(value) || 1)))
+  return Math.min(1_000_000, Math.max(1, Math.floor(Number(value) || 1)))
 }
 
 function runSeed(batchSeed: number, runIndex: number): number {
@@ -320,7 +319,6 @@ async function simulateParallel(request: BatchRequest): Promise<DepthsRunResult[
           skillTreeBattleSpeedLevel: request.skillTreeBattleSpeedLevel,
           floorOverheadSeconds: request.floorOverheadSeconds,
           baseBattleSpeed: request.baseBattleSpeed,
-          blessingMultiplier: request.blessingMultiplier,
           attackAnimationScale: request.attackAnimationScale,
         },
       } satisfies SingleRunRequest)
@@ -358,7 +356,7 @@ self.onmessage = async (event: MessageEvent<SimulationRequest>) => {
     }
     const results = await simulateParallel(request)
     self.postMessage({ id: request.id, ok: true, elapsedMs: performance.now() - started, result: summarize(results, request.bountifulDepths, request.battleSpeedStructureLevel, request.skillTreeBattleSpeedLevel, request.chronoShard !== false, request.hardMode === true, request.chronoShardLevel, request.bountifulDepthsLevel, request.floorOverheadSeconds ?? 0.8,
-      request.baseBattleSpeed ?? 3, request.blessingMultiplier ?? 1, request.attackAnimationScale ?? 1, normalizeStartFloor(request.startFloor)) })
+      request.baseBattleSpeed ?? 3, 1, request.attackAnimationScale ?? 1, normalizeStartFloor(request.startFloor)) })
   } catch (error) {
     self.postMessage({
       id: request.id,

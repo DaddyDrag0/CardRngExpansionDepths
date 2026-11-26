@@ -1816,7 +1816,8 @@ function onEntryCore(runtime: Runtime, card: CombatCard) {
       const targets = [...runtime.state.teams[enemyTeam]]
       for (const target of targets) {
         if (!alive(target)) continue
-        dealDamage(runtime, card, target, 0.25)
+        // Sacred Judgment is a deck-wide entry ability, not an interceptable single-target attack.
+        dealDamage(runtime, card, target, 0.25, false, true)
         resolveDeaths(runtime)
       }
       break
@@ -2685,11 +2686,11 @@ function resolveAuraFarm(runtime: Runtime, target: CombatCard, incoming: number)
   return { target: piccolo, damage: 0 }
 }
 
-function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: CombatCard, mult = 1, bypass = false): number {
-  return withAbilityTriggerLimit(runtime, attacker, `Attack vs ${effectiveCardName(originalTarget) || originalTarget.definition.name} [${resolvedAbility(runtime, originalTarget) || 'None'}]`, () => dealDamageCore(runtime, attacker, originalTarget, mult, bypass))
+function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: CombatCard, mult = 1, bypass = false, skipAuraFarm = false): number {
+  return withAbilityTriggerLimit(runtime, attacker, `Attack vs ${effectiveCardName(originalTarget) || originalTarget.definition.name} [${resolvedAbility(runtime, originalTarget) || 'None'}]`, () => dealDamageCore(runtime, attacker, originalTarget, mult, bypass, skipAuraFarm))
 }
 
-function dealDamageCore(runtime: Runtime, attacker: CombatCard, originalTarget: CombatCard, mult = 1, bypass = false): number {
+function dealDamageCore(runtime: Runtime, attacker: CombatCard, originalTarget: CombatCard, mult = 1, bypass = false, skipAuraFarm = false): number {
   attacker.flags.armageddonLethalThisHit = false
   let target = originalTarget
   const confused = attacker.status.confused > 0 || attacker.flags.eternalConfusion
@@ -2824,7 +2825,7 @@ function dealDamageCore(runtime: Runtime, attacker: CombatCard, originalTarget: 
     pushAbilityDebug(runtime, xuanwu, 'Water Shield of Xuanwu redirected ' + compactDebugNumber(redirected) + ' damage away from ' + (effectiveCardName(target) || target.definition.name) + '.')
   }
 
-  const farm = resolveAuraFarm(runtime, target, damage)
+  const farm = skipAuraFarm ? { target, damage } : resolveAuraFarm(runtime, target, damage)
   target = farm.target
   damage = farm.damage
   const targetDeck = runtime.state.teams[target.team]

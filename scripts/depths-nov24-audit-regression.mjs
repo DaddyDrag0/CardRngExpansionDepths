@@ -109,3 +109,20 @@ for(const prefix of ['', 'test/']) for(const [name, checker] of [['depths','Ca']
    assert(nov.every(c=>c.hp>0&&c.counters.interns>=1));
   }
  }
+
+ // The Fall reflects actual HP loss, not overkill. Keep nonlethal reflection intact.
+ for(const prefix of ['', 'test/']) for(const [name,fightFn,cardFn] of [['depths','Ee','Be'],['tower','me','Xe']]){
+  const source=readFileSync(prefix+'browser/'+name+'-worker.js','utf8');
+  const self={navigator:{hardwareConcurrency:2},location:{href:'mock'},postMessage(){}};
+  new Function('self','performance',source.replace(/\}\)\(\);\s*$/, 'self.__fall={fight:'+fightFn+',card:'+cardFn+'};})();'))(self,performance);
+  const {fight,card}=self.__fall;
+  const loadout={cards:[{cardName:name==='depths'?'Primeval Devourer':'Lucifer',borders:['Galaxy','Ruby','Crystal','Emerald','Platinum']}]};
+  for(const debug of [true,false]){
+   const r=fight(loadout,[{card:card('Lucifer'),power:60e6,health:60e6,attack:30e6}],1,1,true,debug);
+   const c=r.state.teams.Allies[0];
+   assert(c&&Math.abs(c.maxHp-c.hp-60e6)<1e-3,'Reflection cannot exceed the defender’s actual HP loss');
+  }
+  const nonlethal=fight({cards:[{cardName:'Trainee',borders:[]}]},[{card:card('Lucifer'),power:1e6,health:1e6,attack:1}],1,1,true,true);
+  const c=nonlethal.state.teams.Allies[0];
+  assert(c&&Math.abs(c.maxHp-c.hp-c.damage)<=1,'Nonlethal reflection unchanged');
+ }

@@ -2686,11 +2686,11 @@ function resolveAuraFarm(runtime: Runtime, target: CombatCard, incoming: number)
   return { target: piccolo, damage: 0 }
 }
 
-function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: CombatCard, mult = 1, bypass = false, skipAuraFarm = false): number {
-  return withAbilityTriggerLimit(runtime, attacker, `Attack vs ${effectiveCardName(originalTarget) || originalTarget.definition.name} [${resolvedAbility(runtime, originalTarget) || 'None'}]`, () => dealDamageCore(runtime, attacker, originalTarget, mult, bypass, skipAuraFarm))
+function dealDamage(runtime: Runtime, attacker: CombatCard, originalTarget: CombatCard, mult = 1, bypass = false, sacredJudgmentHit = false): number {
+  return withAbilityTriggerLimit(runtime, attacker, `Attack vs ${effectiveCardName(originalTarget) || originalTarget.definition.name} [${resolvedAbility(runtime, originalTarget) || 'None'}]`, () => dealDamageCore(runtime, attacker, originalTarget, mult, bypass, sacredJudgmentHit))
 }
 
-function dealDamageCore(runtime: Runtime, attacker: CombatCard, originalTarget: CombatCard, mult = 1, bypass = false, skipAuraFarm = false): number {
+function dealDamageCore(runtime: Runtime, attacker: CombatCard, originalTarget: CombatCard, mult = 1, bypass = false, sacredJudgmentHit = false): number {
   attacker.flags.armageddonLethalThisHit = false
   let target = originalTarget
   const confused = attacker.status.confused > 0 || attacker.flags.eternalConfusion
@@ -2760,12 +2760,12 @@ function dealDamageCore(runtime: Runtime, attacker: CombatCard, originalTarget: 
     target.status.shield = 0
     target.counters.hpShield = 0
   }
-  if (!bypass && externalProtectionAllowed && target.flags.eternalDevotion) {
+  if (!sacredJudgmentHit && !bypass && externalProtectionAllowed && target.flags.eternalDevotion) {
     target.flags.eternalDevotion = false
     damage = 0
     pushAbilityDebug(runtime, target, `Eternal Devotion blocked the incoming attack from ${effectiveCardName(attacker) || attacker.definition.name}.`)
   }
-  else if (!bypass && externalProtectionAllowed && target.flags.dodgeLethal) {
+  else if (!sacredJudgmentHit && !bypass && externalProtectionAllowed && target.flags.dodgeLethal) {
     target.flags.dodgeLethal = false
     damage = 0
     pushAbilityDebug(runtime, target, `Destiny Sight dodged the incoming lethal attack from ${effectiveCardName(attacker) || attacker.definition.name}.`)
@@ -2825,7 +2825,7 @@ function dealDamageCore(runtime: Runtime, attacker: CombatCard, originalTarget: 
     pushAbilityDebug(runtime, xuanwu, 'Water Shield of Xuanwu redirected ' + compactDebugNumber(redirected) + ' damage away from ' + (effectiveCardName(target) || target.definition.name) + '.')
   }
 
-  const farm = skipAuraFarm ? { target, damage } : resolveAuraFarm(runtime, target, damage)
+  const farm = sacredJudgmentHit ? { target, damage } : resolveAuraFarm(runtime, target, damage)
   target = farm.target
   damage = farm.damage
   const targetDeck = runtime.state.teams[target.team]

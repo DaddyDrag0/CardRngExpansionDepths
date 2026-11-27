@@ -61,3 +61,22 @@ for(const prefix of ['', 'test/']) for(const [name, checker] of [['depths','Ca']
  self.__checkLucky(state,{abilityOverride:'Unknown audit fixture',definition:{name:'Triceratops'}});
  assert(state.unsupportedAbilities.has('Unknown audit fixture'),'Real unsupported abilities must remain visible');
 }
+
+ // Nov 26 live report: Sacred Judgment cannot trigger a bench Piccolo interception
+ // after an earlier AoE target dies and the next target moves to the front.
+ for(const prefix of ['', 'test/']) for(const [name,fightFn,cardFn] of [['depths','Ee','Be'],['tower','me','Xe']]){
+  const source=readFileSync(prefix+'browser/'+name+'-worker.js','utf8');
+  const self={navigator:{hardwareConcurrency:2},location:{href:'mock'},postMessage(){}};
+  new Function('self','performance',source.replace(/\}\)\(\);\s*$/, 'self.__seraphim={fight:'+fightFn+',card:'+cardFn+'};})();'))(self,performance);
+  const {fight,card}=self.__seraphim;
+  const opponents=names=>names.map(n=>({card:card(n),power:200,attack:100,health:200}));
+  const loadout=n=>({cards:[{cardName:n,borders:['Galaxy','Ruby','Crystal','Emerald','Platinum']}]});
+  const aoeNames=['Steven','Pandora','Piccolo','The Awakened One'];
+  const replay=fight(loadout('Seraphim'),opponents(aoeNames),1,1,true,true);
+  assert(!replay.debug.events.some(e=>e.detail?.includes('Aura Farm protected')),'Sacred Judgment cannot be intercepted');
+  assert.deepEqual(replay.state.fallen.Enemies.map(c=>c.definition.name),aoeNames);
+  const fast=fight(loadout('Seraphim'),opponents(aoeNames),1,1,true,false);
+  assert.equal(fast.state.teams.Enemies.length,0,'Non-debug simulation must agree with replay');
+  const normal=fight(loadout('Trainee'),opponents(['Trainee','Piccolo']),1,1,true,true);
+  assert(normal.debug.events.some(e=>e.detail?.includes('Aura Farm protected')),'Normal lethal attacks still activate Aura Farm');
+ }

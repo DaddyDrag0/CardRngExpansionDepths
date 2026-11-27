@@ -80,3 +80,32 @@ for(const prefix of ['', 'test/']) for(const [name, checker] of [['depths','Ca']
   const normal=fight(loadout('Trainee'),opponents(['Trainee','Piccolo']),1,1,true,true);
   assert(normal.debug.events.some(e=>e.detail?.includes('Aura Farm protected')),'Normal lethal attacks still activate Aura Farm');
  }
+
+ // Nov 27 live report: Sacred Judgment bypasses Hathor and True Prophet,
+ // but Noveau Riche retains its extra lives in every slot and combination.
+ for(const prefix of ['', 'test/']) for(const [name,fightFn,cardFn] of [['depths','Ee','Be'],['tower','me','Xe']]){
+  const source=readFileSync(prefix+'browser/'+name+'-worker.js','utf8');
+  const self={navigator:{hardwareConcurrency:2},location:{href:'mock'},postMessage(){}};
+  new Function('self','performance',source.replace(/\}\)\(\);\s*$/, 'self.__seraphim={fight:'+fightFn+',card:'+cardFn+'};})();'))(self,performance);
+  const {fight,card}=self.__seraphim;
+  const opponents=names=>names.map(n=>({card:card(n),power:200,attack:100,health:200}));
+  const loadout=n=>({cards:[{cardName:n,borders:['Galaxy','Ruby','Crystal','Emerald','Platinum']}]});
+  for(const n of ['Hathor','True Prophet']) for(let slot=0;slot<3;slot++){
+   const names=Array(4).fill('Trainee');names[slot]=n;
+   for(const debug of [true,false]){
+    const r=fight(loadout('Seraphim'),opponents(names),1,1,true,debug);
+    assert.equal(r.state.teams.Enemies.length,0);
+    assert.equal(r.state.fallen.Enemies.length,4);
+    if(debug) assert(!r.debug.events.some(e=>e.detail?.includes('blocked the incoming attack')||e.detail?.includes('dodged the incoming lethal attack')));
+   }
+   const normal=fight(loadout('Trainee'),opponents([n,'Trainee']),1,8,true,true);
+   assert(normal.debug.events.some(e=>e.detail?.includes(n==='Hathor'?'Eternal Devotion blocked the incoming attack':'Destiny Sight dodged the incoming lethal attack')));
+  }
+  for(let mask=1;mask<16;mask++){
+   const names=Array.from({length:4},(_,i)=>mask>>i&1?'Noveau Riche':'Trainee');
+   const r=fight(loadout('Seraphim'),opponents(names),1,1,true,true);
+   const nov=r.state.teams.Enemies.filter(c=>c.definition.name==='Noveau Riche');
+   assert.equal(nov.length,names.filter(n=>n==='Noveau Riche').length);
+   assert(nov.every(c=>c.hp>0&&c.counters.interns>=1));
+  }
+ }

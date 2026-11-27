@@ -2312,10 +2312,10 @@ function tryRevive(runtime: Runtime, attacker: CombatCard, target: CombatCard): 
   return false
 }
 
-function targetRetroCore(runtime: Runtime, attacker: CombatCard, target: CombatCard, damage: number) {
+function targetRetroCore(runtime: Runtime, attacker: CombatCard, target: CombatCard, damage: number, actualHpDamage = damage) {
   if (activeBonusAbilities(target).length) {
     for (const gained of activeBonusAbilities(target)) {
-      withAbility(target, gained, () => targetRetro(runtime, attacker, target, damage))
+      withAbility(target, gained, () => targetRetro(runtime, attacker, target, damage, actualHpDamage))
     }
     return
   }
@@ -2354,7 +2354,9 @@ function targetRetroCore(runtime: Runtime, attacker: CombatCard, target: CombatC
       break
     case 'Fury of the White Tiger': target.damage = Math.max(0, target.damage - damage); break
     case 'The Fall': {
-      const reflected = attacker.definition.name === 'Marrowclaw' ? Math.min(Math.max(0, attacker.hp - 1), damage) : Math.min(attacker.hp, damage)
+      // The Fall reflects actual HP lost, not damage beyond Lucifer's remaining HP.
+      const fallDamage = Math.max(0, actualHpDamage)
+      const reflected = attacker.definition.name === 'Marrowclaw' ? Math.min(Math.max(0, attacker.hp - 1), fallDamage) : Math.min(attacker.hp, fallDamage)
       attacker.hp -= reflected
       if (attacker.hp <= 0) runtime.fallKillTurn = runtime.state.turn
       break
@@ -2430,10 +2432,10 @@ function targetRetroCore(runtime: Runtime, attacker: CombatCard, target: CombatC
   }
 }
 
-function targetRetro(runtime: Runtime, attacker: CombatCard, target: CombatCard, damage: number) {
+function targetRetro(runtime: Runtime, attacker: CombatCard, target: CombatCard, damage: number, actualHpDamage = damage) {
   const name = resolvedAbility(runtime, target)
-  if (activeBonusAbilities(target).length) return targetRetroCore(runtime, attacker, target, damage)
-  return runAbilityTrace(runtime, target, name, () => targetRetroCore(runtime, attacker, target, damage))
+  if (activeBonusAbilities(target).length) return targetRetroCore(runtime, attacker, target, damage, actualHpDamage)
+  return runAbilityTrace(runtime, target, name, () => targetRetroCore(runtime, attacker, target, damage, actualHpDamage))
 }
 
 function vampireMatronCanHeal(card: CombatCard): boolean {
@@ -2903,7 +2905,7 @@ function dealDamageCore(runtime: Runtime, attacker: CombatCard, originalTarget: 
   const phantom = runtime.state.boosts[attacker.team].phantom
   if (!statusProtected(runtime, target.team) && phantom && damage > 0 && runtime.rng.next() * 100 < phantom) target.status.stunned = Math.max(1, target.status.stunned)
 
-  nov22HealGuard(runtime, () => targetRetro(runtime, attacker, target, damage))
+  nov22HealGuard(runtime, () => targetRetro(runtime, attacker, target, damage, hpTarget === target ? appliedHpDamage : 0))
   // DummyLab b10/b12/b14 (Jamiy, 29 fights): Shiny Steal lands after the hit and after the target's own on-hit heals
   // (Undead, Restoration), even when the hit was blocked (Inari). It drains 10% of the target's max HP from its
   // current HP and from its max HP, plus 10% ATK; Jamiy gains both, max HP included (Jamiy vs Shu 8/8 needs the max-HP loss).
